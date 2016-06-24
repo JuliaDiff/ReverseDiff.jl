@@ -119,14 +119,24 @@ end
 # API #
 #######
 
+seed!(n::TapeReal) = (n.adj = (one(n.adj)); return n)
+seed!(node::TapeNode) = (seed!(node.outputs); return node)
+seed!(tape::Vector{TapeNode}) = (seed!(last(tape)); return tape)
+
+function backprop!(tape::Vector{TapeNode})
+    while !(isempty(tape))
+        backprop!(pop!(tape))
+    end
+    return nothing
+end
+
 function gradient!(out, f, x, tapevec = Vector{TapeReal{eltype(x)}}(length(x)))
     for i in eachindex(x)
         tapevec[i] = TapeReal(x[i])
     end
     f(tapevec)
-    while !(isempty(TAPE))
-        backprop!(pop!(TAPE))
-    end
+    seed!(TAPE)
+    backprop!(TAPE)
     for i in eachindex(out)
         out[i] = adjoint(tapevec[i])
     end
