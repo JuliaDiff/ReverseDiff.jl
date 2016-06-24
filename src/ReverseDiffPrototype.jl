@@ -15,14 +15,14 @@ type TapeReal{T<:Real} <: Real
     adj::T
 end
 
-TapeReal(val::Real) = TapeReal(val, zeros(val))
+TapeReal(val::Real) = TapeReal(val, zero(val))
 
 type TapeArray{T,N,A} <: AbstractArray{T,N}
     val::A
     adj::A
 end
 
-TapeArray(val) = TapeArray(val, ozeros(val))
+TapeArray(val) = TapeArray(val, zeros(val))
 
 typealias TapeValue Union{TapeReal, TapeArray}
 
