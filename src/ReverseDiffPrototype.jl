@@ -15,22 +15,17 @@ type TapeReal{T<:Real} <: Real
     adj::T
 end
 
-TapeReal(val::Real) = TapeReal(val, zero(val))
+TapeReal{T}(val::T) = TapeReal{T}(val, zero(T))
 
-type TapeArray{T,N,A} <: AbstractArray{T,N}
-    val::A
-    adj::A
-end
+@inline value(n::TapeReal) = n.val
+@inline adjoint(n::TapeReal) = n.adj
 
-TapeArray(val) = TapeArray(val, zeros(val))
+Base.convert{T<:Real}(::Type{TapeReal{T}}, n::Real) = TapeReal(T(n))
+Base.convert{T<:Real}(::Type{TapeReal{T}}, n::TapeReal) = TapeReal{T}(value(n), adjoint(n))
+Base.convert{T<:Real}(::Type{TapeReal{T}}, n::TapeReal{T}) = n
 
-typealias TapeValue Union{TapeReal, TapeArray}
-
-@inline tapeval(val::Real) = TapeReal(val)
-@inline tapeval(val) = TapeArray(val)
-
-@inline value(n::TapeValue) = n.val
-@inline adjoint(n::TapeValue) = n.adj
+Base.promote_rule{A<:Real,B<:Real}(::Type{A}, ::Type{TapeReal{B}}) = TapeReal{promote_type(A,B)}
+Base.promote_rule{A<:Real,B<:Real}(::Type{TapeReal{A}}, ::Type{TapeReal{B}}) = TapeReal{promote_type(A,B)}
 
 # tape storage #
 #--------------#
@@ -49,9 +44,9 @@ function record!{op}(::Type{Val{op}}, inputs, outputs)
     return outputs
 end
 
-########################
-# Function Overloading #
-########################
+####################
+# Math Overloading #
+####################
 # Strategy for supporting a function `f`
 #   1. overload `f` to store itself, it's inputs, and outputs to the TAPE, or add it to the
 #      no-op list if it's a `backprop!` no-op
@@ -60,7 +55,7 @@ end
 # unary number functions
 for (op, _) in Calculus.symbolic_derivatives_1arg()
     @eval begin
-        @inline Base.$(op)(n::TapeValue) = record!(Val{$(op)}, n, tapeval($(op)(value(n))))
+        @inline Base.$(op)(n::TapeReal) = record!(Val{$(op)}, n, TapeReal($(op)(value(n))))
     end
 end
 
@@ -73,7 +68,7 @@ end
 for op in (:(Base.:*), :(Base.:/), :(Base.:+), :(Base.:-))
     @eval begin
         @inline function $(op)(a::TapeReal, b::TapeReal)
-            out = tapeval($(op)(value(a), value(b)))
+            out = TapeReal($(op)(value(a), value(b)))
             return record!(Val{$(op)}, tuple(a, b), out)
         end
     end
@@ -111,7 +106,7 @@ end
 # no-ops w.r.t. back-propagation
 for op in (:(Base.:<), :(Base.:>), :(Base.:(==)), :(Base.:(<=)), :(Base.:(>=)))
     @eval begin
-        @inline $(op)(a::TapeReal, b::TapeReal) = tapeval($(op)(value(a), value(b)))
+        @inline $(op)(a::TapeReal, b::TapeReal) = TapeReal($(op)(value(a), value(b)))
     end
 end
 
