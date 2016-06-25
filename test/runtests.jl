@@ -45,3 +45,17 @@ x = rand(100)
 out = similar(x)
 
 @test_approx_eq g4!(out, x) ForwardDiff.gradient(rosenbrock, x)
+
+# map of univariates
+x = randn(49)
+out = zeros(x)
+function testf5(x)
+    k = length(x)
+    N = Int(sqrt(k))
+    A = reshape(x, N, N)
+    foo(x) = sqrt(abs(x) + x^2)
+    return sum(map(foo, A))
+end
+
+g5! = ReverseDiffPrototype.gradient(testf5, x)
+@test_approx_eq g5!(out, x) ForwardDiff.gradient(testf5, x)
