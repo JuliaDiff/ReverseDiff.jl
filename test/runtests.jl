@@ -4,15 +4,17 @@ using ForwardDiff
 
 x = rand(5)
 out = zeros(x)
-testf(x) = (exp(x[1]) + log(x[3]) * x[4]) / x[5]
+testf1(x) = (exp(x[1]) + log(x[3]) * x[4]) / x[5]
+g1! = ReverseDiffPrototype.gradient(testf1, x)
 
-@test_approx_eq ReverseDiffPrototype.gradient!(out, testf, x) ForwardDiff.gradient(testf, x)
+@test_approx_eq g1!(out, x) ForwardDiff.gradient(testf1, x)
 
 x = rand(2)
 out = zeros(x)
 testf2(x) = x[1]*x[2] + sin(x[1])
+g2! = ReverseDiffPrototype.gradient(testf2, x)
 
-@test_approx_eq ReverseDiffPrototype.gradient!(out, testf2, x) ForwardDiff.gradient(testf2, x)
+@test_approx_eq g2!(out, x) ForwardDiff.gradient(testf2, x)
 
 const N = 10
 x = rand(2N^2 + N)
@@ -25,4 +27,21 @@ function testf3(x)
     return trace(log(A * B .+ c))
 end
 
-@test_approx_eq ReverseDiffPrototype.gradient!(out, testf3, x) ForwardDiff.gradient(testf3, x)
+g3! = ReverseDiffPrototype.gradient(testf3, x)
+
+@test_approx_eq g3!(out, x) ForwardDiff.gradient(testf3, x)
+
+function rosenbrock(x)
+    a = one(eltype(x))
+    b = 100 * a
+    result = zero(eltype(x))
+    for i in 1:length(x)-1
+        result += (a - x[i])^2 + b*(x[i+1] - x[i]^2)^2
+    end
+    return result
+end
+g4! = ReverseDiffPrototype.gradient(rosenbrock, Input{Float64,100})
+x = rand(100)
+out = similar(x)
+
+@test_approx_eq g4!(out, x) ForwardDiff.gradient(rosenbrock, x)

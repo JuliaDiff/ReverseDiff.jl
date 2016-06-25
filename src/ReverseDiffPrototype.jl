@@ -3,6 +3,11 @@ module ReverseDiffPrototype
 using ForwardDiff
 import Calculus
 
+abstract Input{T,N}
+abstract Tag{F,T,N}
+
+export Input
+
 ######################
 # Tape-related Types #
 ######################
@@ -10,22 +15,22 @@ import Calculus
 # value types #
 #-------------#
 
-type TapeReal{T<:Real} <: Real
+type TapeReal{tag,T<:Real} <: Real
     val::T
     adj::T
 end
 
-TapeReal{T}(val::T) = TapeReal{T}(val, zero(T))
+TapeReal{tag<:Tag,T}(::Type{tag}, val::T) = TapeReal{tag,T}(val)
 
 @inline value(n::TapeReal) = n.val
 @inline adjoint(n::TapeReal) = n.adj
 
-Base.convert{T<:Real}(::Type{TapeReal{T}}, n::Real) = TapeReal(T(n))
-Base.convert{T<:Real}(::Type{TapeReal{T}}, n::TapeReal) = TapeReal{T}(value(n), adjoint(n))
-Base.convert{T<:Real}(::Type{TapeReal{T}}, n::TapeReal{T}) = n
+Base.convert{tag,T<:Real}(::Type{TapeReal{tag,T}}, n::Real) = TapeReal{tag,T}(T(n), zero(T))
+Base.convert{tag,T<:Real}(::Type{TapeReal{tag,T}}, n::TapeReal) = TapeReal{tag,T}(value(n), adjoint(n))
+Base.convert{tag,T<:Real}(::Type{TapeReal{tag,T}}, n::TapeReal{tag,T}) = n
 
-Base.promote_rule{A<:Real,B<:Real}(::Type{A}, ::Type{TapeReal{B}}) = TapeReal{promote_type(A,B)}
-Base.promote_rule{A<:Real,B<:Real}(::Type{TapeReal{A}}, ::Type{TapeReal{B}}) = TapeReal{promote_type(A,B)}
+Base.promote_rule{tag,A<:Real,B<:Real}(::Type{A}, ::Type{TapeReal{tag,B}}) = TapeReal{tag,promote_type(A,B)}
+Base.promote_rule{tag,A<:Real,B<:Real}(::Type{TapeReal{tag,A}}, ::Type{TapeReal{tag,B}}) = TapeReal{tag,promote_type(A,B)}
 
 # tape storage #
 #--------------#
@@ -35,14 +40,9 @@ immutable TapeNode{op,I,O}
     outputs::O
 end
 
-TapeNode{op,I,O}(::Type{Val{op}}, inputs::I, output::O) = TapeNode{op,I,O}(inputs, output)
+TapeNode{op,I,O}(::Type{Val{op}}, inputs::I, outputs::O) = TapeNode{op,I,O}(inputs, outputs)
 
-const TAPE = Vector{TapeNode}()
-
-function record!{op}(::Type{Val{op}}, inputs, outputs)
-    push!(TAPE, TapeNode(Val{op}, inputs, outputs))
-    return outputs
-end
+record!{op}(::Type{Val{op}}, inputs, outputs) = error("no tape defined")
 
 ####################
 # Math Overloading #
@@ -55,7 +55,7 @@ end
 # unary number functions
 for (op, _) in Calculus.symbolic_derivatives_1arg()
     @eval begin
-        @inline Base.$(op)(n::TapeReal) = record!(Val{$(op)}, n, TapeReal($(op)(value(n))))
+        @inline Base.$(op){tag}(n::TapeReal{tag}) = record!(Val{$(op)}, n, TapeReal(tag, $(op)(value(n))))
     end
 end
 
@@ -67,8 +67,8 @@ end
 # binary functions
 for op in (:(Base.:*), :(Base.:/), :(Base.:+), :(Base.:-))
     @eval begin
-        @inline function $(op)(a::TapeReal, b::TapeReal)
-            out = TapeReal($(op)(value(a), value(b)))
+        @inline function $(op){tag}(a::TapeReal{tag}, b::TapeReal{tag})
+            out = TapeReal(tag, $(op)(value(a), value(b)))
             return record!(Val{$(op)}, tuple(a, b), out)
         end
     end
@@ -106,7 +106,7 @@ end
 # no-ops w.r.t. back-propagation
 for op in (:(Base.:<), :(Base.:>), :(Base.:(==)), :(Base.:(<=)), :(Base.:(>=)))
     @eval begin
-        @inline $(op)(a::TapeReal, b::TapeReal) = TapeReal($(op)(value(a), value(b)))
+        @inline $(op){tag}(a::TapeReal{tag}, b::TapeReal{tag}) = TapeReal(tag, $(op)(value(a), value(b)))
     end
 end
 
@@ -125,17 +125,28 @@ function backprop!(tape::Vector{TapeNode})
     return nothing
 end
 
-function gradient!(out, f, x, tapevec = Vector{TapeReal{eltype(x)}}(length(x)))
-    for i in eachindex(x)
-        tapevec[i] = TapeReal(x[i])
-    end
-    f(tapevec)
-    seed!(TAPE)
-    backprop!(TAPE)
-    for i in eachindex(out)
-        out[i] = adjoint(tapevec[i])
-    end
-    return out
+gradient(f, x) = gradient(f, Input{eltype(x),length(x)})
+
+function gradient{F,T,N}(f::F, ::Type{Input{T,N}})
+    tape = Vector{TapeNode}()
+    tapevec = Vector{TapeReal{Tag{F,T,N},T}}(N)
+    eval(quote
+        function ReverseDiffPrototype.record!{op}(::Type{Val{op}}, inputs, output::TapeReal{Tag{$F,$T,$N}})
+            push!($tape, TapeNode(Val{op}, inputs, output))
+            return output
+        end
+        (out, x) -> begin
+            tape = $tape
+            tapevec = $tapevec
+            copy!(tapevec, x)
+            $(f)(tapevec)
+            ReverseDiffPrototype.backprop!(ReverseDiffPrototype.seed!(tape))
+            for i in eachindex(out)
+                out[i] = adjoint(tapevec[i])
+            end
+            return out
+        end
+    end)
 end
 
 end # module
