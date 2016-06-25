@@ -43,6 +43,12 @@ end
 
 record!(f, inputs, outputs) = error("no tape defined")
 
+function incadjoint!{N, T<:TapeReal, S<:Real}(x::Array{T, N}, y::Array{S, N})
+    for i in eachindex(x)
+        x[i].adj += T(y[i])
+    end
+end
+
 ####################
 # Math Overloading #
 ####################
@@ -72,6 +78,27 @@ for f in (:(Base.:*), :(Base.:/), :(Base.:+), :(Base.:-))
         end
     end
 end
+
+function (Base.:-){tag}(a::TapeReal{tag})
+    out = TapeReal(tag, -value(a))
+    return record!((-), tuple(a,), out)
+end
+
+function backprop!{T<:TapeReal,S<:TapeReal}(node::TapeNode{typeof(Base.:-),Tuple{T},S})
+    adj = adjoint(node.outputs)
+    node.inputs[1].adj += -adj
+end
+
+function (Base.abs){tag}(a::TapeReal{tag})
+    out = TapeReal(tag, abs(value(a)))
+    return record!(abs, tuple(a,), out)
+end
+
+function backprop!{T<:TapeReal,S<:TapeReal}(node::TapeNode{typeof(Base.abs),Tuple{T},S})
+    adj = adjoint(node.outputs)
+    node.inputs[1].adj += adj * sign(value(node.inputs[1]))
+end
+
 
 function backprop!{T1<:TapeReal,T2<:TapeReal,S<:TapeReal}(node::TapeNode{typeof(+),Tuple{T1,T2},S})
     adj = adjoint(node.outputs)
@@ -108,6 +135,15 @@ for f in (:(Base.:<), :(Base.:>), :(Base.:(==)), :(Base.:(<=)), :(Base.:(>=)))
         @inline $(f){tag}(a::TapeReal{tag}, b::TapeReal{tag}) = TapeReal(tag, $(f)(value(a), value(b)))
     end
 end
+
+# function backprop!{F<:Function,T<:Array{TapeReal},S<:Array{TapeReal}}(node::TapeNode{typeof(map),Tuple{F,T},S})
+#     adj = adjoint(node.outputs)
+#     f = node.inputs[1]
+#     df = x -> ForwardDiff.derivative(f, value(x))
+#     A = node.inputs[2]
+#     incadjoint!(A, adj .* map(df, value(A)))
+#     return node
+# end
 
 #######
 # API #
