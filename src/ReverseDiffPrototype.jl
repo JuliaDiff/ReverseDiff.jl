@@ -30,14 +30,14 @@ TapeReal{tag<:Tag,T}(::Type{tag}, val::T) = TapeReal{tag,T}(val)
 @inline function value{tag,T<:Real}(A::Array{TapeReal{tag, T}})
     out = similar(A, T)
     for i in eachindex(A)
-        out[i] = A[i].val
+        out[i] = value(A[i])
     end
     out
 end
 @inline function adjoint{tag,T<:Real}(A::Array{TapeReal{tag, T}})
     out = similar(A, T)
     for i in eachindex(A)
-        out[i] = A[i].adj
+        out[i] = adjoint(A[i])
     end
     out
 end
