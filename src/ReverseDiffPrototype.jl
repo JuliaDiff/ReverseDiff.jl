@@ -19,12 +19,30 @@ type TapeReal{tag,T<:Real} <: Real
     val::T
     adj::T
 end
+typealias TapeValue{tag, T} Union{TapeReal{tag, T}, Array{TapeReal{tag, T}}}
 
 TapeReal{tag<:Tag,T}(::Type{tag}, val::T) = TapeReal{tag,T}(val)
 
 @inline value(n::TapeReal) = n.val
 @inline adjoint(n::TapeReal) = n.adj
+
+# we can't use map here because we'll overload it below to record all ops
+@inline function value{tag,T<:Real}(A::Array{TapeReal{tag, T}})
+    out = similar(A, T)
+    for i in eachindex(A)
+        out[i] = value(A[i])
+    end
+    out
+end
+@inline function adjoint{tag,T<:Real}(A::Array{TapeReal{tag, T}})
+    out = similar(A, T)
+    for i in eachindex(A)
+        out[i] = adjoint(A[i])
+    end
+    out
+end
 @inline numtype{tag,T}(::Type{TapeReal{tag,T}}) = T
+@inline tagtype{tag,T}(::Type{TapeReal{tag,T}}) = tag
 
 Base.convert{tag,T<:Real}(::Type{TapeReal{tag,T}}, n::Real) = TapeReal{tag,T}(T(n), zero(T))
 Base.convert{tag,T<:Real}(::Type{TapeReal{tag,T}}, n::TapeReal) = TapeReal{tag,T}(value(n), adjoint(n))
@@ -44,9 +62,9 @@ end
 
 record!(f, inputs, outputs) = error("no tape defined")
 
-function incadjoint!{N, T<:TapeReal, S<:Real}(x::Array{T, N}, y::Array{S, N})
+function incadjoint!{T<:TapeReal, S<:Real}(x::Array{T}, y::Array{S})
     for i in eachindex(x)
-        x[i].adj += T(y[i])
+        x[i].adj += numtype(T)(y[i])
     end
 end
 
@@ -118,14 +136,22 @@ for f in (:(Base.:<), :(Base.:>), :(Base.:(==)), :(Base.:(<=)), :(Base.:(>=)))
     end
 end
 
-# function backprop!{F<:Function,T<:Array{TapeReal},S<:Array{TapeReal}}(node::TapeNode{typeof(map),Tuple{F,T},S})
-#     adj = adjoint(node.outputs)
-#     f = node.inputs[1]
-#     df = x -> ForwardDiff.derivative(f, value(x))
-#     A = node.inputs[2]
-#     incadjoint!(A, adj .* map(df, value(A)))
-#     return node
-# end
+function Base.map{tag,T<:Real}(f, A::Array{TapeReal{tag,T}})
+    out = similar(A)
+    for i in eachindex(A)
+        out[i] = TapeReal{tag, T}(f(A[i].val))
+    end
+    record!(map, tuple(f, A), out)
+end
+
+function backprop!{F<:Function,T<:Array,S<:Array}(node::TapeNode{typeof(map),Tuple{F,T},S})
+    adj = adjoint(node.outputs)
+    f = node.inputs[1]
+    df = x -> ForwardDiff.derivative(f, x)
+    A = node.inputs[2]
+    incadjoint!(A, adj .* map(df, value(A)))
+    return node
+end
 
 #######
 # API #
@@ -148,7 +174,7 @@ function gradient{F,T,N}(f::F, ::Type{Input{T,N}})
     tape = Vector{TapeNode}()
     tapevec = Vector{TapeReal{Tag{F,T,N},T}}(N)
     eval(quote
-        function ReverseDiffPrototype.record!(f, inputs, output::TapeReal{Tag{$F,$T,$N}})
+        function ReverseDiffPrototype.record!(f, inputs, output::TapeValue{Tag{$F,$T,$N}, $T})
             push!($tape, TapeNode(f, inputs, output))
             return output
         end

@@ -49,12 +49,12 @@ out = similar(x)
 # map of univariates
 x = randn(49)
 out = zeros(x)
+aux_fn5(x) = sqrt(abs(x) + x^2)
 function testf5(x)
     k = length(x)
     N = Int(sqrt(k))
     A = reshape(x, N, N)
-    foo(x) = sqrt(abs(x) + x^2)
-    return sum(map(foo, A))
+    return sum(map(aux_fn5, A))
 end
 
 g5! = ReverseDiffPrototype.gradient(testf5, x)
