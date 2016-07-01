@@ -19,7 +19,8 @@ type TapeReal{tag,T<:Real} <: Real
     val::T
     adj::T
 end
-typealias TapeValue{tag, T} Union{TapeReal{tag, T}, Array{TapeReal{tag, T}}}
+
+typealias TapeValue{tag,T} Union{TapeReal{tag,T}, Array{TapeReal{tag,T}}}
 
 TapeReal{tag<:Tag,T}(::Type{tag}, val::T) = TapeReal{tag,T}(val)
 
@@ -27,20 +28,21 @@ TapeReal{tag<:Tag,T}(::Type{tag}, val::T) = TapeReal{tag,T}(val)
 @inline adjoint(n::TapeReal) = n.adj
 
 # we can't use map here because we'll overload it below to record all ops
-@inline function value{tag,T<:Real}(A::Array{TapeReal{tag, T}})
+@inline function value{tag,T<:Real}(A::Array{TapeReal{tag,T}})
     out = similar(A, T)
     for i in eachindex(A)
         out[i] = value(A[i])
     end
-    out
+    return out
 end
-@inline function adjoint{tag,T<:Real}(A::Array{TapeReal{tag, T}})
+@inline function adjoint{tag,T<:Real}(A::Array{TapeReal{tag,T}})
     out = similar(A, T)
     for i in eachindex(A)
         out[i] = adjoint(A[i])
     end
-    out
+    return out
 end
+
 @inline numtype{tag,T}(::Type{TapeReal{tag,T}}) = T
 @inline tagtype{tag,T}(::Type{TapeReal{tag,T}}) = tag
 
@@ -54,15 +56,40 @@ Base.promote_rule{tag,A<:Real,B<:Real}(::Type{TapeReal{tag,A}}, ::Type{TapeReal{
 # tape storage #
 #--------------#
 
-immutable TapeNode{F,I,O}
+abstract AbstractTapeNode
+
+immutable InitialNode <: AbstractTapeNode end
+
+immutable TapeNode{F,I,O} <: AbstractTapeNode
     f::F
     inputs::I
     outputs::O
+    parent::AbstractTapeNode
+end
+
+type TapeHead
+    node::AbstractTapeNode
 end
 
 record!(f, inputs, outputs) = error("no tape defined")
 
-function incadjoint!{T<:TapeReal, S<:Real}(x::Array{T}, y::Array{S})
+function seed!(head::TapeHead)
+    head.node.outputs.adj = one(head.node.outputs.adj)
+    return nothing
+end
+
+function backprop!(head::TapeHead)
+    init_node = InitialNode()
+    seed!(head)
+    current_node = head.node
+    while current_node !== init_node
+        backprop_rule!(current_node)
+        current_node = current_node.parent
+    end
+    return nothing
+end
+
+function increment_adjoint!{T<:TapeReal, S<:Real}(x::Array{T}, y::Array{S})
     for i in eachindex(x)
         x[i].adj += numtype(T)(y[i])
     end
@@ -75,9 +102,9 @@ end
 # unary functions #
 #-----------------#
 
-function backprop!{F,T<:TapeReal,S<:TapeReal}(node::TapeNode{F,T,S})
+function backprop_rule!{F,T<:TapeReal,S<:TapeReal}(node::TapeNode{F,T,S})
     node.inputs.adj += adjoint(node.outputs) * ForwardDiff.derivative(node.f, value(node.inputs))
-    return node
+    return nothing
 end
 
 for (f, _) in Calculus.symbolic_derivatives_1arg()
@@ -88,20 +115,22 @@ end
 
 Base.:-{tag}(n::TapeReal{tag}) = record!(-, n, TapeReal(tag, -value(n)))
 
-function backprop!{T<:TapeReal,S<:TapeReal}(node::TapeNode{typeof(-),T,S})
+function backprop_rule!{T<:TapeReal,S<:TapeReal}(node::TapeNode{typeof(-),T,S})
     node.inputs.adj += -adjoint(node.outputs)
+    return nothing
 end
 
 Base.abs{tag}(n::TapeReal{tag}) = record!(abs, n, TapeReal(tag, abs(value(n))))
 
-function backprop!{T<:TapeReal,S<:TapeReal}(node::TapeNode{typeof(abs),T,S})
+function backprop_rule!{T<:TapeReal,S<:TapeReal}(node::TapeNode{typeof(abs),T,S})
     node.inputs.adj += adjoint(node.outputs) * sign(value(node.inputs))
+    return nothing
 end
 
 # binary functions #
 #------------------#
 
-function backprop!{F,T<:Tuple,S<:TapeReal}(node::TapeNode{F,T,S})
+function backprop_rule!{F,T<:Tuple,S<:TapeReal}(node::TapeNode{F,T,S})
     outadj, invals = adjoint(node.outputs), map(value, node.inputs)
     unary_f = x -> node.f(x...)
     grad = Vector{numtype(S)}(length(invals))
@@ -109,6 +138,7 @@ function backprop!{F,T<:Tuple,S<:TapeReal}(node::TapeNode{F,T,S})
     for i in eachindex(invals)
         node.inputs[i].adj += outadj * grad[i]
     end
+    return nothing
 end
 
 for f in (:*, :/, :+, :-)
@@ -119,10 +149,11 @@ for f in (:*, :/, :+, :-)
             return record!($(f), tuple(a, b), out)
         end
 
-        function backprop!{T1<:TapeReal,T2<:TapeReal,S<:TapeReal}(node::TapeNode{typeof($f),Tuple{T1,T2},S})
+        function backprop_rule!{T1<:TapeReal,T2<:TapeReal,S<:TapeReal}(node::TapeNode{typeof($f),Tuple{T1,T2},S})
             adj, x, y = adjoint(node.outputs), value(node.inputs[1]), value(node.inputs[2])
             node.inputs[1].adj += adj * $(grad[1])
             node.inputs[2].adj += adj * $(grad[2])
+            return nothing
         end
     end
 end
@@ -139,55 +170,44 @@ end
 function Base.map{tag,T<:Real}(f, A::Array{TapeReal{tag,T}})
     out = similar(A)
     for i in eachindex(A)
-        out[i] = TapeReal{tag, T}(f(A[i].val))
+        out[i] = TapeReal{tag,T}(f(A[i].val))
     end
     record!(map, tuple(f, A), out)
 end
 
-function backprop!{F<:Function,T<:Array,S<:Array}(node::TapeNode{typeof(map),Tuple{F,T},S})
+function backprop_rule!{F<:Function,T<:Array,S<:Array}(node::TapeNode{typeof(map),Tuple{F,T},S})
     adj = adjoint(node.outputs)
     f = node.inputs[1]
     df = x -> ForwardDiff.derivative(f, x)
     A = node.inputs[2]
-    incadjoint!(A, adj .* map(df, value(A)))
-    return node
+    increment_adjoint!(A, adj .* map(df, value(A)))
+    return nothing
 end
 
 #######
 # API #
 #######
 
-seed!(n::TapeReal) = (n.adj = (one(n.adj)); return n)
-seed!(node::TapeNode) = (seed!(node.outputs); return node)
-seed!(tape::Vector{TapeNode}) = (seed!(last(tape)); return tape)
-
-function backprop!(tape::Vector{TapeNode})
-    while !(isempty(tape))
-        backprop!(pop!(tape))
-    end
-    return nothing
-end
-
 gradient(f, x) = gradient(f, Input{eltype(x),length(x)})
 
 function gradient{F,T,N}(f::F, ::Type{Input{T,N}})
-    tape = Vector{TapeNode}()
+    head = TapeHead(InitialNode())
     tapevec = Vector{TapeReal{Tag{F,T,N},T}}(N)
     eval(quote
-        function ReverseDiffPrototype.record!(f, inputs, output::TapeValue{Tag{$F,$T,$N}, $T})
-            push!($tape, TapeNode(f, inputs, output))
+        function ReverseDiffPrototype.record!{T}(f, inputs, output::TapeValue{Tag{$F,$T,$N},T})
+            head = $head
+            head.node = TapeNode(f, inputs, output, head.node)
             return output
         end
-        (out, x) -> begin
-            tape = $tape
-            tapevec = $tapevec
-            load_tapevec!(tapevec, x)
-            $(f)(tapevec)
-            ReverseDiffPrototype.backprop!(ReverseDiffPrototype.seed!(tape))
-            load_adjoint!(out, tapevec)
-            return out
-        end
     end)
+    return (out, x) -> begin
+        load_tapevec!(tapevec, x)
+        f(tapevec)
+        backprop!(head)
+        head.node = InitialNode()
+        load_adjoint!(out, tapevec)
+        return out
+    end
 end
 
 function load_tapevec!{F,T,N}(tapevec::Vector{TapeReal{Tag{F,T,N},T}}, x)
