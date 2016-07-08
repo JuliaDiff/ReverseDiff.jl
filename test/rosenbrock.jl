@@ -12,6 +12,21 @@ end
 
 x = rand(100000);
 out = zeros(x);
-t = ReverseDiffPrototype.tape_array(rosenbrock, x)
-g! = ReverseDiffPrototype.gradient(rosenbrock)
-# @time g!(out, x, t)
+t = ReverseDiffPrototype.trace_input_array(rosenbrock, x, eltype(out));
+
+# warmup
+trace = ReverseDiffPrototype.reset_trace!(rosenbrock)
+rosenbrock(t);
+ReverseDiffPrototype.backprop!(trace);
+ReverseDiffPrototype.gradient!(out, rosenbrock, x, t);
+
+# timed
+trace = ReverseDiffPrototype.reset_trace!(rosenbrock)
+gc()
+@time rosenbrock(t);
+gc()
+@time ReverseDiffPrototype.backprop!(trace);
+gc()
+@time ReverseDiffPrototype.gradient!(out, rosenbrock, x, t);
+
+println("done")
