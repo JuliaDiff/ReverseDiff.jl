@@ -40,6 +40,21 @@ typealias TapeArray{F,T,N} AbstractArray{TapeReal{F,T},N}
 @inline numtype{F,T}(::Type{TapeReal{F,T}}) = T
 @inline value(n::TapeReal) = n.val
 @inline adjoint(n::TapeReal) = n.adj
+@inline numtype{F,T}(::TapeArray{F,T}) = T
+function value{F,T}(a::TapeArray{F,T})
+    out = similar(a, T)
+    for idx in eachindex(a)
+        out[idx] = value(a[idx])
+    end
+    return out
+end
+function adjoint{F,T}(a::TapeArray{F,T})
+    out = similar(a, T)
+    for idx in eachindex(a)
+        out[idx] = adjoint(a[idx])
+    end
+    return out
+end
 
 Base.convert{F,A<:Real,B<:Real}(::Type{TapeReal{F}}, val::A, adj::B) = TapeReal{F,promote_type(A,B)}(val, adj)
 Base.convert{F,T<:Real}(::Type{TapeReal{F}}, val::T) = TapeReal{F,T}(val, zero(val))
@@ -77,6 +92,13 @@ end
 function load_adjoint_array!(out, tapearr)
     for i in eachindex(out)
         out[i] = adjoint(tapearr[i])
+    end
+    return out
+end
+
+function increment_adjoint!(out, arr)
+    for i in eachindex(out)
+        out[i].adj += arr[i]
     end
     return out
 end
@@ -147,6 +169,8 @@ for f in (:*, :/, :+, :-)
     @eval begin
         @inline Base.$(f){F}(a::TapeReal{F}, b::TapeReal{F}) = record!($(f), tuple(a, b), TapeReal{F}($(f)(value(a), value(b))))
 
+        @inline Base.$(f){F,T<:Real}(A::TapeArray{F,T,2}, B::TapeArray{F,T,2}) = record!($(f), tuple(A, B), TapeArray{F,T}($(f)(value(A), value(B))))
+
         function backprop_rule!{T1<:TapeReal,T2<:TapeReal,S<:TapeReal}(node::TapeNode{typeof($f),Tuple{T1,T2},S})
             adj, x, y = adjoint(node.output), value(node.input[1]), value(node.input[2])
             node.input[1].adj += adj * $(grad[1])
@@ -154,6 +178,19 @@ for f in (:*, :/, :+, :-)
             return nothing
         end
     end
+end
+
+function backprop_rule!{T1<:AbstractArray,T2<:AbstractArray,S<:AbstractArray}(node::TapeNode{typeof(*),Tuple{T1,T2},S})
+    adj, x, y = adjoint(node.output), value(node.input[1]), value(node.input[2])
+    increment_adjoint!(node.input[1], adj * y')
+    increment_adjoint!(node.input[2], x' * adj)
+    return nothing
+end
+function backprop_rule!{T1<:TapeArray,T2<:TapeArray,S<:TapeArray}(node::TapeNode{typeof(+),Tuple{T1,T2},S})
+    adj, x, y = adjoint(node.output), value(node.input[1]), value(node.input[2])
+    increment_adjoint!(node.input[1], adj)
+    increment_adjoint!(node.input[2], adj)
+    return nothing
 end
 
 # ForwardDiff fallbacks #
