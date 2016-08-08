@@ -5,7 +5,7 @@ using ForwardDiff
 const RDP = ReverseDiffPrototype
 
 ##################################################
-println("test1")
+println("running test1...")
 
 x = rand(5)
 out = zeros(x)
@@ -15,7 +15,7 @@ test1(x) = (exp(x[1]) + log(x[3]) * x[4]) / x[5]
 @test_approx_eq RDP.gradient!(out, test1, x) ForwardDiff.gradient(test1, x)
 
 ##################################################
-println("test2")
+println("running test2...")
 
 x = rand(2)
 out = zeros(x)
@@ -25,7 +25,7 @@ test2(x) = x[1]*x[2] + sin(x[1])
 @test_approx_eq RDP.gradient!(out, test2, x) ForwardDiff.gradient(test2, x)
 
 ##################################################
-println("test3")
+println("running test3...")
 
 n = 2
 x = collect(1:(2n^2 + n))
@@ -34,10 +34,9 @@ out = zeros(Float64, length(x))
 function generate_test3(n)
     return x -> begin
         @assert length(x) == 2n^2 + n
-        A = reshape(x[1:n^2], n, n)
-        B = reshape(x[n^2 + 1:2n^2], n, n)
-        C = x[2n^2+1:end]
-        return trace(log((A * B) .+ C))
+        a = reshape(x[1:n^2], n, n)
+        b = reshape(x[n^2 + 1:2n^2], n, n)
+        return trace(log((a * b) + a - b))
     end
 end
 
@@ -46,7 +45,7 @@ test3 = generate_test3(n)
 @test_approx_eq RDP.gradient!(out, test3, x) ForwardDiff.gradient(test3, x)
 
 ##################################################
-println("test4")
+println("running test4...")
 
 x = rand(1:10, 49)
 out = zeros(Float64, 49)
@@ -61,7 +60,7 @@ end
 @test_approx_eq RDP.gradient!(out, test4, x) ForwardDiff.gradient(test4, x)
 
 ##################################################
-println("rosenbrock")
+println("testing rosenbrock...")
 
 x = rand(100)
 out = similar(x)
