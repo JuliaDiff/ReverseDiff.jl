@@ -19,17 +19,17 @@ out = zeros(x);
 t = ReverseDiffPrototype.trace_input_array(rosenbrock, x, eltype(out));
 
 # warmup
-trace = ReverseDiffPrototype.reset_trace!(rosenbrock)
+ftrace = ReverseDiffPrototype.reset_trace!(rosenbrock)
 rosenbrock(t);
-ReverseDiffPrototype.backprop!(trace);
+ReverseDiffPrototype.backprop!(ftrace);
 ReverseDiffPrototype.gradient!(out, rosenbrock, x, t);
 
 # timed
-trace = ReverseDiffPrototype.reset_trace!(rosenbrock)
+ftrace = ReverseDiffPrototype.reset_trace!(rosenbrock)
 gc()
 @time rosenbrock(t);
 gc()
-@time ReverseDiffPrototype.backprop!(trace);
+@time ReverseDiffPrototype.backprop!(ftrace);
 gc()
 @time ReverseDiffPrototype.gradient!(out, rosenbrock, x, t);
 
@@ -54,18 +54,50 @@ out = zeros(x);
 t = ReverseDiffPrototype.trace_input_array(ackley, x, eltype(out));
 
 # warmup
-trace = ReverseDiffPrototype.reset_trace!(ackley)
+ftrace = ReverseDiffPrototype.reset_trace!(ackley)
 ackley(t);
-ReverseDiffPrototype.backprop!(trace);
+ReverseDiffPrototype.backprop!(ftrace);
 ReverseDiffPrototype.gradient!(out, ackley, x, t);
 
 # timed
-trace = ReverseDiffPrototype.reset_trace!(ackley)
+ftrace = ReverseDiffPrototype.reset_trace!(ackley)
 gc()
 @time ackley(t);
 gc()
-@time ReverseDiffPrototype.backprop!(trace);
+@time ReverseDiffPrototype.backprop!(ftrace);
 gc()
 @time ReverseDiffPrototype.gradient!(out, ackley, x, t);
+
+println("benchmarking matrix_test(x)...")
+
+function generate_matrix_test(n)
+    return x -> begin
+        @assert length(x) == 2n^2 + n
+        a = reshape(x[1:n^2], n, n)
+        b = reshape(x[n^2 + 1:2n^2], n, n)
+        return trace(log((a * b) + a - b))
+    end
+end
+
+n = 60
+x = collect(1:(2n^2 + n))
+out = zeros(Float64, x)
+matrix_test = generate_matrix_test(n)
+t = ReverseDiffPrototype.trace_input_array(matrix_test, x, eltype(out));
+
+# warmup
+ftrace = ReverseDiffPrototype.reset_trace!(matrix_test)
+matrix_test(t);
+ReverseDiffPrototype.backprop!(ftrace);
+ReverseDiffPrototype.gradient!(out, matrix_test, x, t);
+
+# timed
+ftrace = ReverseDiffPrototype.reset_trace!(matrix_test)
+gc()
+@time matrix_test(t);
+gc()
+@time ReverseDiffPrototype.backprop!(ftrace);
+gc()
+@time ReverseDiffPrototype.gradient!(out, matrix_test, x, t);
 
 println("done")

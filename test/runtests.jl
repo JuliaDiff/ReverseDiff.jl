@@ -25,13 +25,13 @@ test2(x) = x[1]*x[2] + sin(x[1])
 @test_approx_eq RDP.gradient!(out, test2, x) ForwardDiff.gradient(test2, x)
 
 ##################################################
-println("running test3...")
+println("running matrix_test...")
 
 n = 2
 x = collect(1:(2n^2 + n))
-out = zeros(Float64, length(x))
+out = zeros(Float64, x)
 
-function generate_test3(n)
+function generate_matrix_test(n)
     return x -> begin
         @assert length(x) == 2n^2 + n
         a = reshape(x[1:n^2], n, n)
@@ -40,9 +40,9 @@ function generate_test3(n)
     end
 end
 
-test3 = generate_test3(n)
+matrix_test = generate_matrix_test(n)
 
-@test_approx_eq RDP.gradient!(out, test3, x) ForwardDiff.gradient(test3, x)
+@test_approx_eq RDP.gradient!(out, matrix_test, x) ForwardDiff.gradient(test3, x)
 
 ##################################################
 println("running test4...")
