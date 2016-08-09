@@ -79,7 +79,7 @@ function generate_matrix_test(n)
     end
 end
 
-n = 60
+n = 100
 x = collect(1:(2n^2 + n))
 out = zeros(Float64, x)
 matrix_test = generate_matrix_test(n)
