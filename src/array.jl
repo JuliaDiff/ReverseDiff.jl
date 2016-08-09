@@ -1,6 +1,6 @@
-###########
-# utilies #
-###########
+#############
+# utilities #
+#############
 
 function value!(out, arr)
     for i in eachindex(out)
