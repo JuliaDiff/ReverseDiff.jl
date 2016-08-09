@@ -42,7 +42,7 @@ end
 
 matrix_test = generate_matrix_test(n)
 
-@test_approx_eq RDP.gradient!(out, matrix_test, x) ForwardDiff.gradient(test3, x)
+@test_approx_eq RDP.gradient!(out, matrix_test, x) ForwardDiff.gradient(matrix_test, x)
 
 ##################################################
 println("running test4...")
