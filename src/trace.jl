@@ -67,11 +67,11 @@ reset_trace!{tag}(::Type{tag}) = clear!(get!(TRACE_CACHE, tag, Trace()))::Trace
 # recording the trace (forward pass) #
 ######################################
 
-# placeholder function + function type for functions nodes
-# whose derivatives were calculated during the forward pass
-SKIP_DIFF() = nothing
+# placeholder type for functions nodes whose derivatives
+# were calculated during the forward pass
+immutable SkipDiffType end
 
-const SKIP_DIFF_TYPE = typeof(SKIP_DIFF)
+const SKIP_DIFF = SkipDiffType()
 
 @inline record!{tag}(::Type{tag}, inputs, outputs) = record!(tag, SKIP_DIFF, inputs, outputs)
 
@@ -97,16 +97,16 @@ end
 # backprop when derivatives are available via the forward pass #
 #--------------------------------------------------------------#
 
-backprop_step!(node::TraceNode{SKIP_DIFF_TYPE}) = auto_backprop_step!(node.inputs, node.outputs)
+backprop_step!(node::TraceNode{SkipDiffType}) = skipdiff_backprop_step!(node.inputs, node.outputs)
 
 # f(::Number)::Number
-function auto_backprop_step!{F,S}(input::TraceReal{F,S}, output::TraceReal{F,S,1})
+function skipdiff_backprop_step!{F,S}(input::TraceReal{F,S}, output::TraceReal{F,S,1})
     input.adjoint[] += output.adjoint[] * partials(output, 1)
     return nothing
 end
 
 # f(::Number...)::Number
-function auto_backprop_step!{F,S,N}(inputs::Tuple, output::TraceReal{F,S,N})
+function skipdiff_backprop_step!{F,S,N}(inputs::Tuple, output::TraceReal{F,S,N})
     dual::Dual{N,S} = output.adjoint[] * output.dual
     for i in 1:N
         inputs[i].adjoint[] += partials(dual, i)
@@ -115,9 +115,9 @@ function auto_backprop_step!{F,S,N}(inputs::Tuple, output::TraceReal{F,S,N})
 end
 
 # f(::AbstractArray)::AbstractArray
-function auto_backprop_step!(input::AbstractArray, output::AbstractArray)
+function skipdiff_backprop_step!(input::AbstractArray, output::AbstractArray)
     for i in eachindex(input)
-        auto_backprop_step!(input[i], output[i])
+        skipdiff_backprop_step!(input[i], output[i])
     end
     return nothing
 end
@@ -125,7 +125,7 @@ end
 # backprop when derivatives need to be calculated in the reverse pass #
 #---------------------------------------------------------------------#
 
-backprop_step!(node::TraceNode) = func_backprop_step!(node.func, node.inputs, node.outputs)
+backprop_step!{F}(node::TraceNode{F}) = diff_backprop_step!(node.func, node.inputs, node.outputs)
 
 function increment_adjoint!(output, derivs)
     for i in eachindex(output)
@@ -134,21 +134,21 @@ function increment_adjoint!(output, derivs)
     return output
 end
 
-function func_backprop_step!{A,B}(::typeof(*), inputs::Tuple{A,B}, output::AbstractArray)
+function diff_backprop_step!{A,B}(::typeof(*), inputs::Tuple{A,B}, output::AbstractArray)
     adj, a, b = adjoint(output), inputs[1], inputs[2]
     increment_adjoint!(a, adj * value(b)')
     increment_adjoint!(b, value(a)' * adj)
     return nothing
 end
 
-function func_backprop_step!{A,B}(::typeof(+), inputs::Tuple{A,B}, output::AbstractArray)
+function diff_backprop_step!{A,B}(::typeof(+), inputs::Tuple{A,B}, output::AbstractArray)
     adj, a, b = adjoint(output), inputs[1], inputs[2]
     increment_adjoint!(a, adj)
     increment_adjoint!(b, adj)
     return nothing
 end
 
-function func_backprop_step!{A,B}(::typeof(-), inputs::Tuple{A,B}, output::AbstractArray)
+function diff_backprop_step!{A,B}(::typeof(-), inputs::Tuple{A,B}, output::AbstractArray)
     adj, a, b = adjoint(output), inputs[1], inputs[2]
     increment_adjoint!(a, adj)
     increment_adjoint!(b, -adj)
