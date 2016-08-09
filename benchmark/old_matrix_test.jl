@@ -11,5 +11,5 @@ function matrix_test(x)
 end
 
 out = zeros(x);
-t = ReverseDiffPrototype.trace_input_array(matrix_test, x, eltype(out));
+t = ReverseDiffPrototype.trace_array(typeof(matrix_test), eltype(out), x);
 @time ReverseDiffPrototype.gradient!(out, matrix_test, x, t);

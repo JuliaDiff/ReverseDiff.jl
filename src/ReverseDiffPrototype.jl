@@ -2,7 +2,7 @@ module ReverseDiffPrototype
 
 using ForwardDiff
 using Base.RefValue
-import ForwardDiff: Dual, Partials, value, partials, numtype
+import ForwardDiff: Dual, Partials, value, partials
 
 include("TraceReal.jl")
 include("array.jl")

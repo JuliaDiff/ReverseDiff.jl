@@ -16,7 +16,7 @@ end
 
 x = rand(N);
 out = zeros(x);
-t = ReverseDiffPrototype.trace_input_array(rosenbrock, x, eltype(out));
+t = ReverseDiffPrototype.trace_array(typeof(rosenbrock), eltype(out), x);
 
 # warmup
 ftrace = ReverseDiffPrototype.reset_trace!(rosenbrock)
@@ -51,7 +51,7 @@ end
 
 x = rand(N);
 out = zeros(x);
-t = ReverseDiffPrototype.trace_input_array(ackley, x, eltype(out));
+t = ReverseDiffPrototype.trace_array(typeof(ackley), eltype(out), x);
 
 # warmup
 ftrace = ReverseDiffPrototype.reset_trace!(ackley)
@@ -83,7 +83,7 @@ n = 100
 x = collect(1:(2n^2 + n))
 out = zeros(Float64, x)
 matrix_test = generate_matrix_test(n)
-t = ReverseDiffPrototype.trace_input_array(matrix_test, x, eltype(out));
+t = ReverseDiffPrototype.trace_array(typeof(matrix_test), eltype(out), x);
 
 # warmup
 ftrace = ReverseDiffPrototype.reset_trace!(matrix_test)
