@@ -2,34 +2,68 @@ using ReverseDiffPrototype
 using Base.Test
 using ForwardDiff
 
+const RDP = ReverseDiffPrototype
+
+##################################################
+println("running test1...")
+
 x = rand(5)
 out = zeros(x)
-testf1(x) = (exp(x[1]) + log(x[3]) * x[4]) / x[5]
-g1! = ReverseDiffPrototype.gradient(testf1)
 
-@test_approx_eq g1!(out, x) ForwardDiff.gradient(testf1, x)
+test1(x) = (exp(x[1]) + log(x[3]) * x[4]) / x[5]
+
+@test_approx_eq RDP.gradient!(out, test1, x) ForwardDiff.gradient(test1, x)
+
+##################################################
+println("running test2...")
 
 x = rand(2)
 out = zeros(x)
-testf2(x) = x[1]*x[2] + sin(x[1])
-g2! = ReverseDiffPrototype.gradient(testf2)
 
-@test_approx_eq g2!(out, x) ForwardDiff.gradient(testf2, x)
+test2(x) = x[1]*x[2] + sin(x[1])
 
-const N = 10
-x = rand(2N^2 + N)
-out = zeros(x)
-function testf3(x)
-    k = length(x)
-    A = reshape(x[1:N^2], N, N)
-    B = reshape(x[N^2 + 1:2N^2], N, N)
-    c = x[2N^2+1:end]
-    return trace(log(A * B .+ c))
+@test_approx_eq RDP.gradient!(out, test2, x) ForwardDiff.gradient(test2, x)
+
+##################################################
+println("running matrix_test...")
+
+n = 2
+x = collect(1:(2n^2 + n))
+out = zeros(Float64, x)
+
+function generate_matrix_test(n)
+    return x -> begin
+        @assert length(x) == 2n^2 + n
+        a = reshape(x[1:n^2], n, n)
+        b = reshape(x[n^2 + 1:2n^2], n, n)
+        return trace(log((a * b) + a - b))
+    end
 end
 
-g3! = ReverseDiffPrototype.gradient(testf3)
+matrix_test = generate_matrix_test(n)
 
-@test_approx_eq g3!(out, x) ForwardDiff.gradient(testf3, x)
+@test_approx_eq RDP.gradient!(out, matrix_test, x) ForwardDiff.gradient(matrix_test, x)
+
+##################################################
+println("running test4...")
+
+x = rand(1:10, 49)
+out = zeros(Float64, 49)
+
+function test4(x)
+    k = length(x)
+    N = Int(sqrt(k))
+    A = reshape(x, N, N)
+    return sum(map(n -> sqrt(abs(n) + n^2) * 0.5, A))
+end
+
+@test_approx_eq RDP.gradient!(out, test4, x) ForwardDiff.gradient(test4, x)
+
+##################################################
+println("testing rosenbrock...")
+
+x = rand(100)
+out = similar(x)
 
 function rosenbrock(x)
     a = one(eltype(x))
@@ -40,22 +74,5 @@ function rosenbrock(x)
     end
     return result
 end
-g4! = ReverseDiffPrototype.gradient(rosenbrock)
-x = rand(100)
-out = similar(x)
 
-@test_approx_eq g4!(out, x) ForwardDiff.gradient(rosenbrock, x)
-
-# map of univariates
-x = rand(49) # using `rand(1:10, 49)` will cause this test to fail
-out = zeros(x)
-aux_fn5(x) = sqrt(abs(x) + x^2) * 0.5
-function testf5(x)
-    k = length(x)
-    N = Int(sqrt(k))
-    A = reshape(x, N, N)
-    return sum(map(aux_fn5, A))
-end
-
-g5! = ReverseDiffPrototype.gradient(testf5)
-@test_approx_eq g5!(out, x) ForwardDiff.gradient(testf5, x)
+@test_approx_eq RDP.gradient!(out, rosenbrock, x) ForwardDiff.gradient(rosenbrock, x)
