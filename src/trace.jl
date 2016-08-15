@@ -33,7 +33,7 @@ type Trace
     Trace() = new(NodeList())
 end
 
-function clear!(trace::Trace)
+function Base.empty!(trace::Trace)
     trace.list = NodeList()
     return trace
 end
@@ -43,16 +43,15 @@ function Base.push!(trace::Trace, node::TraceNode)
     return trace
 end
 
+function Base.pop!(trace::Trace)
+    node = trace.list.head
+    trace.list = trace.list.tail
+    return node
+end
+
 Base.start(trace::Trace) = start(trace.list)
 Base.next(trace::Trace, state) = next(trace.list, state)
 Base.done(trace::Trace, state) = done(trace.list, state)
-
-function seed!(trace::Trace)
-    for t in trace.list.head.outputs
-        t.adjoint[] = one(adjtype(t))
-    end
-    return trace
-end
 
 #######################
 # trace pointer cache #
@@ -61,7 +60,7 @@ end
 const TRACE_CACHE = ObjectIdDict()
 
 reset_trace!{tag}(::tag) = reset_trace!(tag)
-reset_trace!{tag}(::Type{tag}) = clear!(get!(TRACE_CACHE, tag, Trace()))::Trace
+reset_trace!{tag}(::Type{tag}) = empty!(get!(TRACE_CACHE, tag, Trace())::Trace)
 
 ######################################
 # recording the trace (forward pass) #
@@ -86,8 +85,11 @@ end
 # backpropagation over the trace (reverse pass) #
 #################################################
 
+seed!(t::TraceReal) = (t.adjoint[] = one(adjtype(t)))
+unseed!(t::TraceReal) = (t.adjoint[] = zero(adjtype(t)))
+unseed!(arr) = for t in arr; unseed!(t); end
+
 function backprop!(trace::Trace)
-    seed!(trace)
     for node in trace
         backprop_step!(node)
     end
@@ -102,16 +104,18 @@ backprop_step!{F}(node::TraceNode{F}) = no_dual_backprop_step!(node.func, node.i
 
 # f(::Number)::Number
 function dual_backprop_step!{tag,S,T}(input::TraceReal{tag,S}, output::TraceReal{tag,S,Dual{1,T}})
-    input.adjoint[] += output.adjoint[] * partials(output.value, 1)
+    input.adjoint[] += adjoint(output) * partials(output.value, 1)
+    unseed!(output)
     return nothing
 end
 
 # f(::Number...)::Number
 function dual_backprop_step!{tag,S,N,T}(inputs::Tuple, output::TraceReal{tag,S,Dual{N,T}})
-    dual::Dual{N,S} = output.adjoint[] * output.value
+    dual::Dual{N,S} = adjoint(output) * output.value
     for i in 1:N
         inputs[i].adjoint[] += partials(dual, i)
     end
+    unseed!(output)
     return nothing
 end
 
@@ -151,22 +155,26 @@ end
 
 function no_dual_backprop_step!(::typeof(-), input::AbstractArray, output::AbstractArray)
     decrement_adjoint!(input, output)
+    unseed!(output)
     return nothing
 end
 
 function no_dual_backprop_step!(::typeof(inv), input::AbstractArray, output::AbstractArray)
     output_value = value(output)
     increment_adjoint!(input, negate!(output_value' * adjoint(output)) * output_value')
+    unseed!(output)
     return nothing
 end
 
 function no_dual_backprop_step!(::typeof(det), input::AbstractArray, output::TraceReal)
     increment_adjoint!(input, (adjoint(output) * value(output)) * inv(value(input))')
+    unseed!(output)
     return nothing
 end
 
 function no_dual_backprop_step!(::typeof(sum), input::AbstractArray, output::TraceReal)
     increment_adjoint!(input)
+    unseed!(output)
     return nothing
 end
 
@@ -175,12 +183,14 @@ end
 function no_dual_backprop_step!{A,B}(::typeof(+), inputs::Tuple{A,B}, output::AbstractArray)
     increment_adjoint!(inputs[1], output)
     increment_adjoint!(inputs[2], output)
+    unseed!(output)
     return nothing
 end
 
 function no_dual_backprop_step!{A,B}(::typeof(-), inputs::Tuple{A,B}, output::AbstractArray)
     increment_adjoint!(inputs[1], output)
     decrement_adjoint!(inputs[2], output)
+    unseed!(output)
     return nothing
 end
 
@@ -191,6 +201,7 @@ function no_dual_backprop_step!{A,B}(::typeof(*), inputs::Tuple{A,B}, output::Ab
     output_adjoint = adjoint(output)
     increment_adjoint!(a, output_adjoint * value(b)')
     increment_adjoint!(b, value(a)' * output_adjoint)
+    unseed!(output)
     return nothing
 end
 
@@ -199,6 +210,7 @@ function no_dual_backprop_step!{A,B}(::typeof(A_mul_Bt), inputs::Tuple{A,B}, out
     output_adjoint = adjoint(output)
     increment_adjoint!(a, output_adjoint   * value(b))
     increment_adjoint!(b, output_adjoint.' * value(a))
+    unseed!(output)
     return nothing
 end
 
@@ -207,6 +219,7 @@ function no_dual_backprop_step!{A,B}(::typeof(At_mul_B), inputs::Tuple{A,B}, out
     output_adjoint = adjoint(output)
     increment_adjoint!(a, value(b) * output_adjoint.')
     increment_adjoint!(b, value(a) * output_adjoint)
+    unseed!(output)
     return nothing
 end
 
@@ -215,6 +228,7 @@ function no_dual_backprop_step!{A,B}(::typeof(At_mul_Bt), inputs::Tuple{A,B}, ou
     output_adjoint = adjoint(output)
     increment_adjoint!(a, (output_adjoint * value(b)).')
     increment_adjoint!(b, (value(a) * output_adjoint).')
+    unseed!(output)
     return nothing
 end
 
@@ -223,6 +237,7 @@ function no_dual_backprop_step!{A,B}(::typeof(A_mul_Bc), inputs::Tuple{A,B}, out
     output_adjoint = adjoint(output)
     increment_adjoint!(a, output_adjoint  * value(b))
     increment_adjoint!(b, output_adjoint' * value(a))
+    unseed!(output)
     return nothing
 end
 
@@ -231,6 +246,7 @@ function no_dual_backprop_step!{A,B}(::typeof(Ac_mul_B), inputs::Tuple{A,B}, out
     output_adjoint = adjoint(output)
     increment_adjoint!(a, value(b) * output_adjoint')
     increment_adjoint!(b, value(a) * output_adjoint)
+    unseed!(output)
     return nothing
 end
 
@@ -239,6 +255,7 @@ function no_dual_backprop_step!{A,B}(::typeof(Ac_mul_Bc), inputs::Tuple{A,B}, ou
     output_adjoint = adjoint(output)
     increment_adjoint!(a, (output_adjoint * value(b))')
     increment_adjoint!(b, (value(a) * output_adjoint)')
+    unseed!(output)
     return nothing
 end
 
