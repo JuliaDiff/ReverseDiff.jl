@@ -147,12 +147,30 @@ end
 # functions whose derivatives didn't get calculated in the forward pass #
 #-----------------------------------------------------------------------#
 
-function no_dual_backprop_step!{A,B}(::typeof(*), inputs::Tuple{A,B}, output::AbstractArray)
-    adj, a, b = adjoint(output), inputs[1], inputs[2]
-    increment_adjoint!(a, adj * value(b)')
-    increment_adjoint!(b, value(a)' * adj)
+# unary functions
+
+function no_dual_backprop_step!(::typeof(-), input::AbstractArray, output::AbstractArray)
+    decrement_adjoint!(input, output)
     return nothing
 end
+
+function no_dual_backprop_step!(::typeof(inv), input::AbstractArray, output::AbstractArray)
+    output_value = value(output)
+    increment_adjoint!(input, negate!(output_value' * adjoint(output)) * output_value')
+    return nothing
+end
+
+function no_dual_backprop_step!(::typeof(det), input::AbstractArray, output::TraceReal)
+    increment_adjoint!(input, (adjoint(output) * value(output)) * inv(value(input))')
+    return nothing
+end
+
+function no_dual_backprop_step!(::typeof(sum), input::AbstractArray, output::TraceReal)
+    increment_adjoint!(input)
+    return nothing
+end
+
+# binary functions
 
 function no_dual_backprop_step!{A,B}(::typeof(+), inputs::Tuple{A,B}, output::AbstractArray)
     increment_adjoint!(inputs[1], output)
@@ -166,24 +184,86 @@ function no_dual_backprop_step!{A,B}(::typeof(-), inputs::Tuple{A,B}, output::Ab
     return nothing
 end
 
-function no_dual_backprop_step!(::typeof(-), input::AbstractArray, output::AbstractArray)
-    decrement_adjoint!(input, output)
+# A_mul_B family
+
+function no_dual_backprop_step!{A,B}(::typeof(*), inputs::Tuple{A,B}, output::AbstractArray)
+    a, b = inputs
+    output_adjoint = adjoint(output)
+    increment_adjoint!(a, output_adjoint * value(b)')
+    increment_adjoint!(b, value(a)' * output_adjoint)
     return nothing
 end
 
-# utilities #
-#-----------#
+function no_dual_backprop_step!{A,B}(::typeof(A_mul_Bt), inputs::Tuple{A,B}, output::AbstractArray)
+    a, b = inputs
+    output_adjoint = adjoint(output)
+    increment_adjoint!(a, output_adjoint   * value(b))
+    increment_adjoint!(b, output_adjoint.' * value(a))
+    return nothing
+end
+
+function no_dual_backprop_step!{A,B}(::typeof(At_mul_B), inputs::Tuple{A,B}, output::AbstractArray)
+    a, b = inputs
+    output_adjoint = adjoint(output)
+    increment_adjoint!(a, value(b) * output_adjoint.')
+    increment_adjoint!(b, value(a) * output_adjoint)
+    return nothing
+end
+
+function no_dual_backprop_step!{A,B}(::typeof(At_mul_Bt), inputs::Tuple{A,B}, output::AbstractArray)
+    a, b = inputs
+    output_adjoint = adjoint(output)
+    increment_adjoint!(a, (output_adjoint * value(b)).')
+    increment_adjoint!(b, (value(a) * output_adjoint).')
+    return nothing
+end
+
+function no_dual_backprop_step!{A,B}(::typeof(A_mul_Bc), inputs::Tuple{A,B}, output::AbstractArray)
+    a, b = inputs
+    output_adjoint = adjoint(output)
+    increment_adjoint!(a, output_adjoint  * value(b))
+    increment_adjoint!(b, output_adjoint' * value(a))
+    return nothing
+end
+
+function no_dual_backprop_step!{A,B}(::typeof(Ac_mul_B), inputs::Tuple{A,B}, output::AbstractArray)
+    a, b = inputs
+    output_adjoint = adjoint(output)
+    increment_adjoint!(a, value(b) * output_adjoint')
+    increment_adjoint!(b, value(a) * output_adjoint)
+    return nothing
+end
+
+function no_dual_backprop_step!{A,B}(::typeof(Ac_mul_Bc), inputs::Tuple{A,B}, output::AbstractArray)
+    a, b = inputs
+    output_adjoint = adjoint(output)
+    increment_adjoint!(a, (output_adjoint * value(b))')
+    increment_adjoint!(b, (value(a) * output_adjoint)')
+    return nothing
+end
+
+# utilities
+
+negate!(A) = scale!(-one(eltype(A)), A)
 
 function decrement_adjoint!{T<:TraceReal}(input, output::AbstractArray{T})
     for i in eachindex(input)
-        input[i].adjoint[] -= output[i].adjoint[]
+        input[i].adjoint[] -= adjoint(output[i])
     end
     return input
 end
 
 function increment_adjoint!{T<:TraceReal}(input, output::AbstractArray{T})
     for i in eachindex(input)
-        input[i].adjoint[] += output[i].adjoint[]
+        input[i].adjoint[] += adjoint(output[i])
+    end
+    return input
+end
+
+function increment_adjoint!{T<:TraceReal}(input::AbstractArray{T})
+    x = one(adjtype(T))
+    for i in eachindex(input)
+        input[i].adjoint[] += x
     end
     return input
 end
