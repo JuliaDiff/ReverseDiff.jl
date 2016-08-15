@@ -2,29 +2,33 @@
 # utilities #
 #############
 
-function value{T<:TraceReal}(arr::AbstractArray{T})
-    out = similar(arr, valtype(T))
+value{T<:TraceReal}(arr::AbstractArray{T}) = value!(similar(arr, valtype(T)), arr)
+
+function value!(out, arr)
     for i in eachindex(out)
         out[i] = value(arr[i])
     end
     return out
 end
 
-function adjoint{T<:TraceReal}(arr::AbstractArray{T})
-    out = similar(arr, adjtype(T))
+adjoint{T<:TraceReal}(arr::AbstractArray{T}) = adjoint!(similar(arr, adjtype(T)), arr)
+
+function adjoint!(out, arr)
     for i in eachindex(out)
-        out[i] = arr[i].adjoint[]
+        out[i] = adjoint(arr[i])
     end
     return out
 end
 
+trace_array{tag,S,T}(::tag, ::Type{S}, arr::AbstractArray{T}) = trace_array(tag, S, arr)
+
 function trace_array{tag,S,T}(::Type{tag}, ::Type{S}, arr::AbstractArray{T})
-    out = similar(arr, TraceReal{tag,S,T})
-    for i in eachindex(out)
-        out[i] = TraceReal{tag,S,T}(arr[i])
-    end
-    return out
+    return copy!(similar(arr, TraceReal{tag,S,T}), arr)
 end
+
+trace_output{tag,S}(::tag, ::Type{S}, item) = trace_output(tag, S, item)
+trace_output{tag,S}(::Type{tag}, ::Type{S}, arr::AbstractArray) = trace_array(tag, S, arr)
+trace_output{tag,S}(::Type{tag}, ::Type{S}, n::Number) = TraceReal{tag,S}(n)
 
 function dual_array{R<:TraceReal,N}(arr::AbstractArray{R}, ::Type{Val{N}}, i)
     tag, S, T = tagtype(R), adjtype(R), valtype(R)
@@ -36,9 +40,12 @@ function dual_array{R<:TraceReal,N}(arr::AbstractArray{R}, ::Type{Val{N}}, i)
     return out
 end
 
-######################
-# overloaded methods #
-######################
+###########################
+# optimized array methods #
+###########################
+
+# broadcast/map #
+#---------------#
 
 for g in (:broadcast, :map)
     @eval begin
@@ -73,7 +80,37 @@ for g in (:broadcast, :map)
     end
 end
 
-for f in (:-, :+, :*)
+# unary functions #
+#-----------------#
+
+for f in (:-, :inv, :det)
+    for A in (:AbstractArray, :AbstractMatrix, :Array, :Matrix)
+        @eval function Base.$(f){tag,S,T}(x::$(A){TraceReal{tag,S,T}})
+            out = trace_output(tag, S, $(f)(value(x)))
+            record!(tag, $(f), x, out)
+            return out
+        end
+    end
+end
+
+for A in (:AbstractArray, :Array)
+    @eval function Base.sum{tag,S,T}(x::$(A){TraceReal{tag,S,T}})
+        result = zero(T)
+        for t in x
+            result += value(t)
+        end
+        out = TraceReal{tag,S}(result)
+        record!(tag, sum, x, out)
+        return out
+    end
+end
+
+# binary functions #
+#------------------#
+
+for f in (:-, :+, :*,
+          :A_mul_Bt, :At_mul_B, :At_mul_Bt,
+          :A_mul_Bc, :Ac_mul_B, :Ac_mul_Bc)
     @eval function Base.$(f){tag,S,A,B}(a::AbstractMatrix{TraceReal{tag,S,A}},
                                         b::AbstractMatrix{TraceReal{tag,S,B}})
         out = trace_array(tag, S, $(f)(value(a), value(b)))
@@ -82,8 +119,17 @@ for f in (:-, :+, :*)
     end
 end
 
-function Base.:-{tag,S,T}(x::AbstractArray{TraceReal{tag,S,T}})
-    out = trace_array(tag, S, -value(x))
-    record!(tag, -, x, out)
-    return out
+# in-place A_mul_B family #
+#-------------------------#
+
+for (f!, f) in ((:A_mul_B!, :*),
+                (:A_mul_Bt!, :A_mul_Bt), (:At_mul_B!, :At_mul_B), (:At_mul_Bt!, :At_mul_Bt),
+                (:A_mul_Bc!, :A_mul_Bc), (:Ac_mul_B!, :Ac_mul_B), (:Ac_mul_Bc!, :Ac_mul_Bc))
+    @eval function Base.$(f!){tag,S,Y,A,B}(out::AbstractMatrix{TraceReal{tag,S,Y}},
+                                           a::AbstractMatrix{TraceReal{tag,S,A}},
+                                           b::AbstractMatrix{TraceReal{tag,S,B}})
+        copy!(out, $(f)(value(a), value(b)))
+        record!(tag, $(f), (a, b), out)
+        return out
+    end
 end

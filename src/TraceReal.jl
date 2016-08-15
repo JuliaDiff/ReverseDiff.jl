@@ -37,9 +37,11 @@ Base.promote_array_type{T<:TraceReal, A<:AbstractFloat, P}(_, ::Type{T}, ::Type{
 Base.promote_array_type{A<:AbstractFloat, T<:TraceReal}(_, ::Type{A}, ::Type{T}) = promote_type(T, A)
 Base.promote_array_type{A<:AbstractFloat, T<:TraceReal, P}(_, ::Type{A}, ::Type{T}, ::Type{P}) = P
 
-Base.float{tag,S,T}(t::TraceReal{tag,S,T}) = TraceReal{tag,S,promote_type(T,Float16)}(t)
-Base.one{tag,S,T}(t::TraceReal{tag,S,T}) = TraceReal{tag,S,T}(t.adjoint, one(T))
-Base.zero{tag,S,T}(t::TraceReal{tag,S,T}) = TraceReal{tag,S,T}(t.adjoint, zero(T))
+Base.float{tag,S}(t::TraceReal{tag,S}) = TraceReal{tag,S,promote_type(valtype(t),Float16)}(value(t))
+Base.one{tag,S}(t::TraceReal{tag,S}) = TraceReal{tag,S}(one(valtype(t)))
+Base.zero{tag,S}(t::TraceReal{tag,S}) = TraceReal{tag,S}(zero(valtype(t)))
+Base.rand{tag,S,T}(::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S}(rand(valtype(TraceReal{tag,S,T})))
+Base.rand{tag,S,T}(rng::AbstractRNG, ::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S}(rand(rng, valtype(TraceReal{tag,S,T})))
 
 ####################
 # Math Overloading #
