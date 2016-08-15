@@ -5,7 +5,7 @@ using Base.Test
 using ForwardDiff
 
 const RDP = ReverseDiffPrototype
-const EPS = 1e-8
+const EPS = 1e-6
 
 for f in (-, det, inv)
     Main.testprintln(f)
