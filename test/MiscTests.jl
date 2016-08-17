@@ -54,7 +54,7 @@ function test4(x)
     k = length(x)
     N = isqrt(k)
     A = reshape(x, N, N)
-    return sum(@diffpure map(n -> sqrt(abs(n) + n^2) * 0.5, A))
+    return sum(@fastdiff map(n -> sqrt(abs(n) + n^2) * 0.5, A))
 end
 
 Main.testprintln(test4)
@@ -86,7 +86,7 @@ out = similar(x)
 function rosenbrock2(x)
     a = x[1]
     b = 100 * a
-    v = sum(map((i, j) -> (a - j)^2 + b*(i - j^2)^2, x[2:end], x[1:end-1]))
+    v = map((i, j) -> (a - j)^2 + b*(i - j^2)^2, x[2:end], x[1:end-1])
     return sum(v)
 end
 

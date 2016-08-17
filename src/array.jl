@@ -47,29 +47,29 @@ end
 # higher-order functions #
 #------------------------#
 
-const DIFFPURE_FUNCS = (:broadcast, :map)
+const FASTDIFF_FUNCS = (:broadcast, :map)
 
-purify(name::Symbol) = Symbol(string("pure_", name))
+fastdiffname(name::Symbol) = Symbol(string("fastdiff_", name))
 
-macro diffpure(x)
+macro fastdiff(x)
     if x.head == :call
         f = first(x.args)
-        if in(f, DIFFPURE_FUNCS)
-            x.args[1] = :(ReverseDiffPrototype.$(purify(first(x.args))))
+        if in(f, FASTDIFF_FUNCS)
+            x.args[1] = :(ReverseDiffPrototype.$(fastdiffname(first(x.args))))
             return esc(x)
         end
     end
-    error("@diffpure only works on calls to: $(DIFFPURE_FUNCS)")
+    error("@fastdiff only works on calls to: $(FASTDIFF_FUNCS)")
 end
 
-for g in DIFFPURE_FUNCS
-    gpure = purify(g)
+for g in FASTDIFF_FUNCS
+    fastg = fastdiffname(g)
     @eval begin
         # fallback
-        @inline $(gpure)(args...) = Base.$(g)(args...)
+        @inline $(fastg)(args...) = Base.$(g)(args...)
 
         # 1 arg
-        function $(gpure){tag,S,T,N}(f, x::AbstractArray{TraceReal{tag,S,T},N})
+        function $(fastg){tag,S,T,N}(f, x::AbstractArray{TraceReal{tag,S,T},N})
             dual = $(g)(f, dual_array(x, Val{1}, 1))
             out = trace_array(tag, S, dual)
             record!(tag, x, out)
@@ -77,7 +77,7 @@ for g in DIFFPURE_FUNCS
         end
 
         # 2 args
-        function $(gpure){tag,S,T1,T2,N}(f,
+        function $(fastg){tag,S,T1,T2,N}(f,
                                          x1::AbstractArray{TraceReal{tag,S,T1},N},
                                          x2::AbstractArray{TraceReal{tag,S,T2},N})
             dual1 = dual_array(x1, Val{2}, 1)
@@ -88,7 +88,7 @@ for g in DIFFPURE_FUNCS
         end
 
         # 3 args
-        function $(gpure){tag,S,T1,T2,T3,N}(f,
+        function $(fastg){tag,S,T1,T2,T3,N}(f,
                                             x1::AbstractArray{TraceReal{tag,S,T1},N},
                                             x2::AbstractArray{TraceReal{tag,S,T2},N},
                                             x3::AbstractArray{TraceReal{tag,S,T3},N})

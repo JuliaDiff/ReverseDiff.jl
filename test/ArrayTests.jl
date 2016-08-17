@@ -7,21 +7,16 @@ using ForwardDiff
 const RDP = ReverseDiffPrototype
 const EPS = 1e-6
 
-for f in (-, det, inv)
+for f in (det,)
     Main.testprintln(f)
+    x = rand(3, 3)
+    @test_approx_eq_eps RDP.gradient(f, x) ForwardDiff.gradient(f, x) EPS
+end
 
-    freduce = (r, x) -> begin
-        N = isqrt(length(x))
-        return r(f(reshape(x, N, N)))
-    end
-
-    y = rand(4)
-
-    fprod = x -> freduce(prod, x)
-    @test_approx_eq_eps RDP.gradient(fprod, y) ForwardDiff.gradient(fprod, y) EPS
-
-    fsum = x -> freduce(sum, x)
-    @test_approx_eq_eps RDP.gradient(fsum, y) ForwardDiff.gradient(fsum, y) EPS
+for f in (-, inv)
+    Main.testprintln(f)
+    x = rand(3, 3)
+    @test_approx_eq_eps RDP.jacobian(f, x) ForwardDiff.jacobian(f, x) EPS
 end
 
 for f in (+, .+, -, .-, *, .*, ./, .^,
@@ -29,20 +24,13 @@ for f in (+, .+, -, .-, *, .*, ./, .^,
           A_mul_Bc, Ac_mul_B, Ac_mul_Bc)
     Main.testprintln(f)
 
-    freduce = (r, x, s) -> begin
-        N = isqrt(length(x))
-        A = reshape(x, N, N)
-        B = s * A
-        return r(f(A, B))
-    end
+    A, B = rand(3, 3), rand(3, 3)
 
-    y, n = rand(4), rand()
+    dfA = X -> f(X, B)
+    @test_approx_eq_eps RDP.jacobian(dfA, A) ForwardDiff.jacobian(dfA, A) EPS
 
-    fprod = x -> freduce(prod, x, n)
-    @test_approx_eq_eps RDP.gradient(fprod, y) ForwardDiff.gradient(fprod, y) EPS
-
-    fsum = x -> freduce(sum, x, n)
-    @test_approx_eq_eps RDP.gradient(fsum, y) ForwardDiff.gradient(fsum, y) EPS
+    dfB = X -> f(A, X)
+    @test_approx_eq_eps RDP.jacobian(dfB, B) ForwardDiff.jacobian(dfB, B) EPS
 end
 
 end # module

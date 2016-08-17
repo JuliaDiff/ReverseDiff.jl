@@ -45,5 +45,6 @@ end
 function jacobian!{F}(out, f::F, x, tracex = trace_array(F, eltype(out), x))
     trace = reset_trace!(F)
     y = f(tracex)
-    return load_jacobian!(out, tracex, y, trace)
+    load_jacobian!(reshape(out, length(y), length(x)), tracex, y, trace)
+    return out
 end

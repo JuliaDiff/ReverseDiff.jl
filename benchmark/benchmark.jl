@@ -4,7 +4,7 @@ const N = 100000
 
 println("benchmarking rosenbrock(x)...")
 
-rosenbrock(x) = sum(@diffpure map((i, j) -> (1 - j)^2 + 100*(i - j^2)^2, x[2:end], x[1:end-1]))
+rosenbrock(x) = sum(@fastdiff map((i, j) -> (1 - j)^2 + 100*(i - j^2)^2, x[2:end], x[1:end-1]))
 
 x = rand(N);
 out = zeros(x);

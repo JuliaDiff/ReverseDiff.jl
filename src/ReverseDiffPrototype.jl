@@ -10,6 +10,6 @@ include("array.jl")
 include("trace.jl")
 include("api.jl")
 
-export @diffpure
+export @fastdiff
 
 end # module
