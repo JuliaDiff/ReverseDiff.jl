@@ -44,21 +44,42 @@ end
 # optimized array methods #
 ###########################
 
-# broadcast/map #
-#---------------#
+# higher-order functions #
+#------------------------#
 
-for g in (:broadcast, :map)
+const FASTDIFF_FUNCS = (:broadcast, :map)
+
+fastdiffname(name::Symbol) = Symbol(string("fastdiff_", name))
+
+macro fastdiff(x)
+    if x.head == :call
+        f = first(x.args)
+        if in(f, FASTDIFF_FUNCS)
+            x.args[1] = :(ReverseDiffPrototype.$(fastdiffname(first(x.args))))
+            return esc(x)
+        end
+    end
+    error("@fastdiff only works on calls to: $(FASTDIFF_FUNCS)")
+end
+
+for g in FASTDIFF_FUNCS
+    fastg = fastdiffname(g)
     @eval begin
-        function Base.$(g){tag,S,T,N}(f, x::AbstractArray{TraceReal{tag,S,T},N})
+        # fallback
+        @inline $(fastg)(args...) = Base.$(g)(args...)
+
+        # 1 arg
+        function $(fastg){tag,S,T,N}(f, x::AbstractArray{TraceReal{tag,S,T},N})
             dual = $(g)(f, dual_array(x, Val{1}, 1))
             out = trace_array(tag, S, dual)
             record!(tag, x, out)
             return out
         end
 
-        function Base.$(g){tag,S,T1,T2,N}(f,
-                                          x1::AbstractArray{TraceReal{tag,S,T1},N},
-                                          x2::AbstractArray{TraceReal{tag,S,T2},N})
+        # 2 args
+        function $(fastg){tag,S,T1,T2,N}(f,
+                                         x1::AbstractArray{TraceReal{tag,S,T1},N},
+                                         x2::AbstractArray{TraceReal{tag,S,T2},N})
             dual1 = dual_array(x1, Val{2}, 1)
             dual2 = dual_array(x2, Val{2}, 2)
             out = trace_array(tag, S, $(g)(f, dual1, dual2))
@@ -66,10 +87,11 @@ for g in (:broadcast, :map)
             return out
         end
 
-        function Base.$(g){tag,S,T1,T2,T3,N}(f,
-                                             x1::AbstractArray{TraceReal{tag,S,T1},N},
-                                             x2::AbstractArray{TraceReal{tag,S,T2},N},
-                                             x3::AbstractArray{TraceReal{tag,S,T3},N})
+        # 3 args
+        function $(fastg){tag,S,T1,T2,T3,N}(f,
+                                            x1::AbstractArray{TraceReal{tag,S,T1},N},
+                                            x2::AbstractArray{TraceReal{tag,S,T2},N},
+                                            x3::AbstractArray{TraceReal{tag,S,T3},N})
             dual1 = dual_array(x1, Val{3}, 1)
             dual2 = dual_array(x2, Val{3}, 2)
             dual3 = dual_array(x2, Val{3}, 3)

@@ -54,7 +54,7 @@ function test4(x)
     k = length(x)
     N = isqrt(k)
     A = reshape(x, N, N)
-    return sum(map(n -> sqrt(abs(n) + n^2) * 0.5, A))
+    return sum(@fastdiff map(n -> sqrt(abs(n) + n^2) * 0.5, A))
 end
 
 Main.testprintln(test4)
@@ -62,10 +62,10 @@ Main.testprintln(test4)
 @test_approx_eq RDP.gradient!(out, test4, x) ForwardDiff.gradient(test4, x)
 
 ##################################################
-x = rand(100)
+x = rand(10)
 out = similar(x)
 
-function rosenbrock(x)
+function rosenbrock1(x)
     a = one(eltype(x))
     b = 100 * a
     result = zero(eltype(x))
@@ -75,8 +75,23 @@ function rosenbrock(x)
     return result
 end
 
-Main.testprintln(rosenbrock)
+Main.testprintln(rosenbrock1)
 
-@test_approx_eq RDP.gradient!(out, rosenbrock, x) ForwardDiff.gradient(rosenbrock, x)
+@test_approx_eq RDP.gradient!(out, rosenbrock1, x) ForwardDiff.gradient(rosenbrock1, x)
+
+##################################################
+x = rand(10)
+out = similar(x)
+
+function rosenbrock2(x)
+    a = x[1]
+    b = 100 * a
+    v = map((i, j) -> (a - j)^2 + b*(i - j^2)^2, x[2:end], x[1:end-1])
+    return sum(v)
+end
+
+Main.testprintln(rosenbrock2)
+
+@test_approx_eq RDP.gradient!(out, rosenbrock2, x) ForwardDiff.gradient(rosenbrock2, x)
 
 end # module

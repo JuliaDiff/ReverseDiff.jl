@@ -12,4 +12,5 @@ end
 
 out = zeros(x);
 t = ReverseDiffPrototype.trace_array(typeof(matrix_test), eltype(out), x);
+ReverseDiffPrototype.gradient!(out, matrix_test, x, t); # warmup
 @time ReverseDiffPrototype.gradient!(out, matrix_test, x, t);

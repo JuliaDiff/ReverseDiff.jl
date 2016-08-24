@@ -37,11 +37,11 @@ Base.promote_array_type{T<:TraceReal, A<:AbstractFloat, P}(_, ::Type{T}, ::Type{
 Base.promote_array_type{A<:AbstractFloat, T<:TraceReal}(_, ::Type{A}, ::Type{T}) = promote_type(T, A)
 Base.promote_array_type{A<:AbstractFloat, T<:TraceReal, P}(_, ::Type{A}, ::Type{T}, ::Type{P}) = P
 
-Base.float{tag,S}(t::TraceReal{tag,S}) = TraceReal{tag,S,promote_type(valtype(t),Float16)}(value(t))
-Base.one{tag,S}(t::TraceReal{tag,S}) = TraceReal{tag,S}(one(valtype(t)))
-Base.zero{tag,S}(t::TraceReal{tag,S}) = TraceReal{tag,S}(zero(valtype(t)))
-Base.rand{tag,S,T}(::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S}(rand(valtype(TraceReal{tag,S,T})))
-Base.rand{tag,S,T}(rng::AbstractRNG, ::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S}(rand(rng, valtype(TraceReal{tag,S,T})))
+Base.float{tag,S,T}(::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S,T}(float(T))
+Base.one{tag,S,T}(::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S,T}(one(T))
+Base.zero{tag,S,T}(::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S,T}(zero(T))
+Base.rand{tag,S,T}(::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S,T}(rand(T))
+Base.rand{tag,S,T}(rng::AbstractRNG, ::Type{TraceReal{tag,S,T}}) = TraceReal{tag,S,T}(rand(rng, T))
 
 ####################
 # Math Overloading #
@@ -63,7 +63,7 @@ end
 # binary functions #
 #------------------#
 
-const REAL_DEF_TYPES = (:Bool, :Integer, :Rational, :Real)
+const REAL_DEF_TYPES = (:Bool, :Integer, :Rational, :Real, :Dual)
 
 for f in (:*, :/, :+, :-, :^, :atan2)
     @eval begin
@@ -77,15 +77,16 @@ for f in (:*, :/, :+, :-, :^, :atan2)
         end
     end
     for R in REAL_DEF_TYPES
+        xexpr = R == :Dual ? :(value(x)) : :x
         @eval begin
             @inline function Base.$(f){tag,S}(x::$R, t::TraceReal{tag,S})
-                out = TraceReal{tag,S}($(f)(x, Dual(value(t), one(valtype(t)))))
+                out = TraceReal{tag,S}($(f)($(xexpr), Dual(value(t), one(valtype(t)))))
                 record!(tag, t, out)
                 return out
             end
 
             @inline function Base.$(f){tag,S}(t::TraceReal{tag,S}, x::$R)
-                out = TraceReal{tag,S}($(f)(Dual(value(t), one(valtype(t))), x))
+                out = TraceReal{tag,S}($(f)(Dual(value(t), one(valtype(t))), $(xexpr)))
                 record!(tag, t, out)
                 return out
             end
@@ -98,9 +99,16 @@ for f in (:<, :>, :(==), :(<=), :(>=))
         @inline Base.$(f)(a::TraceReal, b::TraceReal) = $(f)(value(a), value(b))
     end
     for R in REAL_DEF_TYPES
+        xexpr = R == :Dual ? :(value(x)) : :x
         @eval begin
-            @inline Base.$(f)(x::$R, t::TraceReal) = $(f)(x, value(t))
-            @inline Base.$(f)(t::TraceReal, x::$R) = $(f)(value(t), x)
+            @inline Base.$(f)(x::$R, t::TraceReal) = $(f)($(xexpr), value(t))
+            @inline Base.$(f)(t::TraceReal, x::$R) = $(f)(value(t), $(xexpr))
         end
     end
 end
+
+###################
+# Pretty Printing #
+###################
+
+Base.show{tag}(io::IO, t::TraceReal{tag}) = print(io, "TraceReal{$tag}($(adjoint(t)), $(t.value))")
