@@ -54,7 +54,7 @@ function test4(x)
     k = length(x)
     N = isqrt(k)
     A = reshape(x, N, N)
-    return sum(@fastdiff map(n -> sqrt(abs(n) + n^2) * 0.5, A))
+    return sum(map(RDP.@forward(n -> sqrt(abs(n) + n^2) * 0.5), A))
 end
 
 Main.testprintln(test4)

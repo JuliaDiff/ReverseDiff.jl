@@ -11,6 +11,7 @@ import ForwardDiff: Dual, Partials, value, valtype, partials
 
 include("Trace.jl")
 include("TraceReal.jl")
+include("TraceArray.jl")
 
 ##############
 # wrap/wrap! #
@@ -36,10 +37,8 @@ end
 # ...and the rest of the code #
 ###############################
 
-include("array.jl")
+include("optimize.jl")
 include("backprop.jl")
 include("api.jl")
-
-export @fastdiff
 
 end # module

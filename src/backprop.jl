@@ -39,9 +39,9 @@ function partials_backprop_step!{N}(inputs::Tuple, output::TraceReal, partials::
     return nothing
 end
 
-###############################################
-# elementwise functions (e.g. broadcast, map) #
-###############################################
+################################################
+# higher-order functions (e.g. broadcast, map) #
+################################################
 
 # f.(::AbstractArray)::AbstractArray
 function partials_backprop_step!(input::AbstractArray, output::AbstractArray, partials::AbstractArray)

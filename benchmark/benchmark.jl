@@ -1,36 +1,43 @@
 using ReverseDiffPrototype
 
 const RDP = ReverseDiffPrototype
-const N = 100000
 
-println("benchmarking rosenbrock(x)...")
+####################################################################
 
-rosenbrock(x) = sum(@fastdiff map((i, j) -> (1 - j)^2 + 100*(i - j^2)^2, x[2:end], x[1:end-1]))
+function grad_benchmark_driver(f, x)
+    println("benchmarking ∇$(f)(x) on $(length(x)) elements...")
 
-x = rand(N)
-out = zeros(x)
-tr = RDP.Trace()
-trx = RDP.wrap(eltype(out), x, tr)
+    out = zeros(x)
+    tr = RDP.Trace()
+    trx = RDP.wrap(eltype(out), x, tr)
 
-# warmup
-RDP.seed!(rosenbrock(trx))
-RDP.backprop!(tr)
-empty!(tr)
-RDP.gradient!(out, rosenbrock, x, trx)
-empty!(tr)
+    # warmup
+    RDP.seed!(f(trx))
+    RDP.backprop!(tr)
+    empty!(tr)
+    RDP.gradient!(out, f, x, trx)
+    empty!(tr)
 
-# timed
-gc()
-@time RDP.seed!(rosenbrock(trx))
-gc()
-@time RDP.backprop!(tr)
-empty!(tr)
-gc()
-@time RDP.gradient!(out, rosenbrock, x, trx)
-empty!(tr)
+    # actual
+    gc()
+    @time RDP.seed!(f(trx))
+    gc()
+    @time RDP.backprop!(tr)
+    empty!(tr)
+    gc()
+    @time RDP.gradient!(out, f, x, trx)
+    empty!(tr)
 
-println("done")
-println("benchmarking ackley(x)...")
+    println("done.")
+end
+
+####################################################################
+
+rosenbrock(x) = sum(map(RDP.@forward((i, j) -> (1 - j)^2 + 100*(i - j^2)^2), x[2:end], x[1:end-1]))
+
+grad_benchmark_driver(rosenbrock, rand(100000))
+
+####################################################################
 
 function ackley(x::AbstractVector)
     a, b, c = 20.0, -0.2, 2.0*π
@@ -45,29 +52,9 @@ function ackley(x::AbstractVector)
             exp(len_recip*sum_cos) + a + e)
 end
 
-x = rand(N)
-out = zeros(x)
-tr = RDP.Trace()
-trx = RDP.wrap(eltype(out), x, tr)
+grad_benchmark_driver(ackley, rand(100000))
 
-# warmup
-RDP.seed!(ackley(trx))
-RDP.backprop!(tr)
-empty!(tr)
-RDP.gradient!(out, ackley, x, trx)
-empty!(tr)
-
-# timed
-gc()
-@time RDP.seed!(ackley(trx))
-gc()
-@time RDP.backprop!(tr)
-empty!(tr)
-gc()
-@time RDP.gradient!(out, ackley, x, trx)
-empty!(tr)
-
-println("benchmarking matrix_test(x)...")
+####################################################################
 
 function generate_matrix_test(n)
     return x -> begin
@@ -79,27 +66,36 @@ function generate_matrix_test(n)
 end
 
 n = 100
-x = collect(1:(2n^2 + n))
-out = zeros(Float64, x)
 matrix_test = generate_matrix_test(n)
-tr = RDP.Trace()
-trx = RDP.wrap(eltype(out), x, tr)
 
-# warmup
-RDP.seed!(matrix_test(trx))
-RDP.backprop!(tr)
-empty!(tr)
-RDP.gradient!(out, matrix_test, x, trx)
-empty!(tr)
+grad_benchmark_driver(matrix_test, collect(1.0:(2n^2 + n)))
 
-# timed
+####################################################################
+
+relu(x) = log.(1.0 .+ exp(x))
+
+RDP.@forward sigmoid(n) = 1. / (1. + exp(-n))
+
+function neural_net(w1, w2, w3, x1)
+    x2 = relu(w1 * x1)
+    x3 = relu(w2 * x2)
+    return sigmoid(dot(w3, x3))
+end
+
+function neural_net_grads(w1, w2, w3, x1)
+    ∇w1 = RDP.gradient(w -> neural_net(w, w2, w3, x1), w1)
+    ∇w2 = RDP.gradient(w -> neural_net(w1, w, w3, x1), w2)
+    ∇w3 = RDP.gradient(w -> neural_net(w1, w2, w, x1), w3)
+    ∇x1 = RDP.gradient(x -> neural_net(w1, w2, w3, x), x1)
+    return (∇w1, ∇w2, ∇w3, ∇x1)
+end
+
+w1, w2, w3, x1 = randn(10,10), randn(10,10), randn(10), rand(10)
+
+println("benchmarking neural_net_grads...")
+
+neural_net_grads(w1, w2, w3, x1) # warmup
 gc()
-@time RDP.seed!(matrix_test(trx))
-gc()
-@time RDP.backprop!(tr)
-empty!(tr)
-gc()
-@time RDP.gradient!(out, matrix_test, x, trx)
-empty!(tr)
+@time neural_net_grads(w1, w2, w3, x1) # actual
 
 println("done")
