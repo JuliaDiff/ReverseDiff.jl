@@ -1,29 +1,33 @@
 using ReverseDiffPrototype
 
+const RDP = ReverseDiffPrototype
 const N = 100000
 
 println("benchmarking rosenbrock(x)...")
 
 rosenbrock(x) = sum(@fastdiff map((i, j) -> (1 - j)^2 + 100*(i - j^2)^2, x[2:end], x[1:end-1]))
 
-x = rand(N);
-out = zeros(x);
-t = ReverseDiffPrototype.trace_array(typeof(rosenbrock), eltype(out), x);
+x = rand(N)
+out = zeros(x)
+tr = RDP.Trace()
+trx = RDP.wrap(eltype(out), x, tr)
 
 # warmup
-ftrace = ReverseDiffPrototype.reset_trace!(rosenbrock)
-rosenbrock(t);
-ReverseDiffPrototype.backprop!(ftrace);
-ReverseDiffPrototype.gradient!(out, rosenbrock, x, t);
+RDP.seed!(rosenbrock(trx))
+RDP.backprop!(tr)
+empty!(tr)
+RDP.gradient!(out, rosenbrock, x, trx)
+empty!(tr)
 
 # timed
-ftrace = ReverseDiffPrototype.reset_trace!(rosenbrock)
 gc()
-@time rosenbrock(t);
+@time RDP.seed!(rosenbrock(trx))
 gc()
-@time ReverseDiffPrototype.backprop!(ftrace);
+@time RDP.backprop!(tr)
+empty!(tr)
 gc()
-@time ReverseDiffPrototype.gradient!(out, rosenbrock, x, t);
+@time RDP.gradient!(out, rosenbrock, x, trx)
+empty!(tr)
 
 println("done")
 println("benchmarking ackley(x)...")
@@ -41,24 +45,27 @@ function ackley(x::AbstractVector)
             exp(len_recip*sum_cos) + a + e)
 end
 
-x = rand(N);
-out = zeros(x);
-t = ReverseDiffPrototype.trace_array(typeof(ackley), eltype(out), x);
+x = rand(N)
+out = zeros(x)
+tr = RDP.Trace()
+trx = RDP.wrap(eltype(out), x, tr)
 
 # warmup
-ftrace = ReverseDiffPrototype.reset_trace!(ackley)
-ackley(t);
-ReverseDiffPrototype.backprop!(ftrace);
-ReverseDiffPrototype.gradient!(out, ackley, x, t);
+RDP.seed!(ackley(trx))
+RDP.backprop!(tr)
+empty!(tr)
+RDP.gradient!(out, ackley, x, trx)
+empty!(tr)
 
 # timed
-ftrace = ReverseDiffPrototype.reset_trace!(ackley)
 gc()
-@time ackley(t);
+@time RDP.seed!(ackley(trx))
 gc()
-@time ReverseDiffPrototype.backprop!(ftrace);
+@time RDP.backprop!(tr)
+empty!(tr)
 gc()
-@time ReverseDiffPrototype.gradient!(out, ackley, x, t);
+@time RDP.gradient!(out, ackley, x, trx)
+empty!(tr)
 
 println("benchmarking matrix_test(x)...")
 
@@ -75,21 +82,24 @@ n = 100
 x = collect(1:(2n^2 + n))
 out = zeros(Float64, x)
 matrix_test = generate_matrix_test(n)
-t = ReverseDiffPrototype.trace_array(typeof(matrix_test), eltype(out), x);
+tr = RDP.Trace()
+trx = RDP.wrap(eltype(out), x, tr)
 
 # warmup
-ftrace = ReverseDiffPrototype.reset_trace!(matrix_test)
-matrix_test(t);
-ReverseDiffPrototype.backprop!(ftrace);
-ReverseDiffPrototype.gradient!(out, matrix_test, x, t);
+RDP.seed!(matrix_test(trx))
+RDP.backprop!(tr)
+empty!(tr)
+RDP.gradient!(out, matrix_test, x, trx)
+empty!(tr)
 
 # timed
-ftrace = ReverseDiffPrototype.reset_trace!(matrix_test)
 gc()
-@time matrix_test(t);
+@time RDP.seed!(matrix_test(trx))
 gc()
-@time ReverseDiffPrototype.backprop!(ftrace);
+@time RDP.backprop!(tr)
+empty!(tr)
 gc()
-@time ReverseDiffPrototype.gradient!(out, matrix_test, x, t);
+@time RDP.gradient!(out, matrix_test, x, trx)
+empty!(tr)
 
 println("done")

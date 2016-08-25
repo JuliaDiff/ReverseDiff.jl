@@ -2,31 +2,31 @@
 # gradient/gradient! #
 ######################
 
-function gradient{F}(f::F, x, tracex = trace_array(F, eltype(x), x))
-    trace = reset_trace!(F)
-    seed!(f(tracex))
-    backprop!(trace)
-    return adjoint(tracex)
+function gradient(f, x, trx = wrap(x))
+    result = f(trx)
+    seed!(result)
+    backprop!(get(trace(result)))
+    return adjoint(trx)
 end
 
-function gradient!{F}(out, f::F, x, tracex = trace_array(F, eltype(out), x))
-    trace = reset_trace!(F)
-    seed!(f(tracex))
-    backprop!(trace)
-    return adjoint!(out, tracex)
+function gradient!(out, f, x, trx = wrap(eltype(out), x))
+    result = f(trx)
+    seed!(result)
+    backprop!(get(trace(result)))
+    return adjoint!(out, trx)
 end
 
 ######################
 # jacobian/jacobian! #
 ######################
 
-function load_jacobian!(out, tracex, y, trace)
+function load_jacobian!(out, trx, y, tr::Trace)
     for i in eachindex(y)
         n = y[i]
         seed!(n)
-        backprop!(trace)
-        for j in eachindex(tracex)
-            m = tracex[j]
+        backprop!(tr)
+        for j in eachindex(trx)
+            m = trx[j]
             out[i, j] = adjoint(m)
             unseed!(m)
         end
@@ -35,16 +35,16 @@ function load_jacobian!(out, tracex, y, trace)
     return out
 end
 
-function jacobian{F}(f::F, x, tracex = trace_array(F, eltype(x), x))
-    trace = reset_trace!(F)
-    y = f(tracex)
+function jacobian(f, x, trx = wrap(x))
+    tr = get(trace(first(trx)))
+    y = f(trx)
     out = similar(y, eltype(x), length(y), length(x))
-    return load_jacobian!(out, tracex, y, trace)
+    return load_jacobian!(out, trx, y, tr)
 end
 
-function jacobian!{F}(out, f::F, x, tracex = trace_array(F, eltype(out), x))
-    trace = reset_trace!(F)
-    y = f(tracex)
-    load_jacobian!(reshape(out, length(y), length(x)), tracex, y, trace)
+function jacobian!(out, f, x, trx = wrap(eltype(out), x))
+    tr = get(trace(first(trx)))
+    y = f(trx)
+    load_jacobian!(reshape(out, length(y), length(x)), trx, y, tr)
     return out
 end

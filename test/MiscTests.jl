@@ -75,6 +75,9 @@ function rosenbrock1(x)
     return result
 end
 
+ros1(x) = 100 * one(eltype(x)) * x[1]
+ros2(x) = 100 * x[1]
+
 Main.testprintln(rosenbrock1)
 
 @test_approx_eq RDP.gradient!(out, rosenbrock1, x) ForwardDiff.gradient(rosenbrock1, x)
