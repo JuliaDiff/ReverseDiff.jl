@@ -9,23 +9,23 @@ function grad_benchmark_driver(f, x)
 
     out = zeros(x)
     tr = RDP.Trace()
-    trx = RDP.wrap(eltype(out), x, tr)
+    xtr = RDP.wrap(eltype(out), x, tr)
 
     # warmup
-    RDP.seed!(f(trx))
+    RDP.seed!(f(xtr))
     RDP.backprop!(tr)
     empty!(tr)
-    RDP.gradient!(out, f, x, trx)
+    RDP.gradient!(out, f, x, xtr)
     empty!(tr)
 
     # actual
     gc()
-    @time RDP.seed!(f(trx))
+    @time RDP.seed!(f(xtr))
     gc()
     @time RDP.backprop!(tr)
     empty!(tr)
     gc()
-    @time RDP.gradient!(out, f, x, trx)
+    @time RDP.gradient!(out, f, x, xtr)
     empty!(tr)
 
     println("done.")
