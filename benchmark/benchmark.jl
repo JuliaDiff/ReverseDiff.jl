@@ -9,23 +9,23 @@ function grad_benchmark_driver(f, x)
 
     out = zeros(x)
     tr = RDP.Trace()
-    trx = RDP.wrap(eltype(out), x, tr)
+    xtr = RDP.wrap(eltype(out), x, tr)
 
     # warmup
-    RDP.seed!(f(trx))
+    RDP.seed!(f(xtr))
     RDP.backprop!(tr)
     empty!(tr)
-    RDP.gradient!(out, f, x, trx)
+    RDP.gradient!(out, f, x, tr, xtr)
     empty!(tr)
 
     # actual
     gc()
-    @time RDP.seed!(f(trx))
+    @time RDP.seed!(f(xtr))
     gc()
     @time RDP.backprop!(tr)
     empty!(tr)
     gc()
-    @time RDP.gradient!(out, f, x, trx)
+    @time RDP.gradient!(out, f, x, tr, xtr)
     empty!(tr)
 
     println("done.")
@@ -83,10 +83,7 @@ function neural_net(w1, w2, w3, x1)
 end
 
 function neural_net_grads(w1, w2, w3, x1)
-    ∇w1 = RDP.gradient(w -> neural_net(w, w2, w3, x1), w1)
-    ∇w2 = RDP.gradient(w -> neural_net(w1, w, w3, x1), w2)
-    ∇w3 = RDP.gradient(w -> neural_net(w1, w2, w, x1), w3)
-    ∇x1 = RDP.gradient(x -> neural_net(w1, w2, w3, x), x1)
+    ∇w1, ∇w2, ∇w3, ∇x1 = RDP.gradient(neural_net, (w1, w2, w3, x1))
     return (∇w1, ∇w2, ∇w3, ∇x1)
 end
 

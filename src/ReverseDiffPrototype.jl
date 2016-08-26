@@ -3,7 +3,9 @@ module ReverseDiffPrototype
 using ForwardDiff
 using Base.RefValue
 
-import ForwardDiff: Dual, Partials, value, valtype, partials
+import ForwardDiff: Dual, Partials, GradientResult,
+                    JacobianResult, HessianResult,
+                    value, valtype, partials
 
 ############################
 # initial type definitions #

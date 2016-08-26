@@ -5,7 +5,7 @@ works for the following formats:
 - `@forward f = (args...) -> ...`
 =#
 function annotate_func_expr(typesym, expr)
-    if expr.head == :(=)
+    if isa(expr, Expr) && expr.head == :(=)
         lhs = expr.args[1]
         if isa(lhs, Expr) && lhs.head == :call # named function definition site
             name = lhs.args[1]
