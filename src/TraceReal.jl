@@ -14,9 +14,9 @@ end
 @inline ForwardDiff.value{S,T}(t::TraceReal{S,T}) = t.value
 
 adjtype(t::TraceReal) = adjtype(typeof(t))
-ForwardDiff.valtype(t::TraceReal) = valtype(typeof(t))
-
 adjtype{S,T}(::Type{TraceReal{S,T}}) = S
+
+ForwardDiff.valtype(t::TraceReal) = valtype(typeof(t))
 ForwardDiff.valtype{S,T}(::Type{TraceReal{S,T}}) = T
 
 ###################
@@ -48,76 +48,6 @@ Base.one{S,T}(::Type{TraceReal{S,T}}) = TraceReal{S}(one(T))
 Base.zero{S,T}(::Type{TraceReal{S,T}}) = TraceReal{S}(zero(T))
 Base.rand{S,T}(::Type{TraceReal{S,T}}) = TraceReal{S}(rand(T))
 Base.rand{S,T}(rng::AbstractRNG, ::Type{TraceReal{S,T}}) = TraceReal{S}(rand(rng, T))
-
-####################
-# Math Overloading #
-####################
-
-# unary functions #
-#-----------------#
-
-for f in (ForwardDiff.AUTO_DEFINED_UNARY_FUNCS..., :-, :abs, :conj)
-    @eval begin
-        @inline function Base.$(f){S}(t::TraceReal{S})
-            dual = $(f)(Dual(value(t), one(valtype(t))))
-            tr = trace(t)
-            out = TraceReal{S}(value(dual), tr)
-            record!(tr, nothing, t, out, partials(dual))
-            return out
-        end
-    end
-end
-
-# binary functions #
-#------------------#
-
-const REAL_DEF_TYPES = (:Bool, :Integer, :Rational, :Real, :Dual)
-
-for f in (:*, :/, :+, :-, :^, :atan2)
-    @eval begin
-        @inline function Base.$(f){S}(a::TraceReal{S}, b::TraceReal{S})
-            A, B = valtype(a), valtype(b)
-            dual_a = Dual(value(a), one(A), zero(A))
-            dual_b = Dual(value(b), zero(B), one(B))
-            dual_c = $(f)(dual_a, dual_b)
-            tr = trace(a, b)
-            out = TraceReal{S}(value(dual_c), tr)
-            record!(tr, nothing, (a, b), out, partials(dual_c))
-            return out
-        end
-    end
-    for R in REAL_DEF_TYPES
-        @eval begin
-            @inline function Base.$(f){S}(x::$R, t::TraceReal{S})
-                dual = $(f)(x, Dual(value(t), one(valtype(t))))
-                tr = trace(t)
-                out = TraceReal{S}(value(dual), tr)
-                record!(tr, nothing, t, out, partials(dual))
-                return out
-            end
-
-            @inline function Base.$(f){S}(t::TraceReal{S}, x::$R)
-                dual = $(f)(Dual(value(t), one(valtype(t))), x)
-                tr = trace(t)
-                out = TraceReal{S}(value(dual), tr)
-                record!(tr, nothing, t, out, partials(dual))
-                return out
-            end
-        end
-    end
-end
-
-for f in (:<, :>, :(==), :(<=), :(>=))
-    @eval begin
-        @inline Base.$(f)(a::TraceReal, b::TraceReal) = $(f)(value(a), value(b))
-    end
-    for R in REAL_DEF_TYPES
-        @eval begin
-            @inline Base.$(f)(x::$R, t::TraceReal) = $(f)(x, value(t))
-            @inline Base.$(f)(t::TraceReal, x::$R) = $(f)(value(t), x)
-        end
-    end
-end
 
 ###################
 # Pretty Printing #
