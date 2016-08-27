@@ -39,9 +39,9 @@ function partials_backprop_step!{N}(inputs::Tuple, output::TraceReal, partials::
     return nothing
 end
 
-################################################
-# higher-order functions (e.g. broadcast, map) #
-################################################
+###############################################
+# elementwise functions (e.g. broadcast, map) #
+###############################################
 
 # f.(::AbstractArray)::AbstractArray
 function partials_backprop_step!(input::AbstractArray, output::AbstractArray, partials::AbstractArray)
@@ -56,15 +56,6 @@ function partials_backprop_step!(inputs::NTuple{2}, output::AbstractArray, parti
     a, b = inputs
     for i in eachindex(output)
         partials_backprop_step!((a[i], b[i]), output[i], partials[i])
-    end
-    return nothing
-end
-
-# f.(::AbstractArray, ::AbstractArray, ::AbstractArray)::AbstractArray
-function partials_backprop_step!(inputs::NTuple{3}, output::AbstractArray, partials::AbstractArray)
-    a, b, c = inputs
-    for i in eachindex(output)
-        partials_backprop_step!((a[i], b[i], c[i]), output[i], partials[i])
     end
     return nothing
 end

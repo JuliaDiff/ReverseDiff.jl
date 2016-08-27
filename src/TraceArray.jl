@@ -31,5 +31,4 @@ function trace(arr::AbstractArray)
     return Nullable{Trace}()
 end
 
-trace(a::AbstractArray, b::AbstractArray) = isnull(trace(a)) ? trace(b) : trace(a)
-trace(a::AbstractArray, b::AbstractArray, c::AbstractArray) = isnull(trace(a)) ? trace(b, c) : trace(a)
+trace(a, b::AbstractArray) = isnull(trace(a)) ? trace(b) : trace(a)
