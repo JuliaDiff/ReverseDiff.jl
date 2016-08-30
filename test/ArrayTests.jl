@@ -11,12 +11,15 @@ for f in (det,)
     Main.testprintln(f)
     x = rand(3, 3)
     @test_approx_eq_eps RDP.gradient(f, x) ForwardDiff.gradient(f, x) EPS
+    @test_approx_eq_eps RDP.hessian(f, x) ForwardDiff.hessian(f, x) EPS
 end
 
 for f in (-, inv)
     Main.testprintln(f)
     x = rand(3, 3)
+    f2 = y -> RDP.jacobian(f, y)
     @test_approx_eq_eps RDP.jacobian(f, x) ForwardDiff.jacobian(f, x) EPS
+    @test_approx_eq_eps RDP.jacobian(f2, x) ForwardDiff.jacobian(f2, x) EPS
 end
 
 for f in (+, .+, -, .-, *, .*, ./, .^,
