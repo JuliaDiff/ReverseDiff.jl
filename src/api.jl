@@ -28,9 +28,8 @@ function load_jacobian!(out, trx, y, tr::Trace)
         for j in eachindex(trx)
             m = trx[j]
             out[i, j] = adjoint(m)
-            unseed!(m)
         end
-        unseed!(n)
+        unseed!(tr)
     end
     return out
 end

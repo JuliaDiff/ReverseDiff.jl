@@ -9,7 +9,7 @@ import ForwardDiff: Dual, Partials, value, valtype, partials
 # initial type definitions #
 ############################
 
-include("Trace.jl")
+include("TraceNode.jl")
 include("TraceReal.jl")
 include("TraceArray.jl")
 
@@ -44,7 +44,7 @@ const REAL_TYPES = (:Bool, :Integer, :Rational, :Real, :Dual)
 
 const FORWARD_UNARY_SCALAR_FUNCS = (ForwardDiff.AUTO_DEFINED_UNARY_FUNCS..., :-, :abs, :conj)
 const FORWARD_BINARY_SCALAR_FUNCS = (:*, :/, :+, :-, :^, :atan2)
-const SKIP_BINARY_SCALAR_FUNCS = (:<, :>, :(==), :(!=), :(<=), :(>=))
+const SKIPPED_SCALAR_COMPARATORS = (:<, :>, :(==), :(!=), :(<=), :(>=))
 
 include("optimizations/macros.jl")
 include("optimizations/scalars.jl")

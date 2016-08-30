@@ -97,4 +97,25 @@ Main.testprintln(rosenbrock2)
 
 @test_approx_eq RDP.gradient!(out, rosenbrock2, x) ForwardDiff.gradient(rosenbrock2, x)
 
+##################################################
+x = rand(10)
+out = similar(x)
+
+rosenbrock3(x) = sum(map(RDP.@forward((i, j) -> (1 - j)^2 + 100*(i - j^2)^2), x[2:end], x[1:end-1]))
+
+Main.testprintln(rosenbrock3)
+
+@test_approx_eq RDP.gradient!(out, rosenbrock3, x) ForwardDiff.gradient(rosenbrock3, x)
+
+
+##################################################
+x = rand(10)
+out = similar(x)
+
+rosenbrock4(x) = sum((1 - x[1:end-1]).^2 + 100*(x[2:end] - x[1:end-1].^2).^2)
+
+Main.testprintln(rosenbrock4)
+
+@test_approx_eq RDP.gradient!(out, rosenbrock4, x) ForwardDiff.gradient(rosenbrock4, x)
+
 end # module

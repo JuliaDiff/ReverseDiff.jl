@@ -1,12 +1,9 @@
 function dualwrap{S,N,T}(::Type{S}, duals::AbstractArray{Dual{N,T}}, tr::Nullable{Trace})
     ts = similar(duals, TraceReal{S,T})
-    ps = similar(duals, Partials{N,T})
     for i in eachindex(duals)
-        dual = duals[i]
-        ts[i] = TraceReal{S}(value(dual), tr)
-        ps[i] = partials(dual)
+        ts[i] = TraceReal{S}(value(duals[i]), tr)
     end
-    return ts, ps
+    return ts
 end
 
 for A in ARRAY_TYPES
@@ -18,8 +15,8 @@ for A in ARRAY_TYPES
                 fdual = t -> fopt.f(Dual(value(t), one(T)))
                 duals = $(g)(fdual, x)
                 tr = trace(x)
-                out, partials = dualwrap(S, duals, tr)
-                record!(tr, nothing, x, out, partials)
+                out = dualwrap(S, duals, tr)
+                record!(tr, $(g), x, out, duals)
                 return out
             end
 
@@ -30,8 +27,8 @@ for A in ARRAY_TYPES
                                            Dual(value(t2), zero(T2), one(T2)))
                 duals = $(g)(fdual, x1, x2)
                 tr = trace(x1, x2)
-                out, partials = dualwrap(S, duals, tr)
-                record!(tr, nothing, (x1, x2), out, partials)
+                out = dualwrap(S, duals, tr)
+                record!(tr, $(g), (x1, x2), out, duals)
                 return out
             end
         end
@@ -42,13 +39,11 @@ for A in ARRAY_TYPES
     for R in REAL_TYPES
         @eval begin
             @inline function Base.broadcast{F,S,T}(fopt::ForwardOptimize{F}, n::$R, x::$(A){TraceReal{S,T}})
-                newf = ForwardOptimize(t -> fopt.f(n, t))
-                return broadcast(newf, x)
+                return broadcast(ForwardOptimize(t -> fopt.f(n, t)), x)
             end
 
             @inline function Base.broadcast{F,S,T}(fopt::ForwardOptimize{F}, x::$(A){TraceReal{S,T}}, n::$R)
-                newf = ForwardOptimize(t -> fopt.f(t, n))
-                return broadcast(newf, x)
+                return broadcast(ForwardOptimize(t -> fopt.f(t, n)), x)
             end
         end
     end
@@ -60,7 +55,7 @@ for A in ARRAY_TYPES
             duals = broadcast(fdual, x)
             tr = trace(n, x)
             out, partials = dualwrap(S, duals, tr)
-            record!(tr, nothing, (n, x), out, partials)
+            record!(tr, broadcast, (n, x), out, partials)
             return out
         end
 
@@ -70,7 +65,7 @@ for A in ARRAY_TYPES
             duals = broadcast(fdual, x)
             tr = trace(n, x)
             out, partials = dualwrap(S, duals, tr)
-            record!(tr, nothing, (x, n), out, partials)
+            record!(tr, broadcast, (x, n), out, partials)
             return out
         end
     end

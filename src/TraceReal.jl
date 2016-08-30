@@ -2,15 +2,15 @@
 # TraceReal #
 #############
 
-immutable TraceReal{S<:Real,T<:Real} <: Real
-    adjoint::RefValue{S}
+type TraceReal{S<:Real,T<:Real} <: Real
+    adjoint::S
     value::T
     trace::Nullable{Trace}
 end
 
-(::Type{TraceReal{S}}){S,T}(x::T, tr::Nullable{Trace} = Nullable{Trace}()) = TraceReal{S,T}(RefValue(zero(S)), x, tr)
+(::Type{TraceReal{S}}){S,T}(x::T, tr::Nullable{Trace} = Nullable{Trace}()) = TraceReal{S,T}(zero(S), x, tr)
 
-@inline adjoint(t::TraceReal) = t.adjoint[]
+@inline adjoint(t::TraceReal) = t.adjoint
 @inline ForwardDiff.value{S,T}(t::TraceReal{S,T}) = t.value
 
 adjtype(t::TraceReal) = adjtype(typeof(t))
@@ -32,7 +32,7 @@ ForwardDiff.valtype{S,T}(::Type{TraceReal{S,T}}) = T
 
 Base.convert{R<:Real}(::Type{R}, t::TraceReal) = R(value(t))
 Base.convert{S,T}(::Type{TraceReal{S,T}}, x::Real) = TraceReal{S}(T(x))
-Base.convert{S,T}(::Type{TraceReal{S,T}}, t::TraceReal{S}) = TraceReal{S,T}(t.adjoint, T(value(t)), t.trace)
+Base.convert{S,T}(::Type{TraceReal{S,T}}, t::TraceReal) = TraceReal{S,T}(S(adjoint(t)), T(value(t)), t.trace)
 Base.convert{T<:TraceReal}(::Type{T}, t::T) = t
 
 Base.promote_rule{R<:Real,S,T}(::Type{R}, ::Type{TraceReal{S,T}}) = TraceReal{S,promote_type(R,T)}

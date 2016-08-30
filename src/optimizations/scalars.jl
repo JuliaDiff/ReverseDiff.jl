@@ -29,7 +29,7 @@ end
 # binary #
 #--------#
 
-for f in SKIP_BINARY_SCALAR_FUNCS
+for f in SKIPPED_SCALAR_COMPARATORS
     @eval @inline Base.$(f)(a::TraceReal, b::TraceReal) = SkipOptimize($(f))(a, b)
     for R in REAL_TYPES
         @eval begin
