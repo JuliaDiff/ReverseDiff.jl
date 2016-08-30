@@ -10,8 +10,8 @@ unseed!(t::TraceReal) = (t.adjoint[] = zero(adjtype(t)); return t)
 unseed!(items) = for t in items; unseed!(t); end
 
 function backprop!(trace::Trace)
-    for node in trace
-        backprop_step!(node)
+    for i in length(trace):-1:1
+        backprop_step!(trace[i])
     end
     return nothing
 end
@@ -26,7 +26,6 @@ backprop_step!(node::TraceNode) = func_backprop_step!(node.func, node.inputs, no
 # f(::Number)::Number
 function partials_backprop_step!(input::TraceReal, output::TraceReal, partials::Partials)
     input.adjoint[] += adjoint(output) * first(partials)
-    unseed!(output)
     return nothing
 end
 
@@ -35,7 +34,6 @@ function partials_backprop_step!{N}(inputs::Tuple, output::TraceReal, partials::
     for i in 1:N
         inputs[i].adjoint[] += adjoint(output) * partials[i]
     end
-    unseed!(output)
     return nothing
 end
 
