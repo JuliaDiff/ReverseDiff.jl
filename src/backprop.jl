@@ -85,10 +85,12 @@ function propagate_adjoint!(duals, output)
     return nothing
 end
 
-function sumover(p, x, duals)
+function sumover(p, x::AbstractArray, duals)
     dims = (i for i in 1:ndims(duals) if size(x,i) != size(duals,i))
     return sum(d -> partials(d, p), duals, dims)
 end
+
+sumover(p, x::Real, duals) = sum(d -> partials(d, p), duals)
 
 # addition/subtraction #
 #----------------------#
@@ -199,14 +201,14 @@ end
 
 negate!(A) = scale!(-one(eltype(A)), A)
 
-function decrement_adjoint!{T<:TraceReal}(input, output::AbstractArray{T})
+function decrement_adjoint!{T<:TraceReal}(input::AbstractArray, output::AbstractArray{T})
     for i in eachindex(input)
         input[i].adjoint -= adjoint(output[i])
     end
     return input
 end
 
-function increment_adjoint!{T<:TraceReal}(input, output::AbstractArray{T})
+function increment_adjoint!{T<:TraceReal}(input::AbstractArray, output::AbstractArray{T})
     for i in eachindex(input)
         input[i].adjoint += adjoint(output[i])
     end
@@ -221,9 +223,11 @@ function increment_adjoint!{T<:TraceReal}(input::AbstractArray{T})
     return input
 end
 
-function increment_adjoint!(input, derivs)
+function increment_adjoint!(input::AbstractArray, derivs::AbstractArray)
     for i in eachindex(input)
         input[i].adjoint += derivs[i]
     end
     return input
 end
+
+increment_adjoint!(input::TraceReal, deriv::Real) = (input.adjoint += deriv)
