@@ -1,3 +1,10 @@
+Base.eltype{V}(::GradientResult{V}) = V
+Base.eltype{V,G}(::Type{GradientResult{V,G}}) = V
+Base.eltype{V}(::JacobianResult{V}) = V
+Base.eltype{V,J}(::Type{JacobianResult{V,J}}) = V
+Base.eltype{V}(::HessianResult{V}) = V
+Base.eltype{V,G,H}(::Type{HessianResult{V,G,H}}) = V
+
 #############################################
 # Gradient of `f(::AbstractArray...)::Real` #
 #############################################
@@ -123,13 +130,13 @@ end
 # hessian/hessian! #
 ####################
 
-# hessian(f, x, xtr = wrap(x)) = jacobian(y -> gradient(f, y), x, xtr)
-#
-# hessian!(out, f, x, xtr = wrap(x)) = jacobian!(out, y -> gradient(f, y), x, xtr)
-#
-# function hessian!(out::HessianResult, f, x, xtr = wrap(x))
-#     outgrad = GradientResult(out.value, out.gradient)
-#     jacobian!(out.hessian, y -> gradient!(outgrad, y), x, xtr)
-#     out.value = outgrad.value
-#     return out
-# end
+hessian(f, x, args...) = jacobian(y -> gradient(f, y), x, args...)
+
+hessian!(out, f, x, args...) = jacobian!(out, y -> gradient(f, y), x, args...)
+
+function hessian!(out::HessianResult, f, x, args...)
+    outgrad = GradientResult(out.value, out.gradient)
+    jacobian!(out.hessian, y -> gradient!(outgrad, f, y), x, args...)
+    out.value = outgrad.value
+    return out
+end

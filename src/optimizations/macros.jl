@@ -5,7 +5,7 @@ works for the following formats:
 - `@forward f = (args...) -> ...`
 =#
 function annotate_func_expr(typesym, expr)
-    if expr.head == :(=)
+    if isa(expr, Expr) && expr.head == :(=)
         lhs = expr.args[1]
         if isa(lhs, Expr) && lhs.head == :call # named function definition site
             name = lhs.args[1]
@@ -72,7 +72,7 @@ end
 end
 
 @inline function (self::ForwardOptimize{F}){F,S}(x::Real, t::TraceReal{S})
-    dual = self.f(x, Dual(value(t), one(valtype(t))))
+    dual = self.f(Dual(value(x), zero(valtype(x))), Dual(value(t), one(valtype(t))))
     tr = trace(t)
     out = TraceReal{S}(value(dual), tr)
     record!(tr, nothing, t, out, partials(dual))
@@ -80,7 +80,7 @@ end
 end
 
 @inline function (self::ForwardOptimize{F}){F,S}(t::TraceReal{S}, x::Real)
-    dual = self.f(Dual(value(t), one(valtype(t))), x)
+    dual = self.f(Dual(value(t), one(valtype(t))), Dual(value(x), zero(valtype(x))))
     tr = trace(t)
     out = TraceReal{S}(value(dual), tr)
     record!(tr, nothing, t, out, partials(dual))

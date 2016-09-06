@@ -7,11 +7,13 @@ using ForwardDiff
 const RDP = ReverseDiffPrototype
 const EPS = 1e-6
 
+srand(1) # seed RNG
+
 for f in (det,)
     Main.testprintln(f)
     x = rand(3, 3)
     @test_approx_eq_eps RDP.gradient(f, x) ForwardDiff.gradient(f, x) EPS
-    # @test_approx_eq_eps RDP.hessian(f, x) ForwardDiff.hessian(f, x) EPS
+    @test_approx_eq_eps RDP.hessian(f, x) ForwardDiff.hessian(f, x) EPS
 end
 
 for f in (-, inv)
