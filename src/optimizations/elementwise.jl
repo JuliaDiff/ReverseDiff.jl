@@ -39,11 +39,13 @@ for A in ARRAY_TYPES
     for R in REAL_TYPES
         @eval begin
             @inline function Base.broadcast{F,S,T}(fopt::ForwardOptimize{F}, n::$R, x::$(A){TraceReal{S,T}})
-                return broadcast(ForwardOptimize(t -> fopt.f(n, t)), x)
+                v = value(n)
+                return broadcast(ForwardOptimize(t -> fopt.f(v, t)), x)
             end
 
             @inline function Base.broadcast{F,S,T}(fopt::ForwardOptimize{F}, x::$(A){TraceReal{S,T}}, n::$R)
-                return broadcast(ForwardOptimize(t -> fopt.f(t, n)), x)
+                v = value(n)
+                return broadcast(ForwardOptimize(t -> fopt.f(t, v)), x)
             end
         end
     end
@@ -54,8 +56,8 @@ for A in ARRAY_TYPES
             fdual = t -> fopt.f(ndual, Dual(value(t), zero(X), one(X)))
             duals = broadcast(fdual, x)
             tr = trace(n, x)
-            out, partials = dualwrap(S, duals, tr)
-            record!(tr, broadcast, (n, x), out, partials)
+            out = dualwrap(S, duals, tr)
+            record!(tr, broadcast, (n, x), out, duals)
             return out
         end
 
@@ -64,8 +66,8 @@ for A in ARRAY_TYPES
             fdual = t -> fopt.f(Dual(value(t), one(X), zero(X)), ndual)
             duals = broadcast(fdual, x)
             tr = trace(n, x)
-            out, partials = dualwrap(S, duals, tr)
-            record!(tr, broadcast, (x, n), out, partials)
+            out = dualwrap(S, duals, tr)
+            record!(tr, broadcast, (x, n), out, duals)
             return out
         end
     end

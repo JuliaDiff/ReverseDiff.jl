@@ -12,10 +12,15 @@ end
 
 @inline adjoint(t::TraceReal) = t.adjoint
 @inline ForwardDiff.value{S,T}(t::TraceReal{S,T}) = t.value
+@inline ForwardDiff.partials(::TraceReal) = error("`partials` is not applicable to TraceReal")
+
+# @inline deepvalue(x::Real) = x
+# @inline deepvalue(x::Union{TraceReal,Dual}) = deepvalue(value(x))
 
 adjtype(t::TraceReal) = adjtype(typeof(t))
 adjtype{S,T}(::Type{TraceReal{S,T}}) = S
 
+ForwardDiff.valtype(x::Real) = typeof(x)
 ForwardDiff.valtype(t::TraceReal) = valtype(typeof(t))
 ForwardDiff.valtype{S,T}(::Type{TraceReal{S,T}}) = T
 
@@ -31,12 +36,14 @@ ForwardDiff.valtype{S,T}(::Type{TraceReal{S,T}}) = T
 ########################
 
 Base.convert{R<:Real}(::Type{R}, t::TraceReal) = R(value(t))
-Base.convert{S,T}(::Type{TraceReal{S,T}}, x::Real) = TraceReal{S}(T(x))
+Base.convert{D<:Dual}(::Type{D}, t::TraceReal) = D(value(t))
+Base.convert{S,T}(::Type{TraceReal{S,T}}, x::Real) = TraceReal{S}(T(value(x)))
 Base.convert{S,T}(::Type{TraceReal{S,T}}, t::TraceReal) = TraceReal{S,T}(S(adjoint(t)), T(value(t)), t.trace)
 Base.convert{T<:TraceReal}(::Type{T}, t::T) = t
 
 Base.promote_rule{R<:Real,S,T}(::Type{R}, ::Type{TraceReal{S,T}}) = TraceReal{S,promote_type(R,T)}
 Base.promote_rule{S,A,B}(::Type{TraceReal{S,A}}, ::Type{TraceReal{S,B}}) = TraceReal{S,promote_type(A,B)}
+Base.promote_rule{N,R<:Real,S<:Real,T<:Real}(::Type{Dual{N,R}}, ::Type{TraceReal{S,T}}) = Dual{N,TraceReal{S,promote_type(R,T)}}
 
 Base.promote_array_type{T<:TraceReal, A<:AbstractFloat}(_, ::Type{T}, ::Type{A}) = promote_type(T, A)
 Base.promote_array_type{T<:TraceReal, A<:AbstractFloat, P}(_, ::Type{T}, ::Type{A}, ::Type{P}) = P
