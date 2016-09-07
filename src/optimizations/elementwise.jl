@@ -54,8 +54,8 @@ for A in ARRAY_TYPES
             fdual = t -> fopt.f(ndual, Dual(value(t), zero(X), one(X)))
             duals = broadcast(fdual, x)
             tr = trace(n, x)
-            out, partials = dualwrap(S, duals, tr)
-            record!(tr, broadcast, (n, x), out, partials)
+            out = dualwrap(S, duals, tr)
+            record!(tr, broadcast, (n, x), out, duals)
             return out
         end
 
@@ -64,8 +64,8 @@ for A in ARRAY_TYPES
             fdual = t -> fopt.f(Dual(value(t), one(X), zero(X)), ndual)
             duals = broadcast(fdual, x)
             tr = trace(n, x)
-            out, partials = dualwrap(S, duals, tr)
-            record!(tr, broadcast, (x, n), out, partials)
+            out = dualwrap(S, duals, tr)
+            record!(tr, broadcast, (x, n), out, duals)
             return out
         end
     end

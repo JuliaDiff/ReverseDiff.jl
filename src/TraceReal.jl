@@ -31,7 +31,7 @@ ForwardDiff.valtype{S,T}(::Type{TraceReal{S,T}}) = T
 ########################
 
 Base.convert{R<:Real}(::Type{R}, t::TraceReal) = R(value(t))
-Base.convert{S,T}(::Type{TraceReal{S,T}}, x::Real) = TraceReal{S}(T(x))
+Base.convert{S,T}(::Type{TraceReal{S,T}}, x::Real) = TraceReal{S}(T(value(x)))
 Base.convert{S,T}(::Type{TraceReal{S,T}}, t::TraceReal) = TraceReal{S,T}(S(adjoint(t)), T(value(t)), t.trace)
 Base.convert{T<:TraceReal}(::Type{T}, t::T) = t
 
