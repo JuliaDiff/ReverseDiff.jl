@@ -5,7 +5,7 @@ using Base.RefValue
 
 import ForwardDiff: Dual, Partials, GradientResult,
                     JacobianResult, HessianResult,
-                    value, valtype, partials
+                    value, partials
 
 ############################
 # initial type definitions #
@@ -46,7 +46,9 @@ const REAL_TYPES = (:Bool, :Integer, :Rational, :Real, :Dual)
 
 const FORWARD_UNARY_SCALAR_FUNCS = (ForwardDiff.AUTO_DEFINED_UNARY_FUNCS..., :-, :abs, :conj)
 const FORWARD_BINARY_SCALAR_FUNCS = (:*, :/, :+, :-, :^, :atan2)
-const SKIPPED_SCALAR_COMPARATORS = (:<, :>, :(==), :(!=), :(<=), :(>=))
+const SKIPPED_SCALAR_COMPARATORS = (:isequal, :isless, :isinf, :isnan, :isfinite, :iseven,
+                                    :isodd, :isreal, :isinteger, :<, :>, :(==), :(!=),
+                                    :(<=), :(>=))
 
 include("optimizations/macros.jl")
 include("optimizations/scalars.jl")

@@ -16,8 +16,8 @@ end
 adjtype(t::TraceReal) = adjtype(typeof(t))
 adjtype{S,T}(::Type{TraceReal{S,T}}) = S
 
-ForwardDiff.valtype(t::TraceReal) = valtype(typeof(t))
-ForwardDiff.valtype{S,T}(::Type{TraceReal{S,T}}) = T
+valtype(t::TraceReal) = valtype(typeof(t))
+valtype{S,T}(::Type{TraceReal{S,T}}) = T
 
 ###################
 # trace selection #
@@ -43,11 +43,35 @@ Base.promote_array_type{T<:TraceReal, A<:AbstractFloat, P}(_, ::Type{T}, ::Type{
 Base.promote_array_type{A<:AbstractFloat, T<:TraceReal}(_, ::Type{A}, ::Type{T}) = promote_type(T, A)
 Base.promote_array_type{A<:AbstractFloat, T<:TraceReal, P}(_, ::Type{A}, ::Type{T}, ::Type{P}) = P
 
-Base.float{S,T}(::Type{TraceReal{S,T}}) = TraceReal{S}(float(T))
+####################
+# `Real` Interface #
+####################
+
+Base.copy(t::TraceReal) = t
+
+Base.float{S,T}(t::TraceReal{S,T}) = TraceReal{S}(float(value(t)))
+Base.float{S,T<:AbstractFloat}(t::TraceReal{S,T}) = t
+
 Base.one{S,T}(::Type{TraceReal{S,T}}) = TraceReal{S}(one(T))
 Base.zero{S,T}(::Type{TraceReal{S,T}}) = TraceReal{S}(zero(T))
+
 Base.rand{S,T}(::Type{TraceReal{S,T}}) = TraceReal{S}(rand(T))
 Base.rand{S,T}(rng::AbstractRNG, ::Type{TraceReal{S,T}}) = TraceReal{S}(rand(rng, T))
+
+Base.eps(t::TraceReal) = eps(value(t))
+Base.eps{T<:TraceReal}(::Type{T}) = eps(valtype(T))
+
+Base.floor(t::TraceReal) = floor(value(t))
+Base.floor{T<:Real}(::Type{T}, t::TraceReal) = floor(T, value(t))
+
+Base.ceil(t::TraceReal) = ceil(value(t))
+Base.ceil{T<:Real}(::Type{T}, t::TraceReal) = ceil(T, value(t))
+
+Base.trunc(t::TraceReal) = trunc(value(t))
+Base.trunc{T<:Real}(::Type{T}, t::TraceReal) = trunc(T, value(t))
+
+Base.round(t::TraceReal) = round(value(t))
+Base.round{T<:Real}(::Type{T}, t::TraceReal) = round(T, value(t))
 
 ###################
 # Pretty Printing #
