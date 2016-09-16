@@ -82,17 +82,15 @@ function neural_net(w1, w2, w3, x1)
     return sigmoid(dot(w3, x3))
 end
 
-function neural_net_grads(w1, w2, w3, x1)
-    ∇w1, ∇w2, ∇w3, ∇x1 = RDP.gradient(neural_net, (w1, w2, w3, x1))
-    return (∇w1, ∇w2, ∇w3, ∇x1)
-end
+neural_net_grads!(outputs, inputs) = RDP.gradient!(outputs, neural_net, inputs)
 
-w1, w2, w3, x1 = randn(10,10), randn(10,10), randn(10), rand(10)
+inputs = (randn(10,10), randn(10,10), randn(10), rand(10))
+outputs = map(similar, inputs)
 
 println("benchmarking neural_net_grads...")
 
-neural_net_grads(w1, w2, w3, x1) # warmup
+neural_net_grads!(outputs, inputs) # warmup
 gc()
-@time neural_net_grads(w1, w2, w3, x1) # actual
+@time neural_net_grads!(outputs, inputs) # actual
 
 println("done")
