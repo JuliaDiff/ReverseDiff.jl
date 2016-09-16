@@ -20,6 +20,8 @@ function test4(x)
     return sum(map(RDP.@forward(n -> sqrt(abs(n) + n^2) * 0.5), A))
 end
 
+test5(x) = norm(x' .* x, 1)
+
 function rosenbrock1(x)
     a = one(eltype(x))
     b = 100 * a
@@ -56,7 +58,7 @@ end
 
 self_weighted_logit(x) = inv(1.0 + exp(-dot(vec(x), vec(x))))
 
-const UNARY_ARR2NUM_FUNCS = (test1, test2, test3, test4,
+const UNARY_ARR2NUM_FUNCS = (test1, test2, test3, test4, test5,
                              rosenbrock1, rosenbrock2, rosenbrock3, rosenbrock4,
                              ackley, det, self_weighted_logit)
 
