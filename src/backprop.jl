@@ -1,36 +1,36 @@
 #################################################
-# backpropagation over the trace (reverse pass) #
+# backpropagation over the tape (reverse pass) #
 #################################################
 
-seed!(t::TraceReal) = (t.adjoint = one(adjtype(t)); return t)
-seed!(t::TraceNode) = (seed!(t.outputs); return t)
+seed!(t::Tracer) = (t.adjoint = one(adjtype(t)); return t)
+seed!(t::TapeNode) = (seed!(t.outputs); return t)
 
-unseed!(t::TraceReal) = (t.adjoint = zero(adjtype(t)); return t)
-unseed!(t::TraceNode) = (unseed!(t.inputs); unseed!(t.outputs); return t)
+unseed!(t::Tracer) = (t.adjoint = zero(adjtype(t)); return t)
+unseed!(t::TapeNode) = (unseed!(t.inputs); unseed!(t.outputs); return t)
 unseed!(ts) = for t in ts; unseed!(t); end
 
-function backprop!(trace::Trace)
-    for i in length(trace):-1:1
-        backprop_step!(trace[i])
+function backprop!(tape::Tape)
+    for i in length(tape):-1:1
+        backprop_step!(tape[i])
     end
     return nothing
 end
 
-backprop_step!(node::TraceNode{Void}) = scalar_backprop_step!(node.inputs, node.outputs, node.revdata)
-backprop_step!(node::TraceNode) = special_backprop_step!(node.func, node.inputs, node.outputs, node.revdata)
+backprop_step!(node::TapeNode{Void}) = scalar_backprop_step!(node.inputs, node.outputs, node.cache)
+backprop_step!(node::TapeNode) = special_backprop_step!(node.func, node.inputs, node.outputs, node.cache)
 
 ####################
 # scalar functions #
 ####################
 
 # f(::Number)::Number
-function scalar_backprop_step!(input::TraceReal, output::TraceReal, deriv::Partials{1})
+function scalar_backprop_step!(input::Tracer, output::Tracer, deriv::Partials{1})
     input.adjoint += adjoint(output) * deriv[1]
     return nothing
 end
 
 # f(::Number...)::Number
-function scalar_backprop_step!{N}(inputs::Tuple, output::TraceReal, grad::Partials{N})
+function scalar_backprop_step!{N}(inputs::Tuple, output::Tracer, grad::Partials{N})
     for i in 1:N
         inputs[i].adjoint += adjoint(output) * grad[i]
     end
@@ -201,21 +201,21 @@ end
 
 negate!(A) = scale!(-one(eltype(A)), A)
 
-function decrement_adjoint!{T<:TraceReal}(input::AbstractArray, output::AbstractArray{T})
+function decrement_adjoint!{T<:Tracer}(input::AbstractArray, output::AbstractArray{T})
     for i in eachindex(input)
         input[i].adjoint -= adjoint(output[i])
     end
     return input
 end
 
-function increment_adjoint!{T<:TraceReal}(input::AbstractArray, output::AbstractArray{T})
+function increment_adjoint!{T<:Tracer}(input::AbstractArray, output::AbstractArray{T})
     for i in eachindex(input)
         input[i].adjoint += adjoint(output[i])
     end
     return input
 end
 
-function increment_adjoint!{T<:TraceReal}(input::AbstractArray{T})
+function increment_adjoint!{T<:Tracer}(input::AbstractArray{T})
     x = one(adjtype(T))
     for i in eachindex(input)
         input[i].adjoint += x
@@ -230,4 +230,4 @@ function increment_adjoint!(input::AbstractArray, derivs::AbstractArray)
     return input
 end
 
-increment_adjoint!(input::TraceReal, deriv::Real) = (input.adjoint += deriv)
+increment_adjoint!(input::Tracer, deriv::Real) = (input.adjoint += deriv)
