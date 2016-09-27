@@ -49,43 +49,45 @@ end
 # unary #
 #-------#
 
-@inline function (self::ForwardOptimize{F}){F,S}(t::Tracer{S})
-    dual = self.f(Dual(value(t), one(valtype(t))))
+@inline function (self::ForwardOptimize{F}){F,V,A}(t::Tracked{V,A})
+    dual = self.f(Dual(value(t), one(V)))
     tp = tape(t)
-    out = Tracer{S}(value(dual), tp)
-    record!(tp, nothing, t, out, partials(dual))
+    out = Tracked(value(dual), A, tp)
+    record!(tp, nothing, t, out, ForwardDiff.partials(dual))
     return out
 end
 
 # binary #
 #--------#
 
-@inline function (self::ForwardOptimize{F}){F,S}(a::Tracer{S}, b::Tracer{S})
-    A, B = valtype(a), valtype(b)
-    dual_a = Dual(value(a), one(A), zero(A))
-    dual_b = Dual(value(b), zero(B), one(B))
+@inline function (self::ForwardOptimize{F}){F,V1,V2,A}(a::Tracked{V1,A}, b::Tracked{V2,A})
+    dual_a = Dual(value(a), one(V1), zero(V1))
+    dual_b = Dual(value(b), zero(V2), one(V2))
     dual_c = self.f(dual_a, dual_b)
     tp = tape(a, b)
-    out = Tracer{S}(value(dual_c), tp)
-    record!(tp, nothing, (a, b), out, partials(dual_c))
+    out = Tracked(value(dual_c), A, tp)
+    record!(tp, nothing, (a, b), out, ForwardDiff.partials(dual_c))
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,S}(x::Real, t::Tracer{S})
-    dual = self.f(x, Dual(value(t), one(valtype(t))))
+@inline function (self::ForwardOptimize{F}){F,V,A}(x::Real, t::Tracked{V,A})
+    dual = self.f(x, Dual(value(t), one(V)))
     tp = tape(t)
-    out = Tracer{S}(value(dual), tp)
-    record!(tp, nothing, t, out, partials(dual))
+    out = Tracked(value(dual), A, tp)
+    record!(tp, nothing, t, out, ForwardDiff.partials(dual))
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,S}(t::Tracer{S}, x::Real)
-    dual = self.f(Dual(value(t), one(valtype(t))), x)
+@inline function (self::ForwardOptimize{F}){F,V,A}(t::Tracked{V,A}, x::Real)
+    dual = self.f(Dual(value(t), one(V)), x)
     tp = tape(t)
-    out = Tracer{S}(value(dual), tp)
-    record!(tp, nothing, t, out, partials(dual))
+    out = Tracked(value(dual), A, tp)
+    record!(tp, nothing, t, out, ForwardDiff.partials(dual))
     return out
 end
+
+@inline (self::ForwardOptimize{F}){F}(x::Dual, t::Tracked) = invoke(self.f, (Dual, Real), x, t)
+@inline (self::ForwardOptimize{F}){F}(t::Tracked, x::Dual) = invoke(self.f, (Real, Dual), t, x)
 
 ##########################
 # Skip Node Optimization #
@@ -107,11 +109,11 @@ end
 # unary #
 #-------#
 
-@inline (self::SkipOptimize{F}){F}(a::Tracer) = self.f(value(a))
+@inline (self::SkipOptimize{F}){F}(a::Tracked) = self.f(value(a))
 
 # binary #
 #--------#
 
-@inline (self::SkipOptimize{F}){F}(a::Tracer, b::Tracer) = self.f(value(a), value(b))
-@inline (self::SkipOptimize{F}){F}(a, b::Tracer) = self.f(a, value(b))
-@inline (self::SkipOptimize{F}){F}(a::Tracer, b) = self.f(value(a), b)
+@inline (self::SkipOptimize{F}){F}(a::Tracked, b::Tracked) = self.f(value(a), value(b))
+@inline (self::SkipOptimize{F}){F}(a, b::Tracked) = self.f(a, value(b))
+@inline (self::SkipOptimize{F}){F}(a::Tracked, b) = self.f(value(a), b)
