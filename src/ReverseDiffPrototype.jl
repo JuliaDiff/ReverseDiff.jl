@@ -11,26 +11,26 @@ import ForwardDiff: Dual, Partials, GradientResult,
 # initial type definitions #
 ############################
 
-include("TraceNode.jl")
-include("TraceReal.jl")
-include("TraceArray.jl")
+include("Tape.jl")
+include("Tracer.jl")
+include("arrays.jl")
 
-##############
-# wrap/wrap! #
-##############
+################
+# track/track! #
+################
 
-wrap(x, tr::Trace = Trace()) = wrap(eltype(x), x, tr)
-wrap{S}(::Type{S}, x, tr::Trace = Trace()) = wrap(S, x, Nullable(tr))
-wrap{S}(::Type{S}, x::Real, tr::Nullable{Trace}) = TraceReal{S}(x, tr)
+track(x, tp::Tape = Tape()) = track(eltype(x), x, tp)
+track{S}(::Type{S}, x, tp::Tape = Tape()) = track(S, x, Nullable(tp))
+track{S}(::Type{S}, x::Real, tp::Nullable{Tape}) = Tracer{S}(x, tp)
 
-function wrap{S}(::Type{S}, x, tr::Nullable{Trace})
-    return wrap!(similar(x, TraceReal{S,eltype(x)}), x, tr)
+function track{S}(::Type{S}, x, tp::Nullable{Tape})
+    return track!(similar(x, Tracer{S,eltype(x)}), x, tp)
 end
 
-function wrap!(out, x, tr::Nullable{Trace})
+function track!(out, x, tp::Nullable{Tape})
     S = adjtype(eltype(out))
     for i in eachindex(out)
-        out[i] = TraceReal{S}(x[i], tr)
+        out[i] = Tracer{S}(x[i], tp)
     end
     return out
 end

@@ -49,41 +49,41 @@ end
 # unary #
 #-------#
 
-@inline function (self::ForwardOptimize{F}){F,S}(t::TraceReal{S})
+@inline function (self::ForwardOptimize{F}){F,S}(t::Tracer{S})
     dual = self.f(Dual(value(t), one(valtype(t))))
-    tr = trace(t)
-    out = TraceReal{S}(value(dual), tr)
-    record!(tr, nothing, t, out, partials(dual))
+    tp = tape(t)
+    out = Tracer{S}(value(dual), tp)
+    record!(tp, nothing, t, out, partials(dual))
     return out
 end
 
 # binary #
 #--------#
 
-@inline function (self::ForwardOptimize{F}){F,S}(a::TraceReal{S}, b::TraceReal{S})
+@inline function (self::ForwardOptimize{F}){F,S}(a::Tracer{S}, b::Tracer{S})
     A, B = valtype(a), valtype(b)
     dual_a = Dual(value(a), one(A), zero(A))
     dual_b = Dual(value(b), zero(B), one(B))
     dual_c = self.f(dual_a, dual_b)
-    tr = trace(a, b)
-    out = TraceReal{S}(value(dual_c), tr)
-    record!(tr, nothing, (a, b), out, partials(dual_c))
+    tp = tape(a, b)
+    out = Tracer{S}(value(dual_c), tp)
+    record!(tp, nothing, (a, b), out, partials(dual_c))
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,S}(x::Real, t::TraceReal{S})
+@inline function (self::ForwardOptimize{F}){F,S}(x::Real, t::Tracer{S})
     dual = self.f(x, Dual(value(t), one(valtype(t))))
-    tr = trace(t)
-    out = TraceReal{S}(value(dual), tr)
-    record!(tr, nothing, t, out, partials(dual))
+    tp = tape(t)
+    out = Tracer{S}(value(dual), tp)
+    record!(tp, nothing, t, out, partials(dual))
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,S}(t::TraceReal{S}, x::Real)
+@inline function (self::ForwardOptimize{F}){F,S}(t::Tracer{S}, x::Real)
     dual = self.f(Dual(value(t), one(valtype(t))), x)
-    tr = trace(t)
-    out = TraceReal{S}(value(dual), tr)
-    record!(tr, nothing, t, out, partials(dual))
+    tp = tape(t)
+    out = Tracer{S}(value(dual), tp)
+    record!(tp, nothing, t, out, partials(dual))
     return out
 end
 
@@ -107,11 +107,11 @@ end
 # unary #
 #-------#
 
-@inline (self::SkipOptimize{F}){F}(a::TraceReal) = self.f(value(a))
+@inline (self::SkipOptimize{F}){F}(a::Tracer) = self.f(value(a))
 
 # binary #
 #--------#
 
-@inline (self::SkipOptimize{F}){F}(a::TraceReal, b::TraceReal) = self.f(value(a), value(b))
-@inline (self::SkipOptimize{F}){F}(a, b::TraceReal) = self.f(a, value(b))
-@inline (self::SkipOptimize{F}){F}(a::TraceReal, b) = self.f(value(a), b)
+@inline (self::SkipOptimize{F}){F}(a::Tracer, b::Tracer) = self.f(value(a), value(b))
+@inline (self::SkipOptimize{F}){F}(a, b::Tracer) = self.f(a, value(b))
+@inline (self::SkipOptimize{F}){F}(a::Tracer, b) = self.f(value(a), b)

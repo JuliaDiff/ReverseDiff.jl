@@ -8,25 +8,25 @@ function grad_benchmark_driver(f, x)
     println("benchmarking ∇$(f)(x) on $(length(x)) elements...")
 
     out = zeros(x)
-    tr = RDP.Trace()
-    xtr = RDP.wrap(eltype(out), x, tr)
+    tp = RDP.Tape()
+    xtr = RDP.track(eltype(out), x, tp)
 
     # warmup
     RDP.seed!(f(xtr))
-    RDP.backprop!(tr)
-    empty!(tr)
-    RDP.gradient!(out, f, x, tr, xtr)
-    empty!(tr)
+    RDP.backprop!(tp)
+    empty!(tp)
+    RDP.gradient!(out, f, x, tp, xtr)
+    empty!(tp)
 
     # actual
     gc()
     @time RDP.seed!(f(xtr))
     gc()
-    @time RDP.backprop!(tr)
-    empty!(tr)
+    @time RDP.backprop!(tp)
+    empty!(tp)
     gc()
-    @time RDP.gradient!(out, f, x, tr, xtr)
-    empty!(tr)
+    @time RDP.gradient!(out, f, x, tp, xtr)
+    empty!(tp)
 
     println("done.")
 end

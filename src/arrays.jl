@@ -21,14 +21,14 @@ function adjoint!(out, arr)
 end
 
 ###################
-# trace selection #
+# tape selection #
 ###################
 
-function trace(arr::AbstractArray)
+function tape(arr::AbstractArray)
     for t in arr
-        !(isnull(trace(t))) && return trace(t)
+        !(isnull(tape(t))) && return tape(t)
     end
-    return Nullable{Trace}()
+    return Nullable{Tape}()
 end
 
-trace(a, b::AbstractArray) = isnull(trace(a)) ? trace(b) : trace(a)
+tape(a, b::AbstractArray) = isnull(tape(a)) ? tape(b) : tape(a)
