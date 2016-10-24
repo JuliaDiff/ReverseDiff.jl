@@ -1,4 +1,4 @@
-const EPS = 1e-6
+const EPS = 1e-5
 
 # make RNG deterministic, and thus make result inaccuracies
 # deterministic so we don't have to retune EPS for arbitrary inputs

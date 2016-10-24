@@ -67,7 +67,7 @@ end
 
 load_gradient!(out, yt, xt) = adjoint!(out, xt)
 
-function load_gradient!(out::GradientResult, yt, xt)
+function load_gradient!(out::DiffResult, yt, xt)
     DiffBase.value!(value, out, yt)
     DiffBase.gradient!(adjoint, out, xt)
     return out

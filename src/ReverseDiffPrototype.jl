@@ -1,7 +1,7 @@
 module ReverseDiffPrototype
 
 using DiffBase
-using DiffBase: GradientResult, JacobianResult, HessianResult
+using DiffBase: DiffResult
 
 using ForwardDiff
 using ForwardDiff: Dual, Partials, partials

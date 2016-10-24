@@ -36,7 +36,6 @@ immutable ForwardOptimize{F}
     f::F
 end
 
-
 macro forward(ex)
     return esc(annotate_func_expr(:ForwardOptimize, ex))
 end

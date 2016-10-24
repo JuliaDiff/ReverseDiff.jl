@@ -12,21 +12,33 @@ tic()
 ############################################################################################
 function test_unary_gradient(f, x)
     test = ForwardDiff.gradient!(DiffBase.GradientResult(x), f, x)
+
+    # without Options
+
+    @test_approx_eq_eps RDP.gradient(f, x) DiffBase.gradient(test) EPS
+
     out = similar(x)
+    RDP.gradient!(out, f, x)
+    @test_approx_eq_eps out DiffBase.gradient(test) EPS
 
-    @test_approx_eq_eps RDP.gradient(f, x)       DiffBase.gradient(test) EPS
-    @test_approx_eq_eps RDP.gradient!(out, f, x) DiffBase.gradient(test) EPS
-
-    result = RDP.gradient!(DiffBase.GradientResult(x), f, x)
-    @test_approx_eq_eps DiffBase.value(result)    DiffBase.value(test) EPS
+    result = DiffBase.GradientResult(x)
+    RDP.gradient!(result, f, x)
+    @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
 
-    opts = RDP.Options(x)
-    @test_approx_eq_eps RDP.gradient(f, x, opts)       DiffBase.gradient(test) EPS
-    @test_approx_eq_eps RDP.gradient!(out, f, x, opts) DiffBase.gradient(test) EPS
+    # with Options
 
-    result = RDP.gradient!(DiffBase.GradientResult(x), f, x, opts)
-    @test_approx_eq_eps DiffBase.value(result)    DiffBase.value(test) EPS
+    opts = RDP.Options(x)
+
+    @test_approx_eq_eps RDP.gradient(f, x, opts) DiffBase.gradient(test) EPS
+
+    out = similar(x)
+    RDP.gradient!(out, f, x, opts)
+    @test_approx_eq_eps out DiffBase.gradient(test) EPS
+
+    result = DiffBase.GradientResult(x)
+    RDP.gradient!(result, f, x, opts)
+    @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
 end
 
