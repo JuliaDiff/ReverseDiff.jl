@@ -27,6 +27,13 @@ end
 @inline capture(state::Tuple{Vararg{Number}}) = state
 @inline capture(state::Tuple) = map(capture, state)
 
+function Base.:(==)(a::TapeNode, b::TapeNode)
+    return (a.func == b.func &&
+            a.inputs == b.inputs &&
+            a.outputs == b.outputs &&
+            a.cache == b.cache)
+end
+
 ################################################
 # reverse pass (backpropagation over the tape) #
 ################################################

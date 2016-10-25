@@ -4,7 +4,7 @@ using DiffBase, ForwardDiff, ReverseDiffPrototype, Base.Test
 
 const RDP = ReverseDiffPrototype
 
-include("utils.jl")
+include("../utils.jl")
 
 println("testing hessian/hessian!...")
 tic()

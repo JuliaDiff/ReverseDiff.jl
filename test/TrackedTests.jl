@@ -1,6 +1,6 @@
 module TrackedTests
 
-using DiffBase, ForwardDiff, ReverseDiffPrototype, Base.Test
+using ReverseDiffPrototype, Base.Test
 using ReverseDiffPrototype: Tape, Tracked, value, adjoint, tape, valtype, adjtype
 
 const RDP = ReverseDiffPrototype
