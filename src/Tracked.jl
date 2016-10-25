@@ -44,7 +44,7 @@ Base.convert{V,A}(::Type{Tracked{V,A}}, t::Tracked) = Tracked(V(value(t)), A(adj
 Base.convert{T<:Tracked}(::Type{T}, t::T) = t
 
 Base.promote_rule{R<:Real,V,A}(::Type{R}, ::Type{Tracked{V,A}}) = Tracked{promote_type(R,V),A}
-Base.promote_rule{V1,V2,A}(::Type{Tracked{V1,A}}, ::Type{Tracked{V2,A}}) = Tracked{promote_type(V1,V2),A}
+Base.promote_rule{V1,V2,A1,A2}(::Type{Tracked{V1,A1}}, ::Type{Tracked{V2,A2}}) = Tracked{promote_type(V1,V2),promote_type(A1,A2)}
 
 Base.promote_array_type{T<:Tracked, F<:AbstractFloat}(_, ::Type{T}, ::Type{F}) = promote_type(T, F)
 Base.promote_array_type{T<:Tracked, F<:AbstractFloat, P}(_, ::Type{T}, ::Type{F}, ::Type{P}) = P

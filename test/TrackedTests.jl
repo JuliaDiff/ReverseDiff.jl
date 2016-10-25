@@ -77,7 +77,7 @@ t = Tracked(x, Int, ntp)
 @test convert(typeof(t), t) === t
 
 @test promote_type(Int64, Tracked{Int32,Int32}) === Tracked{Int64,Int32}
-@test promote_type(Tracked{Int64,Int32}, Tracked{Int32,Int32}) === Tracked{Int64,Int32}
+@test promote_type(Tracked{Int64,Int32}, Tracked{Int32,Int64}) === Tracked{Int64,Int64}
 
 @test Base.promote_array_type(nothing, Tracked{Int,Int}, Float64) === Tracked{Float64,Int}
 @test Base.promote_array_type(nothing, Tracked{Int,Int}, Float64, Int) === Int

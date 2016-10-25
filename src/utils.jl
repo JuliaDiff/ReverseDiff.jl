@@ -3,10 +3,10 @@
 ################
 
 track(x, tp::Tape = Tape()) = track(x, eltype(x), tp)
-track(xts::Tuple, tp::Tape = Tape()) = track(xts, map(eltype, xts), tp)
-track(xs::Tuple, types::Tuple{Vararg{DataType}}, tp::Tape = Tape()) = map((x, A) -> track(x, A, tp), xs, types)
+track(xts::Tuple, tp::Tape = Tape()) = track(xts, eltype(first(xts)), tp)
+track{A}(xs::Tuple, ::Type{A}, tp::Tape = Tape()) = map(x -> track(x, A, tp), xs)
 
-track{T,A}(x::AbstractArray{T}, ::Type{A}, tp::Tape = Tape()) = track(x,A, Nullable(tp))
+track{T,A}(x::AbstractArray{T}, ::Type{A}, tp::Tape = Tape()) = track(x, A, Nullable(tp))
 track{A}(x::Number, ::Type{A}, tp::Tape = Tape()) = track(x, A, Nullable(tp))
 track!(xts, xs, tp::Tape = Tape()) = track!(xts, xs, Nullable(tp))
 
@@ -63,7 +63,9 @@ function tape(arr::AbstractArray)
     return Nullable{Tape}()
 end
 
-tape(a, b::AbstractArray) = isnull(tape(a)) ? tape(b) : tape(a)
+tape(a::AbstractArray, b::AbstractArray) = (tp = tape(a); isnull(tp) ? tape(b) : tp)
+tape(a, b::AbstractArray) = (tp = tape(a); isnull(tp) ? tape(b) : tp)
+tape(a::AbstractArray, b) = (tp = tape(a); isnull(tp) ? tape(b) : tp)
 
 #####################
 # seeding/unseeding #
