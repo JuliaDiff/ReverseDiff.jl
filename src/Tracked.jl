@@ -9,6 +9,7 @@ type Tracked{V<:Real,A<:Real} <: Real
 end
 
 Tracked{V,A}(x::V, ::Type{A} = V, tp::Nullable{Tape} = Nullable{Tape}()) = Tracked{V,A}(x, zero(A), tp)
+Tracked{V}(x::V, tp::Nullable{Tape}) = Tracked(x, V, tp)
 
 @inline adjoint(t::Tracked) = t.adjoint
 
@@ -53,6 +54,9 @@ Base.promote_array_type{F<:AbstractFloat, T<:Tracked, P}(_, ::Type{F}, ::Type{T}
 ####################
 # `Real` Interface #
 ####################
+
+Base.hash(t::Tracked) = hash(value(t))
+Base.hash(t::Tracked, hsh::UInt64) = hash(value(t), hsh)
 
 Base.deepcopy{T<:Tracked}(t::T) = t
 Base.copy{T<:Tracked}(t::T) = t
