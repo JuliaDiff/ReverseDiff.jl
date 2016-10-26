@@ -51,15 +51,15 @@ immutable HessianOptions{G<:Options,J<:Options} <: AbstractOptions
     jacobian_options::J
 end
 
-HessianOptions(x, gtp::Tape = Tape(), jtp::Tape = Tape()) = HessianOptions(x, eltype(x), gtp, jtp)
+HessianOptions(x::AbstractArray, gtp::Tape = Tape(), jtp::Tape = Tape()) = HessianOptions(x, eltype(x), gtp, jtp)
 
-function HessianOptions{A}(x, ::Type{A}, gtp::Tape = Tape(), jtp::Tape = Tape())
+function HessianOptions{A}(x::AbstractArray, ::Type{A}, gtp::Tape = Tape(), jtp::Tape = Tape())
     jopts = Options(x, A, jtp)
     gopts = Options(jopts.state, gtp)
     return HessianOptions(gopts, jopts)
 end
 
-function HessianOptions(y, x, gtp::Tape = Tape(), jtp::Tape = Tape())
+function HessianOptions(y::AbstractArray, x::AbstractArray, gtp::Tape = Tape(), jtp::Tape = Tape())
     jopts = Options(y, x, jtp)
     gopts = Options(jopts.state[2], gtp)
     return HessianOptions(gopts, jopts)

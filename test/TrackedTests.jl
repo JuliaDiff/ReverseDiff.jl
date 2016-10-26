@@ -1,9 +1,6 @@
 module TrackedTests
 
 using ReverseDiffPrototype, Base.Test
-using ReverseDiffPrototype: Tape, Tracked, value, adjoint, tape, valtype, adjtype
-
-const RDP = ReverseDiffPrototype
 
 include("utils.jl")
 
@@ -11,8 +8,6 @@ println("testing Tracked type...")
 tic()
 
 ############################################################################################
-
-tracked_is(a, b) = value(a) === value(b) && adjoint(a) === adjoint(b) && tape(a) === tape(b)
 
 ##########################
 # Constructors/Accessors #

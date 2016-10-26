@@ -1,9 +1,6 @@
 module TapeTests
 
 using ReverseDiffPrototype, Base.Test
-using ReverseDiffPrototype: TapeNode, Tape, Tracked
-
-const RDP = ReverseDiffPrototype
 
 include("utils.jl")
 

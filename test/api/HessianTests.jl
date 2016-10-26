@@ -2,8 +2,6 @@ module HessianTests
 
 using DiffBase, ForwardDiff, ReverseDiffPrototype, Base.Test
 
-const RDP = ReverseDiffPrototype
-
 include("../utils.jl")
 
 println("testing hessian/hessian!...")
@@ -25,9 +23,9 @@ function test_unary_hessian(f, x)
 
     result = DiffBase.HessianResult(x)
     RDP.hessian!(result, f, x)
-    # @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-    # @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
-    # @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
+    @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+    @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+    @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
 
     # with HessianOptions
 
@@ -39,12 +37,12 @@ function test_unary_hessian(f, x)
     RDP.hessian!(out, f, x, opts)
     @test_approx_eq_eps out DiffBase.hessian(test) EPS
 
-    # result = DiffBase.HessianResult(x)
-    # opts = RDP.HessianOptions(result, x)
-    # RDP.hessian!(result, f, x, opts)
-    # @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-    # @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
-    # @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
+    result = DiffBase.HessianResult(x)
+    opts = RDP.HessianOptions(result, x)
+    RDP.hessian!(result, f, x, opts)
+    @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+    @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+    @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
 end
 
 for f in DiffBase.MATRIX_TO_NUMBER_FUNCS

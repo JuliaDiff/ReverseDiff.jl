@@ -1,9 +1,6 @@
 module UtilsTests
 
 using ReverseDiffPrototype, Base.Test
-using ReverseDiffPrototype: Tape, TapeNode, Tracked, track, track!, value, adjoint, tape
-
-const RDP = ReverseDiffPrototype
 
 include("utils.jl")
 
@@ -11,10 +8,6 @@ println("testing utilities...")
 tic()
 
 ############################################################################################
-
-tracked_is(a, b) = value(a) === value(b) && adjoint(a) === adjoint(b) && tape(a) === tape(b)
-tracked_is(a::AbstractArray, b::AbstractArray) = all(map(tracked_is, a, b))
-tracked_is(a::Tuple, b::Tuple) = all(map(tracked_is, a, b))
 
 ################
 # track/track! #

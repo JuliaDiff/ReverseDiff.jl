@@ -2,8 +2,6 @@ module GradientTests
 
 using DiffBase, ForwardDiff, ReverseDiffPrototype, Base.Test
 
-const RDP = ReverseDiffPrototype
-
 include("../utils.jl")
 
 println("testing gradient/gradient!...")

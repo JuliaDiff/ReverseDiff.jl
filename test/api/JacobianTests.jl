@@ -2,8 +2,6 @@ module JacobianTests
 
 using DiffBase, ForwardDiff, ReverseDiffPrototype, Base.Test
 
-const RDP = ReverseDiffPrototype
-
 include("../utils.jl")
 
 println("testing jacobian/jacobian!...")
@@ -31,7 +29,7 @@ function test_unary_jacobian(f, x)
 
     opts = RDP.Options(x)
 
-    @test_approx_eq_eps RDP.jacobian(f, x, opts)       DiffBase.jacobian(test) EPS
+    @test_approx_eq_eps RDP.jacobian(f, x, opts) DiffBase.jacobian(test) EPS
 
     out = similar(DiffBase.jacobian(test))
     RDP.jacobian!(out, f, x, opts)
