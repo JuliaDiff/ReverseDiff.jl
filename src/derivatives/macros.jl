@@ -5,16 +5,28 @@ works for the following formats:
 - `@forward f = (args...) -> ...`
 =#
 function annotate_func_expr(typesym, expr)
-    if isa(expr, Expr) && expr.head == :(=)
+    if isa(expr, Expr) && (expr.head == :(=) || expr.head == :function)
         lhs = expr.args[1]
         if isa(lhs, Expr) && lhs.head == :call # named function definition site
-            name = lhs.args[1]
-            hidden_name = gensym(name)
-            lhs.args[1] = hidden_name
+            name_and_types = lhs.args[1]
+            args_signature = lhs.args[2:end]
+            old_name_and_types = deepcopy(name_and_types)
+            if isa(name_and_types, Expr) && name_and_types.head == :curly
+                name = name_and_types.args[1]
+                hidden_name = gensym(name)
+                name_and_types.args[1] = hidden_name
+
+            elseif isa(name_and_types, Symbol)
+                name = name_and_types
+                hidden_name = gensym(name)
+                lhs.args[1] = hidden_name
+            else
+                error("potentially malformed function signature: $(signature)")
+            end
             return quote
                 $expr
-                @inline function $(name)(args...)
-                    return ReverseDiffPrototype.$(typesym)($(hidden_name))(args...)
+                @inline function $(old_name_and_types)($(args_signature...))
+                    return ReverseDiffPrototype.$(typesym)($(hidden_name))($(args_signature...))
                 end
             end
         elseif isa(lhs, Symbol) # variable assignment site
