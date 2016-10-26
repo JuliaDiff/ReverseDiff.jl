@@ -1,4 +1,4 @@
-# module MacrosTests
+module MacrosTests
 
 using ReverseDiffPrototype, Base.Test
 using ForwardDiff: Dual, partials
@@ -190,4 +190,4 @@ test_skip(g6, a, b, tp)
 
 println("done (took $(toq()) seconds)")
 
-# end # module
+end # module
