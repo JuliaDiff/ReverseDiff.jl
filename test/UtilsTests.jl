@@ -17,82 +17,82 @@ tp = Tape()
 ntp = Nullable(tp)
 n, m = rand(), rand()
 x, y = rand(3), rand(3, 3)
-tn_int, tm_int = Tracked(n, Int, ntp), Tracked(m, Int, ntp)
-tn_float, tm_float = Tracked(n, ntp), Tracked(m, ntp)
-tx_int, ty_int = map(t -> Tracked(t, Int, ntp), x), map(t -> Tracked(t, Int, ntp), y)
-tx_float, ty_float = map(t -> Tracked(t, ntp), x), map(t -> Tracked(t, ntp), y)
+nt_int, mt_int = Tracked(n, Int, ntp), Tracked(m, Int, ntp)
+nt_float, mt_float = Tracked(n, ntp), Tracked(m, ntp)
+xt_int, yt_int = map(t -> Tracked(t, Int, ntp), x), map(t -> Tracked(t, Int, ntp), y)
+xt_float, yt_float = map(t -> Tracked(t, ntp), x), map(t -> Tracked(t, ntp), y)
 
-@test tracked_is(track(n, tp), tn_float)
-@test tracked_is(track(n, Int, tp), tn_int)
-@test tracked_is(track(n, Int, ntp), tn_int)
+@test tracked_is(track(n, tp), nt_float)
+@test tracked_is(track(n, Int, tp), nt_int)
+@test tracked_is(track(n, Int, ntp), nt_int)
 
-@test tracked_is(track(x, tp), tx_float)
-@test tracked_is(track(x, Int, tp), tx_int)
-@test tracked_is(track(x, Int, ntp), tx_int)
+@test tracked_is(track(x, tp), xt_float)
+@test tracked_is(track(x, Int, tp), xt_int)
+@test tracked_is(track(x, Int, ntp), xt_int)
 
-@test tracked_is(track((n, m), tp), (tn_float, tm_float))
-@test tracked_is(track((n, m), Int, tp), (tn_int, tm_int))
+@test tracked_is(track((n, m), tp), (nt_float, mt_float))
+@test tracked_is(track((n, m), Int, tp), (nt_int, mt_int))
 
-@test tracked_is(track((x, y), tp), (tx_float, ty_float))
-@test tracked_is(track((x, y), Int, tp), (tx_int, ty_int))
+@test tracked_is(track((x, y), tp), (xt_float, yt_float))
+@test tracked_is(track((x, y), Int, tp), (xt_int, yt_int))
 
-tx_int_sim = similar(tx_int)
-tx_float_sim = similar(tx_float)
-track!(tx_int_sim, x, tp)
-@test tracked_is(tx_int_sim, tx_int)
-track!(tx_float_sim, x, tp)
-@test tracked_is(tx_float_sim, tx_float)
+xt_int_sim = similar(xt_int)
+xt_float_sim = similar(xt_float)
+track!(xt_int_sim, x, tp)
+@test tracked_is(xt_int_sim, xt_int)
+track!(xt_float_sim, x, tp)
+@test tracked_is(xt_float_sim, xt_float)
 
-tx_int_sim = similar(tx_int)
-tx_float_sim = similar(tx_float)
-track!(tx_int_sim, x, ntp)
-@test tracked_is(tx_int_sim, tx_int)
-track!(tx_float_sim, x, ntp)
-@test tracked_is(tx_float_sim, tx_float)
+xt_int_sim = similar(xt_int)
+xt_float_sim = similar(xt_float)
+track!(xt_int_sim, x, ntp)
+@test tracked_is(xt_int_sim, xt_int)
+track!(xt_float_sim, x, ntp)
+@test tracked_is(xt_float_sim, xt_float)
 
-tx_int_sim, ty_int_sim = similar(tx_int), similar(ty_int)
-tx_float_sim, ty_float_sim = similar(tx_float), similar(ty_float)
-track!((tx_int_sim, ty_int_sim), (x, y), tp)
-@test tracked_is(tx_int_sim, tx_int)
-@test tracked_is(ty_int_sim, ty_int)
-track!((tx_float_sim, ty_float_sim), (x, y), tp)
-@test tracked_is(tx_float_sim, tx_float)
-@test tracked_is(ty_float_sim, ty_float)
+xt_int_sim, yt_int_sim = similar(xt_int), similar(yt_int)
+xt_float_sim, yt_float_sim = similar(xt_float), similar(yt_float)
+track!((xt_int_sim, yt_int_sim), (x, y), tp)
+@test tracked_is(xt_int_sim, xt_int)
+@test tracked_is(yt_int_sim, yt_int)
+track!((xt_float_sim, yt_float_sim), (x, y), tp)
+@test tracked_is(xt_float_sim, xt_float)
+@test tracked_is(yt_float_sim, yt_float)
 
-tx_int_sim, ty_int_sim = similar(tx_int), similar(ty_int)
-tx_float_sim, ty_float_sim = similar(tx_float), similar(ty_float)
-track!((tx_int_sim, ty_int_sim), (x, y), ntp)
-@test tracked_is(tx_int_sim, tx_int)
-@test tracked_is(ty_int_sim, ty_int)
-track!((tx_float_sim, ty_float_sim), (x, y), ntp)
-@test tracked_is(tx_float_sim, tx_float)
-@test tracked_is(ty_float_sim, ty_float)
+xt_int_sim, yt_int_sim = similar(xt_int), similar(yt_int)
+xt_float_sim, yt_float_sim = similar(xt_float), similar(yt_float)
+track!((xt_int_sim, yt_int_sim), (x, y), ntp)
+@test tracked_is(xt_int_sim, xt_int)
+@test tracked_is(yt_int_sim, yt_int)
+track!((xt_float_sim, yt_float_sim), (x, y), ntp)
+@test tracked_is(xt_float_sim, xt_float)
+@test tracked_is(yt_float_sim, yt_float)
 
-track!(tn_int, m, tp)
-@test tracked_is(tn_int, tm_int)
-track!(tn_int, n, tp)
+track!(nt_int, m, tp)
+@test tracked_is(nt_int, mt_int)
+track!(nt_int, n, tp)
 
-track!(tn_float, m, tp)
-@test tracked_is(tn_float, tm_float)
-track!(tn_float, n, tp)
+track!(nt_float, m, tp)
+@test tracked_is(nt_float, mt_float)
+track!(nt_float, n, tp)
 
-track!((tm_int, tn_int), (n, m), tp)
-@test value(tm_int) === n
-@test value(tn_int) === m
-track!((tm_int, tn_int), (m, n), tp)
+track!((mt_int, nt_int), (n, m), tp)
+@test value(mt_int) === n
+@test value(nt_int) === m
+track!((mt_int, nt_int), (m, n), tp)
 
-track!(tn_int, m, ntp)
-@test tracked_is(tn_int, tm_int)
-track!(tn_int, n, ntp)
+track!(nt_int, m, ntp)
+@test tracked_is(nt_int, mt_int)
+track!(nt_int, n, ntp)
 
-track!(tn_float, m, ntp)
-@test tracked_is(tn_float, tm_float)
-track!(tn_float, n, ntp)
+track!(nt_float, m, ntp)
+@test tracked_is(nt_float, mt_float)
+track!(nt_float, n, ntp)
 
-track!((tm_int, tn_int), (n, m), ntp)
-@test value(tm_int) === n
-@test value(tn_int) === m
-track!((tm_int, tn_int), (m, n), ntp)
+track!((mt_int, nt_int), (n, m), ntp)
+@test value(mt_int) === n
+@test value(nt_int) === m
+track!((mt_int, nt_int), (m, n), ntp)
 
 ##################################
 # array accessors/tape selection #
@@ -101,35 +101,35 @@ track!((tm_int, tn_int), (m, n), ntp)
 tp = Tape()
 ntp = Nullable(tp)
 x, y = rand(3), rand(3, 2)
-tx, ty = track(x, tp), track(y, tp)
+xt, yt = track(x, tp), track(y, tp)
 
-@test value(tx) == x
-@test value(ty) == y
+@test value(xt) == x
+@test value(yt) == y
 
 x_sim, y_sim = similar(x), similar(y)
-RDP.value!(x_sim, tx)
-RDP.value!(y_sim, ty)
+RDP.value!(x_sim, xt)
+RDP.value!(y_sim, yt)
 @test x_sim == x
 @test y_sim == y
 
-@test all(adjoint(tx) .== zero(first(x)))
-@test all(adjoint(ty) .== zero(first(y)))
+@test all(adjoint(xt) .== zero(first(x)))
+@test all(adjoint(yt) .== zero(first(y)))
 
 x_sim, y_sim = similar(x), similar(y)
-RDP.adjoint!(x_sim, tx)
-RDP.adjoint!(y_sim, ty)
+RDP.adjoint!(x_sim, xt)
+RDP.adjoint!(y_sim, yt)
 @test all(x_sim .== zero(first(x)))
 @test all(y_sim .== zero(first(y)))
 
-@test tape(tx) === ntp
-@test tape(tx, ty) === ntp
-@test tape(tx, first(tx)) === ntp
-@test tape(first(tx), tx) === ntp
-@test tape(tx, Tracked(1)) === ntp
-@test tape(Tracked(1), tx) === ntp
-@test tape(tx, [Tracked(1)]) === ntp
-@test tape([Tracked(1)], tx) === ntp
-@test tape([Tracked(1), first(tx)]) === ntp
+@test tape(xt) === ntp
+@test tape(xt, yt) === ntp
+@test tape(xt, first(xt)) === ntp
+@test tape(first(xt), xt) === ntp
+@test tape(xt, Tracked(1)) === ntp
+@test tape(Tracked(1), xt) === ntp
+@test tape(xt, [Tracked(1)]) === ntp
+@test tape([Tracked(1)], xt) === ntp
+@test tape([Tracked(1), first(xt)]) === ntp
 @test isnull(tape([Tracked(1)]))
 @test isnull(tape([Tracked(1)], [Tracked(1)]))
 

@@ -76,6 +76,7 @@ seed!(t::TapeNode) = (seed!(t.outputs); return t)
 
 unseed!(t::Tracked) = (t.adjoint = zero(adjtype(t)); return t)
 unseed!(t::TapeNode) = (unseed!(t.inputs); unseed!(t.outputs); return t)
+unseed!(::Void) = nothing
 unseed!(ts) = for t in ts; unseed!(t); end
 
 #######################

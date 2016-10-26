@@ -9,7 +9,7 @@ using ForwardDiff: Dual, Partials, partials
 # Not all operations will be valid over all of these types, but that's okay; such cases
 # will simply error when they hit the original operation in the overloaded definition.
 const ARRAY_TYPES = (:AbstractArray, :AbstractVector, :AbstractMatrix, :Array, :Vector, :Matrix)
-const REAL_TYPES = (:Bool, :Integer, :Rational, :Real, :Dual)
+const REAL_TYPES = (:Bool, :Integer, :Rational, :AbstractFloat, :Real, :Dual)
 
 const FORWARD_UNARY_SCALAR_FUNCS = (ForwardDiff.AUTO_DEFINED_UNARY_FUNCS..., :-, :abs, :conj)
 const FORWARD_BINARY_SCALAR_FUNCS = (:*, :/, :+, :-, :^, :atan2)

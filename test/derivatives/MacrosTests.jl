@@ -43,58 +43,58 @@ RDP.@forward function f4(a, b)
 end
 
 function test_forward(f, x, tp)
-    tx = track(x, tp)
+    xt = track(x, tp)
 
     y = f(x)
     @test isempty(tp)
 
-    ty = f(tx)
-    @test ty == y
+    yt = f(xt)
+    @test yt == y
     dual = f(Dual(x, one(x)))
     @test length(tp) == 1
     node = first(tp)
     @test node.func === nothing
-    @test node.inputs === tx
-    @test node.outputs === ty
+    @test node.inputs === xt
+    @test node.outputs === yt
     @test node.cache === partials(dual)
     empty!(tp)
 end
 
 function test_forward(f, a, b, tp)
-    ta, tb = track(a, tp), track(b, tp)
+    at, bt = track(a, tp), track(b, tp)
 
     c = f(a, b)
     @test isempty(tp)
 
-    tc = f(ta, b)
+    tc = f(at, b)
     @test tc == c
     dual = f(Dual(a, one(a)), b)
     @test length(tp) == 1
     node = first(tp)
     @test node.func === nothing
-    @test node.inputs === ta
+    @test node.inputs === at
     @test node.outputs === tc
     @test node.cache === partials(dual)
     empty!(tp)
 
-    tc = f(a, tb)
+    tc = f(a, bt)
     @test tc == c
     dual = f(a, Dual(b, one(b)))
     @test length(tp) == 1
     node = first(tp)
     @test node.func === nothing
-    @test node.inputs === tb
+    @test node.inputs === bt
     @test node.outputs === tc
     @test node.cache === partials(dual)
     empty!(tp)
 
-    tc = f(ta, tb)
+    tc = f(at, bt)
     @test tc == c
     dual = f(Dual(a, one(a), zero(a)), Dual(b, zero(b), one(b)))
     @test length(tp) == 1
     node = first(tp)
     @test node.func === nothing
-    @test node.inputs === (ta, tb)
+    @test node.inputs === (at, bt)
     @test node.outputs === tc
     @test node.cache === partials(dual)
     empty!(tp)
@@ -143,31 +143,31 @@ RDP.@skip function g4(a, b)
 end
 
 function test_skip(g, x, tp)
-    tx = track(x, tp)
+    xt = track(x, tp)
 
     y = g(x)
     @test isempty(tp)
 
-    ty = g(tx)
-    @test ty === y
+    yt = g(xt)
+    @test yt === y
     @test isempty(tp)
 end
 
 function test_skip(g, a, b, tp)
-    ta, tb = track(a, tp), track(b, tp)
+    at, bt = track(a, tp), track(b, tp)
 
     c = g(a, b)
     @test isempty(tp)
 
-    tc = g(ta, b)
+    tc = g(at, b)
     @test tc === c
     @test isempty(tp)
 
-    tc = g(a, tb)
+    tc = g(a, bt)
     @test tc === c
     @test isempty(tp)
 
-    tc = g(ta, tb)
+    tc = g(at, bt)
     @test tc === c
     @test isempty(tp)
 end

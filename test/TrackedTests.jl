@@ -20,39 +20,39 @@ ntp = Nullable(tp)
 @test value(a) === a
 @test !(RDP.hastape(a))
 
-ta = Tracked(a)
-@test valtype(ta) === typeof(a)
-@test adjtype(ta) === typeof(a)
-@test valtype(typeof(ta)) === valtype(ta)
-@test adjtype(typeof(ta)) === adjtype(ta)
-@test value(ta) === ta.value === a
-@test adjoint(ta) === ta.adjoint === zero(a)
-@test tape(ta) === ta.tape === Nullable{Tape}()
-@test !(RDP.hastape(ta))
+at = Tracked(a)
+@test valtype(at) === typeof(a)
+@test adjtype(at) === typeof(a)
+@test valtype(typeof(at)) === valtype(at)
+@test adjtype(typeof(at)) === adjtype(at)
+@test value(at) === at.value === a
+@test adjoint(at) === at.adjoint === zero(a)
+@test tape(at) === at.tape === Nullable{Tape}()
+@test !(RDP.hastape(at))
 
-tb = Tracked(b, Int)
-@test valtype(tb) === typeof(b)
-@test adjtype(tb) === Int
-@test valtype(typeof(tb)) === valtype(tb)
-@test adjtype(typeof(tb)) === adjtype(tb)
-@test value(tb) === tb.value === b
-@test adjoint(tb) === tb.adjoint === zero(Int)
-@test tape(tb) === tb.tape === Nullable{Tape}()
-@test !(RDP.hastape(tb))
+bt = Tracked(b, Int)
+@test valtype(bt) === typeof(b)
+@test adjtype(bt) === Int
+@test valtype(typeof(bt)) === valtype(bt)
+@test adjtype(typeof(bt)) === adjtype(bt)
+@test value(bt) === bt.value === b
+@test adjoint(bt) === bt.adjoint === zero(Int)
+@test tape(bt) === bt.tape === Nullable{Tape}()
+@test !(RDP.hastape(bt))
 
-tc = Tracked(c, Int, ntp)
-@test valtype(tc) === typeof(c)
-@test adjtype(tc) === Int
-@test valtype(typeof(tc)) === valtype(tc)
-@test adjtype(typeof(tc)) === adjtype(tc)
-@test value(tc) === tc.value === c
-@test adjoint(tc) === tc.adjoint === zero(Int)
-@test get(tape(tc)) === get(tc.tape) === tp === get(ntp)
-@test RDP.hastape(tc)
+ct = Tracked(c, Int, ntp)
+@test valtype(ct) === typeof(c)
+@test adjtype(ct) === Int
+@test valtype(typeof(ct)) === valtype(ct)
+@test adjtype(typeof(ct)) === adjtype(ct)
+@test value(ct) === ct.value === c
+@test adjoint(ct) === ct.adjoint === zero(Int)
+@test get(tape(ct)) === get(ct.tape) === tp === get(ntp)
+@test RDP.hastape(ct)
 
-@test tape(ta) === tape(tb) === Nullable{Tape}()
-@test tape(ta, tb) === tape(tb, ta)
-@test tape(tc) === tape(ta, tc) === tape(tb, tc) === tape(tc, ta) === tape(tc, tb)
+@test tape(at) === tape(bt) === Nullable{Tape}()
+@test tape(at, bt) === tape(bt, at)
+@test tape(ct) === tape(at, ct) === tape(bt, ct) === tape(ct, at) === tape(ct, bt)
 
 @test isempty(tp)
 

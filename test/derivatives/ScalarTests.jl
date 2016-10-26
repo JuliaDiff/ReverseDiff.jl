@@ -12,40 +12,70 @@ x, a, b = rand(3)
 tp = Tape()
 
 function test_forward(f, x, tp)
-    tx = track(x, tp)
+    xt = track(x, tp)
     y = f(x)
-    ty = f(tx)
-    @test ty == y
-    RDP.seed!(ty)
+    yt = f(xt)
+    @test yt == y
+    @test length(tp) == 1
+    RDP.seed!(yt)
     RDP.reverse_pass!(tp)
-    @test adjoint(tx) == ForwardDiff.derivative(f, x)
+    @test adjoint(xt) == ForwardDiff.derivative(f, x)
     empty!(tp)
 end
 
 function test_forward(f, a, b, tp)
-    ta, tb = track(a, tp), track(b, tp)
+    at, bt = track(a, tp), track(b, tp)
     c = f(a, b)
-    tc = f(ta, tb)
+
+    tc = f(at, b)
     @test tc == c
+    @test length(tp) == 1
     RDP.seed!(tc)
     RDP.reverse_pass!(tp)
-    @test_approx_eq_eps adjoint(ta) ForwardDiff.derivative(x -> f(x, b), a) EPS
-    @test_approx_eq_eps adjoint(tb) ForwardDiff.derivative(x -> f(a, x), b) EPS
+    @test_approx_eq_eps adjoint(at) ForwardDiff.derivative(x -> f(x, b), a) EPS
+    RDP.unseed!(at)
+    empty!(tp)
+
+    tc = f(a, bt)
+    @test tc == c
+    @test length(tp) == 1
+    RDP.seed!(tc)
+    RDP.reverse_pass!(tp)
+    @test_approx_eq_eps adjoint(bt) ForwardDiff.derivative(x -> f(a, x), b) EPS
+    RDP.unseed!(bt)
+    empty!(tp)
+
+    tc = f(at, bt)
+    @test tc == c
+    @test length(tp) == 1
+    RDP.seed!(tc)
+    RDP.reverse_pass!(tp)
+    @test_approx_eq_eps adjoint(at) ForwardDiff.derivative(x -> f(x, b), a) EPS
+    @test_approx_eq_eps adjoint(bt) ForwardDiff.derivative(x -> f(a, x), b) EPS
     empty!(tp)
 end
 
 function test_skip(f, x, tp)
-    tx = track(x, tp)
+    xt = track(x, tp)
     y = f(x)
-    ty = f(tx)
-    @test ty == y
+    yt = f(xt)
+    @test yt == y
     @test isempty(tp)
 end
 
 function test_skip(f, a, b, tp)
-    ta, tb = track(a, tp), track(b, tp)
+    at, bt = track(a, tp), track(b, tp)
     c = f(a, b)
-    tc = f(ta, tb)
+
+    tc = f(at, b)
+    @test tc == c
+    @test isempty(tp)
+
+    tc = f(a, bt)
+    @test tc == c
+    @test isempty(tp)
+
+    tc = f(at, bt)
     @test tc == c
     @test isempty(tp)
 end

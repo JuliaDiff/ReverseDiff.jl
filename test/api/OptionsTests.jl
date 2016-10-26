@@ -1,4 +1,4 @@
-module UtilsTests
+module OptionsTests
 
 using ReverseDiffPrototype, Base.Test
 

@@ -22,7 +22,7 @@ end
 # Ensure that the external state is "captured" so that external
 # reference-breaking (e.g. destructive assignment) doesn't break
 # internal TapeNode state.
-@inline capture(state::Number) = state
+@inline capture(state) = state
 @inline capture(state::AbstractArray) = copy(state)
 @inline capture(state::Tuple{Vararg{Number}}) = state
 @inline capture(state::Tuple) = map(capture, state)
