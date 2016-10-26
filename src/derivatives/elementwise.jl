@@ -2,7 +2,7 @@
 # forward #
 ###########
 
-function dualwrap{N,T,A}(duals::AbstractArray{Dual{N,T}}, ::Type{A}, tp::Nullable{Tape})
+function retrack_duals{N,T,A}(duals::AbstractArray{Dual{N,T}}, ::Type{A}, tp::Nullable{Tape})
     ts = similar(duals, Tracked{T,A})
     for i in eachindex(duals)
         ts[i] = Tracked(value(duals[i]), A, tp)
@@ -19,7 +19,7 @@ for A in ARRAY_TYPES
                 fdual = t -> fopt.f(Dual(value(t), one(V)))
                 duals = $(g)(fdual, x)
                 tp = tape(x)
-                out = dualwrap(duals, S, tp)
+                out = retrack_duals(duals, S, tp)
                 record!(tp, $(g), x, out, duals)
                 return out
             end
@@ -31,8 +31,30 @@ for A in ARRAY_TYPES
                                            Dual(value(t2), zero(V2), one(V2)))
                 duals = $(g)(fdual, x1, x2)
                 tp = tape(x1, x2)
-                out = dualwrap(duals, S, tp)
+                out = retrack_duals(duals, S, tp)
                 record!(tp, $(g), (x1, x2), out, duals)
+                return out
+            end
+
+            function Base.$(g){F,V,S}(fopt::ForwardOptimize{F},
+                                      x1::$(A){Tracked{V,S}},
+                                      x2::$(A))
+                fdual = (t1, t2) -> fopt.f(Dual(value(t1), one(V)), t2)
+                duals = $(g)(fdual, x1, x2)
+                tp = tape(x1)
+                out = retrack_duals(duals, S, tp)
+                record!(tp, $(g), x1, out, duals)
+                return out
+            end
+
+            function Base.$(g){F,V,S}(fopt::ForwardOptimize{F},
+                                      x1::$(A),
+                                      x2::$(A){Tracked{V,S}})
+                fdual = (t1, t2) -> fopt.f(t1, Dual(value(t2), one(V)))
+                duals = $(g)(fdual, x1, x2)
+                tp = tape(x2)
+                out = retrack_duals(duals, S, tp)
+                record!(tp, $(g), x2, out, duals)
                 return out
             end
         end
@@ -58,7 +80,7 @@ for A in ARRAY_TYPES
             fdual = t -> fopt.f(ndual, Dual(value(t), zero(X), one(X)))
             duals = broadcast(fdual, x)
             tp = tape(n, x)
-            out = dualwrap(duals, S, tp)
+            out = retrack_duals(duals, S, tp)
             record!(tp, broadcast, (n, x), out, duals)
             return out
         end
@@ -68,8 +90,28 @@ for A in ARRAY_TYPES
             fdual = t -> fopt.f(Dual(value(t), one(X), zero(X)), ndual)
             duals = broadcast(fdual, x)
             tp = tape(n, x)
-            out = dualwrap(duals, S, tp)
+            out = retrack_duals(duals, S, tp)
             record!(tp, broadcast, (x, n), out, duals)
+            return out
+        end
+
+        function Base.broadcast{F,V,S}(fopt::ForwardOptimize{F}, n::Tracked{V,S}, x::$(A))
+            ndual = Dual(value(n), one(V))
+            fdual = t -> fopt.f(ndual, t)
+            duals = broadcast(fdual, x)
+            tp = tape(n)
+            out = retrack_duals(duals, S, tp)
+            record!(tp, broadcast, n, out, duals)
+            return out
+        end
+
+        function Base.broadcast{F,V,S}(fopt::ForwardOptimize{F}, x::$(A), n::Tracked{V,S})
+            ndual = Dual(value(n), one(V))
+            fdual = t -> fopt.f(t, ndual)
+            duals = broadcast(fdual, x)
+            tp = tape(n)
+            out = retrack_duals(duals, S, tp)
+            record!(tp, broadcast, n, out, duals)
             return out
         end
     end
@@ -82,11 +124,27 @@ for A in ARRAY_TYPES
                 return broadcast(ForwardOptimize($(f)), x, y)
             end
 
+            @inline function Base.$(f){X<:Tracked}(x::$(A){X}, y::$(A))
+                return broadcast(ForwardOptimize($(f)), x, y)
+            end
+
+            @inline function Base.$(f){Y<:Tracked}(x::$(A), y::$(A){Y})
+                return broadcast(ForwardOptimize($(f)), x, y)
+            end
+
             @inline function Base.$(f){T<:Tracked}(n::Tracked, x::$(A){T})
                 return broadcast(ForwardOptimize($(f)), n, x)
             end
 
             @inline function Base.$(f){T<:Tracked}(x::$(A){T}, n::Tracked)
+                return broadcast(ForwardOptimize($(f)), x, n)
+            end
+
+            @inline function Base.$(f)(n::Tracked, x::$(A))
+                return broadcast(ForwardOptimize($(f)), n, x)
+            end
+
+            @inline function Base.$(f)(x::$(A), n::Tracked)
                 return broadcast(ForwardOptimize($(f)), x, n)
             end
         end
@@ -138,26 +196,34 @@ function special_reverse_step!{A,B}(::typeof(broadcast), inputs::Tuple{A,B}, out
     if size(a) == size(b)
         special_reverse_step!(map, inputs, output, duals)
     else
-        for i in eachindex(duals)
-            duals[i] *= adjoint(output[i])
-        end
-        s = sumover(1, a, duals)
-        increment_adjoint!(a, s)
-        increment_adjoint!(b, sumover(2, b, duals))
+        broadcast_adjoint_reduce!(a, output, duals, 1)
+        broadcast_adjoint_reduce!(b, output, duals, 2)
     end
     return nothing
 end
 
-# Inference here is pretty wonky (see JuliaLang/julia#10533),
-# so it's important that we allocate the array for the sum
-# result ourselves. Otherwise, `reducedim_init` tries to
-# allocate an array of the wrong type in some cases, which
-# leads to conversion errors.
-function sumover{N,M,T}(p, x::AbstractArray, duals::AbstractArray{Dual{N,T},M})
-    dims = (size(x, i) != size(duals, i) ? 1 : size(duals, i) for i in 1:ndims(duals))
-    result = similar(duals, T, (dims...)::NTuple{M,Int})
-    sum!(d -> partials(d, p), result, duals)
-    return result
+function special_reverse_step!(::typeof(broadcast), input::Number, output, duals)
+    broadcast_adjoint_reduce!(input, output, duals, 1)
+    return nothing
 end
 
-sumover(p, x::Real, duals) = sum(d -> partials(d, p), duals)
+# This strategy should be pretty fast, but it might be prone to numerical error if the
+# accumulated adjoint becomes too large compared to the individual terms being added to
+# it. This can be overcome by using the divide-and-conquer strategy used by
+# Base.mapreducedim, but that strategy is less cache efficient and more complicated to
+# implement.
+function broadcast_adjoint_reduce!{T,N}(input::AbstractArray, output::AbstractArray{T,N}, duals, p)
+    dims = (size(input, i) != size(duals, i) ? 1 : size(duals, i) for i in 1:ndims(duals))
+    max_index = CartesianIndex((dims...)::NTuple{N,Int})
+    for i in CartesianRange(size(input))
+        increment_adjoint!(input[min(max_index, i)], adjoint(output[i]) * partials(duals[i], p))
+    end
+    return nothing
+end
+
+function broadcast_adjoint_reduce!{T,N}(input::Number, output::AbstractArray{T,N}, duals, p)
+    for i in eachindex(duals)
+        increment_adjoint!(input, adjoint(output[i]) * partials(duals[i], p))
+    end
+    return nothing
+end

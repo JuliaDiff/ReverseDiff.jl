@@ -4,7 +4,7 @@ using ReverseDiffPrototype, ForwardDiff, Base.Test
 
 include("../utils.jl")
 
-println("testing scalar derivatives (both forward and reverse)")
+println("testing scalar derivatives (both forward and reverse passes)")
 tic()
 
 ############################################################################################
