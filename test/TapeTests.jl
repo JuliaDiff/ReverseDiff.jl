@@ -1,6 +1,6 @@
 module TapeTests
 
-using ReverseDiffPrototype, Base.Test
+using ReverseDiff, Base.Test
 
 include("utils.jl")
 
@@ -24,7 +24,7 @@ tn = TapeNode(+, (x, y, k), z, c)
 
 tp = Tape()
 ntp = Nullable(tp)
-RDP.record!(ntp, +, (x, y, k), z, c)
+ReverseDiff.record!(ntp, +, (x, y, k), z, c)
 tp1 = first(tp)
 @test tp1 == tn
 @test tp1.inputs[1] !== x
@@ -34,20 +34,20 @@ tp1 = first(tp)
 @test tp1.cache === c
 
 ntp = Nullable{Tape}()
-RDP.record!(ntp, +, (x, y, k), z, c)
+ReverseDiff.record!(ntp, +, (x, y, k), z, c)
 @test ntp === Nullable{Tape}()
 
 t = Tracked(1)
 x = [t, t]
-@test RDP.capture(t) === t
+@test ReverseDiff.capture(t) === t
 
-cx = RDP.capture(x)
+cx = ReverseDiff.capture(x)
 @test cx !== x
 @test cx == x
 @test cx[1] === x[1]
 @test cx[2] === x[2]
 
-cs = RDP.capture((x, t, x))
+cs = ReverseDiff.capture((x, t, x))
 @test cs[1] !== x
 @test cs[1] == x
 @test cs[1][1] === x[1]

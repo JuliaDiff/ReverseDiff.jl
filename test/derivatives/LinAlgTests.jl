@@ -1,6 +1,6 @@
 module LinAlgTests
 
-using ReverseDiffPrototype, ForwardDiff, Base.Test
+using ReverseDiff, ForwardDiff, Base.Test
 
 include("../utils.jl")
 
@@ -17,8 +17,8 @@ function test_arr2num(f, x, tp)
     yt = f(xt)
     @test yt == y
     @test length(tp) == 1
-    RDP.seed!(yt)
-    RDP.reverse_pass!(tp)
+    ReverseDiff.seed!(yt)
+    ReverseDiff.reverse_pass!(tp)
     @test_approx_eq_eps adjoint(xt) ForwardDiff.gradient(f, x) EPS
     empty!(tp)
 end
@@ -30,7 +30,7 @@ function test_arr2arr(f, x, tp)
     yt = f(xt)
     @test yt == y
     @test length(tp) == 1
-    RDP.jacobian_reverse_pass!(out, yt, xt, tp)
+    ReverseDiff.jacobian_reverse_pass!(out, yt, xt, tp)
     @test_approx_eq_eps out ForwardDiff.jacobian(f, x) EPS
     empty!(tp)
 end
@@ -43,18 +43,18 @@ function test_arr2arr(f, a, b, tp)
     ct = f(at, b)
     @test ct == c
     @test length(tp) == 1
-    RDP.jacobian_reverse_pass!(out, ct, at, tp)
+    ReverseDiff.jacobian_reverse_pass!(out, ct, at, tp)
     @test_approx_eq_eps out ForwardDiff.jacobian(x -> f(x, b), a) EPS
-    RDP.unseed!(tp)
+    ReverseDiff.unseed!(tp)
     empty!(tp)
 
     out = similar(c, (length(c), length(b)))
     ct = f(a, bt)
     @test ct == c
     @test length(tp) == 1
-    RDP.jacobian_reverse_pass!(out, ct, bt, tp)
+    ReverseDiff.jacobian_reverse_pass!(out, ct, bt, tp)
     @test_approx_eq_eps out ForwardDiff.jacobian(x -> f(a, x), b) EPS
-    RDP.unseed!(tp)
+    ReverseDiff.unseed!(tp)
     empty!(tp)
 
     out_a = similar(c, (length(c), length(a)))
@@ -62,11 +62,11 @@ function test_arr2arr(f, a, b, tp)
     ct = f(at, bt)
     @test ct == c
     @test length(tp) == 1
-    RDP.jacobian_reverse_pass!(out_a, ct, at, tp)
-    RDP.jacobian_reverse_pass!(out_b, ct, bt, tp)
+    ReverseDiff.jacobian_reverse_pass!(out_a, ct, at, tp)
+    ReverseDiff.jacobian_reverse_pass!(out_b, ct, bt, tp)
     @test_approx_eq_eps out_a ForwardDiff.jacobian(x -> f(x, b), a) EPS
     @test_approx_eq_eps out_b ForwardDiff.jacobian(x -> f(a, x), b) EPS
-    RDP.unseed!(tp)
+    ReverseDiff.unseed!(tp)
     empty!(tp)
 end
 
@@ -79,9 +79,9 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     f!(ct, at, b)
     @test ct == c
     @test length(tp) == 1
-    RDP.jacobian_reverse_pass!(out, ct, at, tp)
+    ReverseDiff.jacobian_reverse_pass!(out, ct, at, tp)
     @test_approx_eq_eps out ForwardDiff.jacobian(x -> f(x, b), a) EPS
-    RDP.unseed!(tp)
+    ReverseDiff.unseed!(tp)
     empty!(tp)
 
     out = similar(c, (length(c), length(b)))
@@ -89,9 +89,9 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     f!(ct, a, bt)
     @test ct == c
     @test length(tp) == 1
-    RDP.jacobian_reverse_pass!(out, ct, bt, tp)
+    ReverseDiff.jacobian_reverse_pass!(out, ct, bt, tp)
     @test_approx_eq_eps out ForwardDiff.jacobian(x -> f(a, x), b) EPS
-    RDP.unseed!(tp)
+    ReverseDiff.unseed!(tp)
     empty!(tp)
 
     out_a = similar(c, (length(c), length(a)))
@@ -100,11 +100,11 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     f!(ct, at, bt)
     @test ct == c
     @test length(tp) == 1
-    RDP.jacobian_reverse_pass!(out_a, ct, at, tp)
-    RDP.jacobian_reverse_pass!(out_b, ct, bt, tp)
+    ReverseDiff.jacobian_reverse_pass!(out_a, ct, at, tp)
+    ReverseDiff.jacobian_reverse_pass!(out_b, ct, bt, tp)
     @test_approx_eq_eps out_a ForwardDiff.jacobian(x -> f(x, b), a) EPS
     @test_approx_eq_eps out_b ForwardDiff.jacobian(x -> f(a, x), b) EPS
-    RDP.unseed!(tp)
+    ReverseDiff.unseed!(tp)
     empty!(tp)
 end
 
@@ -123,12 +123,12 @@ for f in (+, -)
     test_arr2arr(f, a, b, tp)
 end
 
-for f in RDP.A_MUL_B_FUNCS
+for f in ReverseDiff.A_MUL_B_FUNCS
     testprintln("A_mul_B functions", f)
     test_arr2arr(eval(f), a, b, tp)
 end
 
-for (f!, f) in RDP.A_MUL_B!_FUNCS
+for (f!, f) in ReverseDiff.A_MUL_B!_FUNCS
     testprintln("A_mul_B! functions", f!)
     test_arr2arr_inplace(eval(f!), eval(f), x, a, b, tp)
 end

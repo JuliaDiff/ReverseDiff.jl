@@ -1,4 +1,4 @@
-module ReverseDiffPrototype
+module ReverseDiff
 
 using DiffBase
 using DiffBase: DiffResult

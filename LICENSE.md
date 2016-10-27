@@ -1,4 +1,4 @@
-The ReverseDiffPrototype.jl package is licensed under the MIT "Expat" License:
+The ReverseDiff.jl package is licensed under the MIT "Expat" License:
 
 > Copyright (c) 2016: Jarrett Revels, John Pearson
 >

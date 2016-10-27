@@ -1,6 +1,6 @@
 module OptionsTests
 
-using ReverseDiffPrototype, Base.Test
+using ReverseDiff, Base.Test
 
 include("../utils.jl")
 
@@ -57,21 +57,21 @@ gtp, jtp = Tape(), Tape()
 x, y = rand(3), rand(Int, 3)
 
 opts = HessianOptions(x, gtp, jtp)
-@test issimilar(RDP.gradient_options(opts), Options(track(x), gtp))
-@test issimilar(RDP.jacobian_options(opts), Options(x, jtp))
+@test issimilar(ReverseDiff.gradient_options(opts), Options(track(x), gtp))
+@test issimilar(ReverseDiff.jacobian_options(opts), Options(x, jtp))
 
 opts = HessianOptions(x, Int, gtp, jtp)
-@test issimilar(RDP.gradient_options(opts), Options(track(x, Int), gtp))
-@test issimilar(RDP.jacobian_options(opts), Options(x, Int, jtp))
+@test issimilar(ReverseDiff.gradient_options(opts), Options(track(x, Int), gtp))
+@test issimilar(ReverseDiff.jacobian_options(opts), Options(x, Int, jtp))
 
 opts = HessianOptions(y, x, gtp, jtp)
-@test issimilar(RDP.gradient_options(opts), Options(track(x, Int), gtp))
-@test issimilar(RDP.jacobian_options(opts), Options(y, x, jtp))
+@test issimilar(ReverseDiff.gradient_options(opts), Options(track(x, Int), gtp))
+@test issimilar(ReverseDiff.jacobian_options(opts), Options(y, x, jtp))
 
 opts1 = HessianOptions(x, Int, gtp, jtp)
 opts2 = HessianOptions(DiffBase.HessianResult(x), Int, gtp, jtp)
-@test issimilar(RDP.gradient_options(opts1), RDP.gradient_options(opts2))
-@test issimilar(RDP.jacobian_options(opts1), RDP.jacobian_options(opts2))
+@test issimilar(ReverseDiff.gradient_options(opts1), ReverseDiff.gradient_options(opts2))
+@test issimilar(ReverseDiff.jacobian_options(opts1), ReverseDiff.jacobian_options(opts2))
 
 ############################################################################################
 

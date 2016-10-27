@@ -1,6 +1,6 @@
 module MacrosTests
 
-using ReverseDiffPrototype, Base.Test
+using ReverseDiff, Base.Test
 using ForwardDiff: Dual, partials
 
 include("../utils.jl")
@@ -20,25 +20,25 @@ x, a, b = rand(3)
 f0(x) = 1. / (1. + exp(-x))
 f0(a, b) = sqrt(a^2 + b^2)
 
-RDP.@forward f1{T<:Real}(x::T) = 1. / (1. + exp(-x))
-RDP.@forward f1{A,B<:Real}(a::A, b::B) = sqrt(a^2 + b^2)
+ReverseDiff.@forward f1{T<:Real}(x::T) = 1. / (1. + exp(-x))
+ReverseDiff.@forward f1{A,B<:Real}(a::A, b::B) = sqrt(a^2 + b^2)
 
-RDP.@forward f2(x) = 1. / (1. + exp(-x))
-RDP.@forward f2(a, b) = sqrt(a^2 + b^2)
+ReverseDiff.@forward f2(x) = 1. / (1. + exp(-x))
+ReverseDiff.@forward f2(a, b) = sqrt(a^2 + b^2)
 
-RDP.@forward function f3{T<:Real}(x::T)
+ReverseDiff.@forward function f3{T<:Real}(x::T)
     return 1. / (1. + exp(-x))
 end
 
-RDP.@forward function f3{A,B<:Real}(a::A, b::B)
+ReverseDiff.@forward function f3{A,B<:Real}(a::A, b::B)
     return sqrt(a^2 + b^2)
 end
 
-RDP.@forward function f4(x)
+ReverseDiff.@forward function f4(x)
     return 1. / (1. + exp(-x))
 end
 
-RDP.@forward function f4(a, b)
+ReverseDiff.@forward function f4(a, b)
     return sqrt(a^2 + b^2)
 end
 
@@ -100,17 +100,17 @@ function test_forward(f, a, b, tp)
     empty!(tp)
 end
 
-for f in (RDP.@forward(f0), f1, f2, f3, f4)
+for f in (ReverseDiff.@forward(f0), f1, f2, f3, f4)
     testprintln("@forward named functions", f)
     test_forward(f, x, tp)
     test_forward(f, a, b, tp)
 end
 
-RDP.@forward f5 = (x) -> 1. / (1. + exp(-x))
+ReverseDiff.@forward f5 = (x) -> 1. / (1. + exp(-x))
 testprintln("@forward anonymous functions", f5)
 test_forward(f5, x, tp)
 
-RDP.@forward f6 = (a, b) -> sqrt(a^2 + b^2)
+ReverseDiff.@forward f6 = (a, b) -> sqrt(a^2 + b^2)
 testprintln("@forward anonymous functions", f6)
 test_forward(f6, a, b, tp)
 
@@ -120,25 +120,25 @@ test_forward(f6, a, b, tp)
 
 g0 = f0
 
-RDP.@skip g1{T<:Real}(x::T) = 1. / (1. + exp(-x))
-RDP.@skip g1{A,B<:Real}(a::A, b::B) = sqrt(a^2 + b^2)
+ReverseDiff.@skip g1{T<:Real}(x::T) = 1. / (1. + exp(-x))
+ReverseDiff.@skip g1{A,B<:Real}(a::A, b::B) = sqrt(a^2 + b^2)
 
-RDP.@skip g2(x) = 1. / (1. + exp(-x))
-RDP.@skip g2(a, b) = sqrt(a^2 + b^2)
+ReverseDiff.@skip g2(x) = 1. / (1. + exp(-x))
+ReverseDiff.@skip g2(a, b) = sqrt(a^2 + b^2)
 
-RDP.@skip function g3{T<:Real}(x::T)
+ReverseDiff.@skip function g3{T<:Real}(x::T)
     return 1. / (1. + exp(-x))
 end
 
-RDP.@skip function g3{A,B<:Real}(a::A, b::B)
+ReverseDiff.@skip function g3{A,B<:Real}(a::A, b::B)
     return sqrt(a^2 + b^2)
 end
 
-RDP.@skip function g4(x)
+ReverseDiff.@skip function g4(x)
     return 1. / (1. + exp(-x))
 end
 
-RDP.@skip function g4(a, b)
+ReverseDiff.@skip function g4(a, b)
     return sqrt(a^2 + b^2)
 end
 
@@ -172,17 +172,17 @@ function test_skip(g, a, b, tp)
     @test isempty(tp)
 end
 
-for g in (RDP.@skip(g0), g1, g2, g3, g4)
+for g in (ReverseDiff.@skip(g0), g1, g2, g3, g4)
     testprintln("@skip named functions", g)
     test_skip(g, x, tp)
     test_skip(g, a, b, tp)
 end
 
-RDP.@skip g5 = (x) -> 1. / (1. + exp(-x))
+ReverseDiff.@skip g5 = (x) -> 1. / (1. + exp(-x))
 testprintln("@skip anonymous functions", g5)
 test_skip(g5, x, tp)
 
-RDP.@skip g6 = (a, b) -> sqrt(a^2 + b^2)
+ReverseDiff.@skip g6 = (a, b) -> sqrt(a^2 + b^2)
 testprintln("@skip anonymous functions", g6)
 test_skip(g6, a, b, tp)
 

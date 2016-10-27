@@ -26,17 +26,17 @@ function annotate_func_expr(typesym, expr)
             return quote
                 $expr
                 @inline function $(old_name_and_types)($(args_signature...))
-                    return ReverseDiffPrototype.$(typesym)($(hidden_name))($(args_signature...))
+                    return ReverseDiff.$(typesym)($(hidden_name))($(args_signature...))
                 end
             end
         elseif isa(lhs, Symbol) # variable assignment site
-            expr.args[2] = :(ReverseDiffPrototype.$(typesym)($(expr.args[2])))
+            expr.args[2] = :(ReverseDiff.$(typesym)($(expr.args[2])))
             return expr
         else
             error("failed to apply $typesym to expression $expr")
         end
     else # call site
-        return :(ReverseDiffPrototype.$(typesym)($expr))
+        return :(ReverseDiff.$(typesym)($expr))
     end
 end
 

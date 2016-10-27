@@ -1,6 +1,6 @@
 module TrackedTests
 
-using ReverseDiffPrototype, Base.Test
+using ReverseDiff, Base.Test
 
 include("utils.jl")
 
@@ -18,7 +18,7 @@ tp = Tape()
 ntp = Nullable(tp)
 
 @test value(a) === a
-@test !(RDP.hastape(a))
+@test !(ReverseDiff.hastape(a))
 
 at = Tracked(a)
 @test valtype(at) === typeof(a)
@@ -28,7 +28,7 @@ at = Tracked(a)
 @test value(at) === at.value === a
 @test adjoint(at) === at.adjoint === zero(a)
 @test tape(at) === at.tape === Nullable{Tape}()
-@test !(RDP.hastape(at))
+@test !(ReverseDiff.hastape(at))
 
 bt = Tracked(b, Int)
 @test valtype(bt) === typeof(b)
@@ -38,7 +38,7 @@ bt = Tracked(b, Int)
 @test value(bt) === bt.value === b
 @test adjoint(bt) === bt.adjoint === zero(Int)
 @test tape(bt) === bt.tape === Nullable{Tape}()
-@test !(RDP.hastape(bt))
+@test !(ReverseDiff.hastape(bt))
 
 ct = Tracked(c, Int, ntp)
 @test valtype(ct) === typeof(c)
@@ -48,7 +48,7 @@ ct = Tracked(c, Int, ntp)
 @test value(ct) === ct.value === c
 @test adjoint(ct) === ct.adjoint === zero(Int)
 @test get(tape(ct)) === get(ct.tape) === tp === get(ntp)
-@test RDP.hastape(ct)
+@test ReverseDiff.hastape(ct)
 
 @test tape(at) === tape(bt) === Nullable{Tape}()
 @test tape(at, bt) === tape(bt, at)

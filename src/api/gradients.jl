@@ -47,7 +47,7 @@ function gradient!(out, f, x, opts::Options = Options(x, eltype(out)))
     return out
 end
 
-function gradient!(outs::Tuple, f, xs::Tuple, opts::Options = Options(xs, map(eltype, outs)))
+function gradient!(outs::Tuple, f, xs::Tuple, opts::Options = Options(xs, eltype(first(outs))))
     xts, tp = opts.state, opts.tape
     track!(xts, xs, tp)
     yt = f(xts...)

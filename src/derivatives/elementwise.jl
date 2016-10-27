@@ -187,10 +187,6 @@ end
 # broadcast #
 #-----------#
 
-function special_reverse_step!(::typeof(broadcast), input::AbstractArray, output, duals)
-    return special_reverse_step!(map, input, output, duals)
-end
-
 function special_reverse_step!{A,B}(::typeof(broadcast), inputs::Tuple{A,B}, output, duals)
     a, b = inputs
     if size(a) == size(b)
@@ -202,8 +198,12 @@ function special_reverse_step!{A,B}(::typeof(broadcast), inputs::Tuple{A,B}, out
     return nothing
 end
 
-function special_reverse_step!(::typeof(broadcast), input::Number, output, duals)
-    broadcast_adjoint_reduce!(input, output, duals, 1)
+function special_reverse_step!(::typeof(broadcast), input, output, duals)
+    if size(input) == size(output)
+        special_reverse_step!(map, input, output, duals)
+    else
+        broadcast_adjoint_reduce!(input, output, duals, 1)
+    end
     return nothing
 end
 
@@ -213,10 +213,10 @@ end
 # Base.mapreducedim, but that strategy is less cache efficient and more complicated to
 # implement.
 function broadcast_adjoint_reduce!{T,N}(input::AbstractArray, output::AbstractArray{T,N}, duals, p)
-    dims = (size(input, i) != size(duals, i) ? 1 : size(duals, i) for i in 1:ndims(duals))
-    max_index = CartesianIndex((dims...)::NTuple{N,Int})
-    for i in CartesianRange(size(input))
-        increment_adjoint!(input[min(max_index, i)], adjoint(output[i]) * partials(duals[i], p))
+    max_input_index = CartesianIndex(ntuple(i -> size(input, i), N)::NTuple{N,Int})
+    output_index_range = CartesianRange(size(output))
+    for i in output_index_range
+        increment_adjoint!(input[min(max_input_index, i)], adjoint(output[i]) * partials(duals[i], p))
     end
     return nothing
 end

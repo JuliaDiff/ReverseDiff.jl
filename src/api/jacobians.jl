@@ -22,7 +22,7 @@ function jacobian(f, xs::Tuple, opts::Options = Options(xs))
     outs = construct_jacobian_output(yt, xts)
     jacobian_reverse_pass!(outs, yt, xts, tp)
     empty!(tp)
-    return out
+    return outs
 end
 
 # jacobian! #
@@ -38,7 +38,7 @@ function jacobian!(out, f, x, opts::Options = Options(x, eltype(out)))
     return out
 end
 
-function jacobian!(outs::Tuple, f, xs::Tuple, opts::Options = Options(xs, map(eltype, outs)))
+function jacobian!(outs::Tuple, f, xs::Tuple, opts::Options = Options(xs, eltype(first(outs))))
     xts, tp = opts.state, opts.tape
     track!(xts, xs, tp)
     yt = f(xts...)
@@ -140,7 +140,7 @@ function jacobian_reverse_pass!(out, yt, xt, tp::Tape)
     return out
 end
 
-function jacobian_reverse_pass!(outs::Tuple, yt, xts::Tuple, tp)
+function jacobian_reverse_pass!(outs::Tuple, yt, xts::Tuple, tp::Tape)
     for i in eachindex(outs)
         jacobian_reverse_pass!(outs[i], yt, xts[i], tp)
     end

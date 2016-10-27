@@ -1,6 +1,4 @@
-using ReverseDiffPrototype
-
-const RDP = ReverseDiffPrototype
+using ReverseDiff
 
 ####################################################################
 
@@ -8,25 +6,27 @@ function grad_benchmark_driver(f, x)
     println("benchmarking ∇$(f)(x) on $(length(x)) elements...")
 
     out = zeros(x)
-    opts = RDP.Options(out, RDP.Tape(), x)
+    opts = ReverseDiff.Options(x, ReverseDiff.Tape())
     tp = opts.tape
-    xt = opts.data
+    xt = opts.state
 
     # warmup
-    RDP.seed!(f(xt))
-    RDP.backprop!(tp)
+    ReverseDiff.track!(xt, x, tp)
+    ReverseDiff.seed!(f(xt))
+    ReverseDiff.reverse_pass!(tp)
     empty!(tp)
-    RDP.gradient!(out, f, x, opts)
+    ReverseDiff.gradient!(out, f, x, opts)
     empty!(tp)
 
     # actual
+    ReverseDiff.track!(xt, x, tp)
     gc()
-    @time RDP.seed!(f(xt))
+    @time ReverseDiff.seed!(f(xt))
     gc()
-    @time RDP.backprop!(tp)
+    @time ReverseDiff.reverse_pass!(tp)
     empty!(tp)
     gc()
-    @time RDP.gradient!(out, f, x, opts)
+    @time ReverseDiff.gradient!(out, f, x, opts)
     empty!(tp)
 
     println("done.")
@@ -34,7 +34,7 @@ end
 
 ####################################################################
 
-rosenbrock(x) = sum(map(RDP.@forward((i, j) -> (1 - j)^2 + 100*(i - j^2)^2), x[2:end], x[1:end-1]))
+rosenbrock(x) = sum(map(ReverseDiff.@forward((i, j) -> (1 - j)^2 + 100*(i - j^2)^2), x[2:end], x[1:end-1]))
 
 grad_benchmark_driver(rosenbrock, rand(100000))
 
@@ -75,7 +75,7 @@ grad_benchmark_driver(matrix_test, collect(1.0:(2n^2 + n)))
 
 relu(x) = log.(1.0 .+ exp(x))
 
-RDP.@forward sigmoid(n) = 1. / (1. + exp(-n))
+ReverseDiff.@forward sigmoid(n) = 1. / (1. + exp(-n))
 
 function neural_net(w1, w2, w3, x1)
     x2 = relu(w1 * x1)
@@ -83,7 +83,7 @@ function neural_net(w1, w2, w3, x1)
     return sigmoid(dot(w3, x3))
 end
 
-neural_net_grads!(outputs, inputs) = RDP.gradient!(outputs, neural_net, inputs)
+neural_net_grads!(outputs, inputs) = ReverseDiff.gradient!(outputs, neural_net, inputs)
 
 inputs = (randn(10,10), randn(10,10), randn(10), rand(10))
 outputs = map(similar, inputs)
