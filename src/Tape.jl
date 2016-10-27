@@ -65,9 +65,11 @@ function compactrepr(t::Tuple, pad = "")
     io = IOBuffer()
     print(io, "(")
     print(io, compactrepr(t[1]))
-    for i in drop(t, 1)
-        println(io, ",")
-        print(io, " ", pad, compactrepr(i))
+    if length(t > 1)
+        for i in t[2:end]
+            println(io, ",")
+            print(io, " ", pad, compactrepr(i))
+        end
     end
     print(io, ")")
     return takebuf_string(io)

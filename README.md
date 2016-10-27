@@ -4,4 +4,6 @@ A Julia implementation of reverse mode AD.
 
 Documentation coming soon!
 
-[![Build Status](https://travis-ci.org/jrevels/ReverseDiff.jl.svg?branch=master)](https://travis-ci.org/jrevels/ReverseDiff.jl)
+Note that tests on Travis will fail until ReverseDiff's dependencies have been tagged/registered.
+
+[![Build Status](https://travis-ci.org/JuliaDiff/ReverseDiff.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ReverseDiff.jl)
