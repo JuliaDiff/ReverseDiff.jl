@@ -58,8 +58,9 @@ end
 
 # f(::Number...)::Number
 function scalar_reverse_step!{N}(inputs::Tuple, output::Tracked, grad::Partials{N})
+    output_adjoint = adjoint(output)
     for i in 1:N
-        inputs[i].adjoint += adjoint(output) * grad[i]
+        inputs[i].adjoint += output_adjoint * grad[i]
     end
     return nothing
 end

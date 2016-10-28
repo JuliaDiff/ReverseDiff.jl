@@ -179,7 +179,10 @@ end
 function special_reverse_step!{A,B}(::typeof(map), inputs::Tuple{A,B}, output, duals)
     a, b = inputs
     for i in eachindex(output)
-        scalar_reverse_step!((a[i], b[i]), output[i], partials(duals[i]))
+        output_adjoint = adjoint(output[i])
+        grad = partials(duals[i])
+        a[i].adjoint += output_adjoint * grad[1]
+        b[i].adjoint += output_adjoint * grad[2]
     end
     return nothing
 end

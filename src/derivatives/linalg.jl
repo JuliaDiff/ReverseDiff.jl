@@ -72,7 +72,7 @@ for A in ARRAY_TYPES
             x_val, y_val = value(x), value(y)
             out_val = $(f)(x_val, y_val)
             out = track(out_val, S, tp)
-            cache = (similar(out_val, S), similar(x_val, S), similar(y_val, S), x_val, y_val)
+            cache = (similar(out, S), similar(x, S), similar(y, S), x_val, y_val)
             record!(tp, $(f), (x, y), out, cache)
             return out
         end
@@ -82,7 +82,7 @@ for A in ARRAY_TYPES
             x_val = value(x)
             out_val = $(f)(x_val, y)
             out = track(out_val, S, tp)
-            cache = (similar(out_val, S), similar(x_val, S), y)
+            cache = (similar(out, S), similar(x, S), y)
             record!(tp, $(f), (x, nothing), out, cache)
             return out
         end
@@ -92,7 +92,7 @@ for A in ARRAY_TYPES
             y_val = value(y)
             out_val = $(f)(x, y_val)
             out = track(out_val, S, tp)
-            cache = (similar(out_val, S), similar(y_val, S), x)
+            cache = (similar(out, S), similar(y, S), x)
             record!(tp, $(f), (nothing, y), out, cache)
             return out
         end
@@ -107,7 +107,7 @@ for A in ARRAY_TYPES
             x_val, y_val = value(x), value(y)
             out_val = $(f)(x_val, y_val)
             track!(out, out_val, tp)
-            cache = (similar(out_val, S), similar(x_val, S), similar(y_val, S), x_val, y_val)
+            cache = (similar(out, S), similar(x, S), similar(y, S), x_val, y_val)
             record!(tp, $(f), (x, y), out, cache)
             return out
         end
@@ -119,7 +119,7 @@ for A in ARRAY_TYPES
             x_val = value(x)
             out_val = $(f)(x_val, y)
             track!(out, out_val, tp)
-            cache = (similar(out_val, S), similar(x_val, S), y)
+            cache = (similar(out, S), similar(x, S), y)
             record!(tp, $(f), (x, nothing), out, cache)
             return out
         end
@@ -131,7 +131,7 @@ for A in ARRAY_TYPES
             y_val = value(y)
             out_val = $(f)(x, y_val)
             track!(out, out_val, tp)
-            cache = (similar(out_val, S), similar(y_val, S), x)
+            cache = (similar(out, S), similar(y, S), x)
             record!(tp, $(f), (nothing, y), out, cache)
             return out
         end
@@ -144,7 +144,10 @@ for A in ARRAY_TYPES
         tp = tape(x)
         out_val = inv(value(x))
         out = track(out_val, S, tp)
-        record!(tp, inv, x, out, out_val)
+        cache = (similar(out, S, (size(out, 2), size(out, 2))),
+                 similar(out, S, (size(out, 2), size(out, 1))),
+                 similar(out, S), out_val)
+        record!(tp, inv, x, out, cache)
         return out
     end
 
@@ -156,7 +159,7 @@ for A in ARRAY_TYPES
         if det_x_val == 0
             record!(tp, det, x, out, nothing)
         else
-            record!(tp, det, x, out, inv(x_val))
+            record!(tp, det, x, out, (inv(x_val), similar(x_val)))
         end
         return out
     end
@@ -391,14 +394,24 @@ end
 # special functions #
 #-------------------#
 
-function special_reverse_step!(::typeof(inv), input, output, output_value)
-    increment_adjoint!(input, -(output_value' * adjoint(output)) * output_value')
+function special_reverse_step!(::typeof(inv), input, output, cache)
+    deriv_part1, deriv_part2, output_adjoint, output_value = cache
+    adjoint!(output_adjoint, output)
+    Ac_mul_B!(deriv_part1, output_value, output_adjoint)
+    map!(-, deriv_part1, deriv_part1)
+    A_mul_Bc!(deriv_part2, deriv_part1, output_value)
+    increment_adjoint!(input, deriv_part2)
     return nothing
 end
 
-function special_reverse_step!(::typeof(det), input, output, inv_input_value)
+function special_reverse_step!(::typeof(det), input, output, cache)
     if output != 0
-        increment_adjoint!(input, scale!((adjoint(output) * value(output)), inv_input_value'))
+        inv_input_value, inv_input_value_transpose = cache
+        k = adjoint(output) * value(output)
+        # this transpose must occur in the backwards pass for
+        # nested differentiation to work properly
+        transpose!(inv_input_value_transpose, inv_input_value)
+        increment_adjoint!(input, scale!(k, inv_input_value_transpose))
     end
     return nothing
 end
