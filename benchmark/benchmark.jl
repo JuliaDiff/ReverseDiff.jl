@@ -36,6 +36,22 @@ end
 
 rosenbrock(x) = sum(map(ReverseDiff.@forward((i, j) -> (1 - j)^2 + 100*(i - j^2)^2), x[2:end], x[1:end-1]))
 
+# function rosenbrock(x)
+#     i = x[2:end]
+#     j = x[1:end-1]
+#     return sum((1 .- j).^2 + 100*(i - j.^2).^2)
+# end
+#
+# function rosenbrock(x::AbstractVector)
+#     a = one(eltype(x))
+#     b = 100 * a
+#     result = zero(eltype(x))
+#     for i in 1:length(x)-1
+#         result += (a - x[i])^2 + b*(x[i+1] - x[i]^2)^2
+#     end
+#     return result
+# end
+
 grad_benchmark_driver(rosenbrock, rand(100000))
 
 ####################################################################
