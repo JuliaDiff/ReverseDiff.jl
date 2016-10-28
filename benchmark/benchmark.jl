@@ -62,7 +62,7 @@ function generate_matrix_test(n)
         @assert length(x) == 2n^2 + n
         a = reshape(x[1:n^2], n, n)
         b = reshape(x[n^2 + 1:2n^2], n, n)
-        return trace(log((a * b) + a - b))
+        return trace(log.((a * b) + a - b))
     end
 end
 
@@ -73,7 +73,7 @@ grad_benchmark_driver(matrix_test, collect(1.0:(2n^2 + n)))
 
 ####################################################################
 
-relu(x) = log.(1.0 .+ exp(x))
+relu(x) = log.(1.0 .+ exp.(x))
 
 ReverseDiff.@forward sigmoid(n) = 1. / (1. + exp(-n))
 
