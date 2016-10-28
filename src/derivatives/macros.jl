@@ -64,7 +64,7 @@ end
     dual = self.f(Dual(value(t), one(V)))
     tp = tape(t)
     out = Tracked(value(dual), A, tp)
-    record!(tp, nothing, t, out, ForwardDiff.partials(dual))
+    record_node!(tp, Scalar, self.f, t, out, RefValue(ForwardDiff.partials(dual, 1)))
     return out
 end
 
@@ -77,7 +77,7 @@ end
     dual_c = self.f(dual_a, dual_b)
     tp = tape(a, b)
     out = Tracked(value(dual_c), A, tp)
-    record!(tp, nothing, (a, b), out, ForwardDiff.partials(dual_c))
+    record_node!(tp, Scalar, self.f, (a, b), out, RefValue(ForwardDiff.partials(dual_c)))
     return out
 end
 
@@ -85,7 +85,7 @@ end
     dual = self.f(x, Dual(value(t), one(V)))
     tp = tape(t)
     out = Tracked(value(dual), A, tp)
-    record!(tp, nothing, t, out, ForwardDiff.partials(dual))
+    record_node!(tp, Scalar, self.f, (x, t), out, RefValue(ForwardDiff.partials(dual, 1)))
     return out
 end
 
@@ -93,7 +93,7 @@ end
     dual = self.f(Dual(value(t), one(V)), x)
     tp = tape(t)
     out = Tracked(value(dual), A, tp)
-    record!(tp, nothing, t, out, ForwardDiff.partials(dual))
+    record_node!(tp, Scalar, self.f, (t, x), out, RefValue(ForwardDiff.partials(dual, 1)))
     return out
 end
 

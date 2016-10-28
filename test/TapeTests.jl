@@ -16,7 +16,8 @@ tic()
 x, y, k = [1, 2, 3], [4, 5, 6], 7
 z = x + y + k
 c = []
-tn = TapeNode(+, (x, y, k), z, c)
+tn = TapeNode(ReverseDiff.Special, +, (x, y, k), z, c)
+@test typeof(tn) <: TapeNode{ReverseDiff.Special}
 @test tn.func === +
 @test tn.inputs === (x, y, k)
 @test tn.outputs === z
@@ -24,7 +25,7 @@ tn = TapeNode(+, (x, y, k), z, c)
 
 tp = Tape()
 ntp = Nullable(tp)
-ReverseDiff.record!(ntp, +, (x, y, k), z, c)
+ReverseDiff.record_node!(ntp, ReverseDiff.Special, +, (x, y, k), z, c)
 tp1 = first(tp)
 @test tp1 == tn
 @test tp1.inputs[1] !== x
@@ -34,7 +35,7 @@ tp1 = first(tp)
 @test tp1.cache === c
 
 ntp = Nullable{Tape}()
-ReverseDiff.record!(ntp, +, (x, y, k), z, c)
+ReverseDiff.record_node!(ntp, ReverseDiff.Special, +, (x, y, k), z, c)
 @test ntp === Nullable{Tape}()
 
 t = Tracked(1)

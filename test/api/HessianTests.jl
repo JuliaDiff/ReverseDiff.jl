@@ -43,6 +43,22 @@ function test_unary_hessian(f, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
     @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
+
+    # with HessianRecord
+
+    r = ReverseDiff.HessianRecord(f, rand(size(x)))
+
+    @test_approx_eq_eps ReverseDiff.hessian!(r, x) DiffBase.hessian(test) EPS
+
+    out = similar(DiffBase.hessian(test))
+    ReverseDiff.hessian!(out, r, x)
+    @test_approx_eq_eps out DiffBase.hessian(test) EPS
+
+    result = DiffBase.HessianResult(x)
+    ReverseDiff.hessian!(result, r, x)
+    @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+    @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+    @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
 end
 
 for f in DiffBase.MATRIX_TO_NUMBER_FUNCS

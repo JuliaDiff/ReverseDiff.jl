@@ -1,6 +1,6 @@
-###########
-# forward #
-###########
+###############
+# record pass #
+###############
 
 function retrack_duals{N,T,A}(duals::AbstractArray{Dual{N,T}}, ::Type{A}, tp::Nullable{Tape})
     ts = similar(duals, Tracked{T,A})
@@ -20,7 +20,7 @@ for A in ARRAY_TYPES
                 duals = $(g)(fdual, x)
                 tp = tape(x)
                 out = retrack_duals(duals, S, tp)
-                record!(tp, $(g), x, out, duals)
+                record_node!(tp, Special, $(g), x, out, (fdual, duals))
                 return out
             end
 
@@ -32,7 +32,7 @@ for A in ARRAY_TYPES
                 duals = $(g)(fdual, x1, x2)
                 tp = tape(x1, x2)
                 out = retrack_duals(duals, S, tp)
-                record!(tp, $(g), (x1, x2), out, duals)
+                record_node!(tp, Special, $(g), (x1, x2), out, (fdual, duals))
                 return out
             end
 
@@ -43,7 +43,7 @@ for A in ARRAY_TYPES
                 duals = $(g)(fdual, x1, x2)
                 tp = tape(x1)
                 out = retrack_duals(duals, S, tp)
-                record!(tp, $(g), x1, out, duals)
+                record_node!(tp, Special, $(g), (x1, x2), out, (fdual, duals))
                 return out
             end
 
@@ -54,7 +54,7 @@ for A in ARRAY_TYPES
                 duals = $(g)(fdual, x1, x2)
                 tp = tape(x2)
                 out = retrack_duals(duals, S, tp)
-                record!(tp, $(g), x2, out, duals)
+                record_node!(tp, Special, $(g), (x1, x2), out, (fdual, duals))
                 return out
             end
         end
@@ -76,42 +76,40 @@ for A in ARRAY_TYPES
 
     @eval begin
         function Base.broadcast{F,V,X,S}(fopt::ForwardOptimize{F}, n::Tracked{V,S}, x::$(A){Tracked{X,S}})
-            ndual = Dual(value(n), one(V), zero(V))
-            fdual = t -> fopt.f(ndual, Dual(value(t), zero(X), one(X)))
-            duals = broadcast(fdual, x)
+            fdual = (n, t) -> fopt.f(Dual(value(n), one(V), zero(V)),
+                                     Dual(value(t), zero(X), one(X)))
+            duals = broadcast(fdual, n, x)
             tp = tape(n, x)
             out = retrack_duals(duals, S, tp)
-            record!(tp, broadcast, (n, x), out, duals)
+            record_node!(tp, Special, broadcast, (n, x), out, (fdual, duals))
             return out
         end
 
         function Base.broadcast{F,X,V,S}(fopt::ForwardOptimize{F}, x::$(A){Tracked{X,S}}, n::Tracked{V,S})
-            ndual = Dual(value(n), zero(V), one(V))
-            fdual = t -> fopt.f(Dual(value(t), one(X), zero(X)), ndual)
-            duals = broadcast(fdual, x)
+            fdual = (t, n) -> fopt.f(Dual(value(t), one(X), zero(X)),
+                                     Dual(value(n), zero(V), one(V)))
+            duals = broadcast(fdual, x, n)
             tp = tape(n, x)
             out = retrack_duals(duals, S, tp)
-            record!(tp, broadcast, (x, n), out, duals)
+            record_node!(tp, Special, broadcast, (x, n), out, (fdual, duals))
             return out
         end
 
         function Base.broadcast{F,V,S}(fopt::ForwardOptimize{F}, n::Tracked{V,S}, x::$(A))
-            ndual = Dual(value(n), one(V))
-            fdual = t -> fopt.f(ndual, t)
-            duals = broadcast(fdual, x)
+            fdual = (n, t) -> fopt.f(Dual(value(n), one(V)), t)
+            duals = broadcast(fdual, n, x)
             tp = tape(n)
             out = retrack_duals(duals, S, tp)
-            record!(tp, broadcast, n, out, duals)
+            record_node!(tp, Special, broadcast, (n, x), out, (fdual, duals))
             return out
         end
 
         function Base.broadcast{F,V,S}(fopt::ForwardOptimize{F}, x::$(A), n::Tracked{V,S})
-            ndual = Dual(value(n), one(V))
-            fdual = t -> fopt.f(t, ndual)
-            duals = broadcast(fdual, x)
+            fdual = (t, n) -> fopt.f(t, Dual(value(n), one(V)))
+            duals = broadcast(fdual, x, n)
             tp = tape(n)
             out = retrack_duals(duals, S, tp)
-            record!(tp, broadcast, n, out, duals)
+            record_node!(tp, Special, broadcast, (x, n), out, (fdual, duals))
             return out
         end
     end
@@ -162,27 +160,68 @@ for A in ARRAY_TYPES
     end
 end
 
-###########
-# reverse #
-###########
+################
+# forward pass #
+################
+
+for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
+    @eval function special_forward_step!(::typeof($g), input, output, cache)
+        fdual, duals = cache
+        ($g!)(fdual, duals, input)
+        setvalue!(value, output, duals)
+        return nothing
+    end
+
+    @eval function special_forward_step!{A,B}(::typeof($g), inputs::Tuple{A,B}, output, cache)
+        a, b = inputs
+        fdual, duals = cache
+        ($g!)(fdual, duals, a, b)
+        setvalue!(value, output, duals)
+        return nothing
+    end
+end
+
+################
+# reverse pass #
+################
 
 # map #
 #-----#
 
-function special_reverse_step!(::typeof(map), input, output, duals)
+function special_reverse_step!(::typeof(map), input::AbstractArray, output::AbstractArray, cache)
+    _, duals = cache
     for i in eachindex(output)
-        scalar_reverse_step!(input[i], output[i], partials(duals[i]))
+        increment_adjoint!(input[i], adjoint(output[i]) * partials(duals[i], 1))
     end
     return nothing
 end
 
-function special_reverse_step!{A,B}(::typeof(map), inputs::Tuple{A,B}, output, duals)
+function special_reverse_step!{A,B}(::typeof(map), inputs::Tuple{A,B}, output::AbstractArray, cache)
     a, b = inputs
+    _, duals = cache
+    if eltype(A) <: Tracked && eltype(B) <: Tracked
+        map_adjoint_reduce!(a, b, output, duals)
+    elseif eltype(A) <: Tracked
+        map_adjoint_reduce!(a, output, duals)
+    else
+        map_adjoint_reduce!(b, output, duals)
+    end
+    return nothing
+end
+
+function map_adjoint_reduce!(input, output, duals)
+    for i in eachindex(output)
+        increment_adjoint!(input[i], adjoint(output[i]) * partials(duals[i], 1))
+    end
+    return nothing
+end
+
+function map_adjoint_reduce!(a, b, output, duals)
     for i in eachindex(output)
         output_adjoint = adjoint(output[i])
-        grad = partials(duals[i])
-        a[i].adjoint += output_adjoint * grad[1]
-        b[i].adjoint += output_adjoint * grad[2]
+        a_partial, b_partial = partials(duals[i])
+        increment_adjoint!(a[i], output_adjoint * a_partial)
+        increment_adjoint!(b[i], output_adjoint * b_partial)
     end
     return nothing
 end
@@ -190,22 +229,30 @@ end
 # broadcast #
 #-----------#
 
-function special_reverse_step!{A,B}(::typeof(broadcast), inputs::Tuple{A,B}, output, duals)
+function special_reverse_step!{A,B}(::typeof(broadcast), inputs::Tuple{A,B}, output, cache)
     a, b = inputs
     if size(a) == size(b)
-        special_reverse_step!(map, inputs, output, duals)
+        special_reverse_step!(map, inputs, output, cache)
     else
-        broadcast_adjoint_reduce!(a, output, duals, 1)
-        broadcast_adjoint_reduce!(b, output, duals, 2)
+        _, duals = cache
+        if eltype(A) <: Tracked && eltype(B) <: Tracked
+            broadcast_adjoint_reduce!(a, output, duals, 1)
+            broadcast_adjoint_reduce!(b, output, duals, 2)
+        elseif eltype(A) <: Tracked
+            broadcast_adjoint_reduce!(a, output, duals)
+        else
+            broadcast_adjoint_reduce!(b, output, duals)
+        end
     end
     return nothing
 end
 
-function special_reverse_step!(::typeof(broadcast), input, output, duals)
+function special_reverse_step!(::typeof(broadcast), input, output, cache)
     if size(input) == size(output)
-        special_reverse_step!(map, input, output, duals)
+        special_reverse_step!(map, input, output, cache)
     else
-        broadcast_adjoint_reduce!(input, output, duals, 1)
+        _, duals = cache
+        broadcast_adjoint_reduce!(input, output, duals)
     end
     return nothing
 end
@@ -215,7 +262,8 @@ end
 # it. This can be overcome by using the divide-and-conquer strategy used by
 # Base.mapreducedim, but that strategy is less cache efficient and more complicated to
 # implement.
-function broadcast_adjoint_reduce!{T,N}(input::AbstractArray, output::AbstractArray{T,N}, duals, p)
+function broadcast_adjoint_reduce!{T,N}(input::AbstractArray, output::AbstractArray{T,N},
+                                        duals::AbstractArray, p = 1)
     max_input_index = CartesianIndex(ntuple(i -> size(input, i), N)::NTuple{N,Int})
     output_index_range = CartesianRange(size(output))
     for i in output_index_range
@@ -224,7 +272,8 @@ function broadcast_adjoint_reduce!{T,N}(input::AbstractArray, output::AbstractAr
     return nothing
 end
 
-function broadcast_adjoint_reduce!{T,N}(input::Number, output::AbstractArray{T,N}, duals, p)
+function broadcast_adjoint_reduce!{T,N}(input::Number, output::AbstractArray{T,N},
+                                        duals::AbstractArray, p = 1)
     for i in eachindex(duals)
         increment_adjoint!(input, adjoint(output[i]) * partials(duals[i], p))
     end

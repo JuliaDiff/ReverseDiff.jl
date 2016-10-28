@@ -64,14 +64,9 @@ opts = HessianOptions(x, Int, gtp, jtp)
 @test issimilar(ReverseDiff.gradient_options(opts), Options(track(x, Int), gtp))
 @test issimilar(ReverseDiff.jacobian_options(opts), Options(x, Int, jtp))
 
-opts = HessianOptions(y, x, gtp, jtp)
+opts = HessianOptions(DiffBase.HessianResult(y), x, gtp, jtp)
 @test issimilar(ReverseDiff.gradient_options(opts), Options(track(x, Int), gtp))
 @test issimilar(ReverseDiff.jacobian_options(opts), Options(y, x, jtp))
-
-opts1 = HessianOptions(x, Int, gtp, jtp)
-opts2 = HessianOptions(DiffBase.HessianResult(x), Int, gtp, jtp)
-@test issimilar(ReverseDiff.gradient_options(opts1), ReverseDiff.gradient_options(opts2))
-@test issimilar(ReverseDiff.jacobian_options(opts1), ReverseDiff.jacobian_options(opts2))
 
 ############################################################################################
 

@@ -1,5 +1,7 @@
 module ReverseDiff
 
+using Base: RefValue
+
 using DiffBase
 using DiffBase: DiffResult
 
@@ -25,6 +27,7 @@ include("derivatives/scalars.jl")
 include("derivatives/linalg.jl")
 include("derivatives/elementwise.jl")
 include("api/options.jl")
+include("api/record.jl")
 include("api/gradients.jl")
 include("api/jacobians.jl")
 include("api/hessians.jl")

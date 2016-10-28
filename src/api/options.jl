@@ -59,13 +59,11 @@ function HessianOptions{A}(x::AbstractArray, ::Type{A}, gtp::Tape = Tape(), jtp:
     return HessianOptions(gopts, jopts)
 end
 
-function HessianOptions(y::AbstractArray, x::AbstractArray, gtp::Tape = Tape(), jtp::Tape = Tape())
-    jopts = Options(y, x, jtp)
+function HessianOptions(out::DiffResult, x::AbstractArray, gtp::Tape = Tape(), jtp::Tape = Tape())
+    jopts = Options(DiffBase.gradient(out), x, jtp)
     gopts = Options(jopts.state[2], gtp)
     return HessianOptions(gopts, jopts)
 end
-
-HessianOptions(out::DiffResult, args...) = HessianOptions(DiffBase.gradient(out), args...)
 
 gradient_options(opts::HessianOptions) = opts.gradient_options
 jacobian_options(opts::HessianOptions) = opts.jacobian_options

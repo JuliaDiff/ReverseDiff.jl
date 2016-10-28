@@ -2,34 +2,33 @@ using ReverseDiff
 
 ####################################################################
 
-function grad_benchmark_driver(f, x)
-    println("benchmarking ∇$(f)(x) on $(length(x)) elements...")
+function grad_benchmark_driver!(out, f, x)
+    println("benchmarking ∇$(f)...")
 
-    out = zeros(x)
-    opts = ReverseDiff.Options(x, ReverseDiff.Tape())
-    tp = opts.tape
-    xt = opts.state
+    opts = ReverseDiff.Options(x)
+    rec = ReverseDiff.Record(f, x)
+    tp = rec.tape
 
     # warmup
-    ReverseDiff.track!(xt, x, tp)
-    ReverseDiff.seed!(f(xt))
-    ReverseDiff.reverse_pass!(tp)
-    empty!(tp)
     ReverseDiff.gradient!(out, f, x, opts)
-    empty!(tp)
+    ReverseDiff.gradient!(out, rec, x)
+    ReverseDiff.forward_pass!(tp)
+    ReverseDiff.reverse_pass!(tp)
 
     # actual
-    ReverseDiff.track!(xt, x, tp)
     gc()
-    @time ReverseDiff.seed!(f(xt))
-    gc()
-    @time ReverseDiff.reverse_pass!(tp)
-    empty!(tp)
-    gc()
+    print("  gradient! (no prerecord): ")
     @time ReverseDiff.gradient!(out, f, x, opts)
-    empty!(tp)
-
-    println("done.")
+    gc()
+    print("  gradient!    (prerecord): ")
+    @time ReverseDiff.gradient!(out, rec, x)
+    gc()
+    print("  forward pass: ")
+    @time ReverseDiff.forward_pass!(tp)
+    gc()
+    print("  reverse pass: ")
+    @time ReverseDiff.reverse_pass!(tp)
+    gc()
 end
 
 ####################################################################
@@ -52,7 +51,9 @@ rosenbrock(x) = sum(map(ReverseDiff.@forward((i, j) -> (1 - j)^2 + 100*(i - j^2)
 #     return result
 # end
 
-grad_benchmark_driver(rosenbrock, rand(100000))
+x = rand(100000)
+out = zeros(x)
+grad_benchmark_driver!(out, rosenbrock, x)
 
 ####################################################################
 
@@ -69,7 +70,9 @@ function ackley(x::AbstractVector)
             exp(len_recip*sum_cos) + a + e)
 end
 
-grad_benchmark_driver(ackley, rand(100000))
+x = rand(100000)
+out = zeros(x)
+grad_benchmark_driver!(out, ackley, x)
 
 ####################################################################
 
@@ -84,8 +87,9 @@ end
 
 n = 100
 matrix_test = generate_matrix_test(n)
-
-grad_benchmark_driver(matrix_test, collect(1.0:(2n^2 + n)))
+x = collect(1.0:(2n^2 + n))
+out = zeros(x)
+grad_benchmark_driver!(out, matrix_test, x)
 
 ####################################################################
 
@@ -99,15 +103,10 @@ function neural_net(w1, w2, w3, x1)
     return sigmoid(dot(w3, x3))
 end
 
-neural_net_grads!(outputs, inputs) = ReverseDiff.gradient!(outputs, neural_net, inputs)
+xs = (randn(10,10), randn(10,10), randn(10), rand(10))
+outs = map(similar, xs)
+grad_benchmark_driver!(outs, neural_net, xs)
 
-inputs = (randn(10,10), randn(10,10), randn(10), rand(10))
-outputs = map(similar, inputs)
-
-println("benchmarking neural_net_grads...")
-
-neural_net_grads!(outputs, inputs) # warmup
-gc()
-@time neural_net_grads!(outputs, inputs) # actual
+####################################################################
 
 println("done")

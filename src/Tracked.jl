@@ -15,7 +15,13 @@ Tracked{V}(x::V, tp::Nullable{Tape}) = Tracked(x, V, tp)
 
 @inline value(x::Real) = x
 @inline value(d::Dual) = ForwardDiff.value(d)
-@inline value{V,A}(t::Tracked{V,A}) = t.value
+@inline value(t::Tracked) = t.value
+
+@inline setadjoint!(t::Tracked, x) = (t.adjoint = x; return t)
+@inline setadjoint!(f, t::Tracked, x) = setadjoint!(t, f(x))
+
+@inline setvalue!(t::Tracked, x) = (t.value = x; return t)
+@inline setvalue!(f, t::Tracked, x) = setvalue!(t, f(x))
 
 adjtype(t::Tracked) = adjtype(typeof(t))
 adjtype{V,A}(::Type{Tracked{V,A}}) = A

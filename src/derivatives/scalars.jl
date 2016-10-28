@@ -51,16 +51,57 @@ end
 ###########
 
 # f(::Number)::Number
-function scalar_reverse_step!(input::Tracked, output::Tracked, deriv::Partials{1})
-    input.adjoint += adjoint(output) * deriv[1]
+function scalar_reverse_step!(input::Tracked, output::Tracked, deriv::RefValue)
+    increment_adjoint!(input, adjoint(output) * deriv[])
     return nothing
 end
 
-# f(::Number...)::Number
-function scalar_reverse_step!{N}(inputs::Tuple, output::Tracked, grad::Partials{N})
+# f(::Number, ::Number)::Number
+function scalar_reverse_step!{A,B}(inputs::Tuple{A,B}, output::Tracked, grad::RefValue)
+    a, b = inputs
     output_adjoint = adjoint(output)
-    for i in 1:N
-        inputs[i].adjoint += output_adjoint * grad[i]
+    if A <: Tracked && B <: Tracked
+        a_partial, b_partial = grad[]
+        increment_adjoint!(a, output_adjoint * a_partial)
+        increment_adjoint!(b, output_adjoint * b_partial)
+    elseif A <: Tracked
+        increment_adjoint!(a, output_adjoint * grad[])
+    else
+        increment_adjoint!(b, output_adjoint * grad[])
+    end
+    return nothing
+end
+
+###########
+# forward #
+###########
+
+# f(::Number)::Number
+function scalar_forward_step!(f, input::Tracked, output::Tracked, deriv::RefValue)
+    dual = f(Dual(value(input), one(valtype(input))))
+    setvalue!(output, value(dual))
+    deriv[] = partials(dual, 1)
+    return nothing
+end
+
+# f(::Number, ::Number)::Number
+function scalar_forward_step!{A,B}(f, inputs::Tuple{A,B}, output::Tracked, grad::RefValue)
+    a, b = inputs
+    if A <: Tracked && B <: Tracked
+        VA, VB = valtype(A), valtype(B)
+        dual_a = Dual(value(a), one(VA), zero(VA))
+        dual_b = Dual(value(b), zero(VB), one(VB))
+        dual_c = f(dual_a, dual_b)
+        setvalue!(output, value(dual_c))
+        grad[] = partials(dual_c)
+    elseif A <: Tracked
+        dual = f(Dual(value(a), one(valtype(a))), b)
+        setvalue!(output, value(dual))
+        grad[] = partials(dual, 1)
+    else
+        dual = f(a, Dual(value(b), one(valtype(b))))
+        setvalue!(output, value(dual))
+        grad[] = partials(dual, 1)
     end
     return nothing
 end

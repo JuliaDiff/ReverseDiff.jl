@@ -47,11 +47,39 @@ function value!(out, arr)
     return out
 end
 
+function setvalue!(out, arr)
+    for i in eachindex(out)
+        setvalue!(out[i], arr[i])
+    end
+    return out
+end
+
+function setvalue!(f, out, arr)
+    for i in eachindex(out)
+        setvalue!(out[i], f(arr[i]))
+    end
+    return out
+end
+
 adjoint{T}(arr::AbstractArray{T}) = adjoint!(similar(arr, adjtype(T)), arr)
 
 function adjoint!(out, arr)
     for i in eachindex(out)
         out[i] = adjoint(arr[i])
+    end
+    return out
+end
+
+function setadjoint!(out, arr)
+    for i in eachindex(out)
+        setadjoint!(out[i], arr[i])
+    end
+    return out
+end
+
+function setadjoint!(f, out, arr)
+    for i in eachindex(out)
+        setadjoint!(out[i], f(arr[i]))
     end
     return out
 end
@@ -71,12 +99,12 @@ tape(a::AbstractArray, b) = (tp = tape(a); isnull(tp) ? tape(b) : tp)
 # seeding/unseeding #
 #####################
 
-seed!(t::Tracked) = (t.adjoint = one(adjtype(t)); return t)
+seed!(t::Tracked) = (setadjoint!(t, one(adjtype(t))); return t)
 seed!(t::TapeNode) = (seed!(t.outputs); return t)
 
-unseed!(t::Tracked) = (t.adjoint = zero(adjtype(t)); return t)
+unseed!(t::Tracked) = (setadjoint!(t, zero(adjtype(t))); return t)
 unseed!(t::TapeNode) = (unseed!(t.inputs); unseed!(t.outputs); return t)
-unseed!(::Void) = nothing
+unseed!(::Union{Void, Number}) = nothing
 unseed!(ts) = for t in ts; unseed!(t); end
 
 #######################

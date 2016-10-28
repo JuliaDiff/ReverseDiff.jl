@@ -53,10 +53,10 @@ function test_forward(f, x, tp)
     dual = f(Dual(x, one(x)))
     @test length(tp) == 1
     node = first(tp)
-    @test node.func === nothing
+    @test typeof(node) <: TapeNode{ReverseDiff.Scalar}
     @test node.inputs === xt
     @test node.outputs === yt
-    @test node.cache === partials(dual)
+    @test node.cache[] === partials(dual, 1)
     empty!(tp)
 end
 
@@ -71,10 +71,10 @@ function test_forward(f, a, b, tp)
     dual = f(Dual(a, one(a)), b)
     @test length(tp) == 1
     node = first(tp)
-    @test node.func === nothing
-    @test node.inputs === at
+    @test typeof(node) <: TapeNode{ReverseDiff.Scalar}
+    @test node.inputs === (at, b)
     @test node.outputs === tc
-    @test node.cache === partials(dual)
+    @test node.cache[] === partials(dual, 1)
     empty!(tp)
 
     tc = f(a, bt)
@@ -82,10 +82,10 @@ function test_forward(f, a, b, tp)
     dual = f(a, Dual(b, one(b)))
     @test length(tp) == 1
     node = first(tp)
-    @test node.func === nothing
-    @test node.inputs === bt
+    @test typeof(node) <: TapeNode{ReverseDiff.Scalar}
+    @test node.inputs === (a, bt)
     @test node.outputs === tc
-    @test node.cache === partials(dual)
+    @test node.cache[] === partials(dual, 1)
     empty!(tp)
 
     tc = f(at, bt)
@@ -93,10 +93,10 @@ function test_forward(f, a, b, tp)
     dual = f(Dual(a, one(a), zero(a)), Dual(b, zero(b), one(b)))
     @test length(tp) == 1
     node = first(tp)
-    @test node.func === nothing
+    @test typeof(node) <: TapeNode{ReverseDiff.Scalar}
     @test node.inputs === (at, bt)
     @test node.outputs === tc
-    @test node.cache === partials(dual)
+    @test node.cache[] === partials(dual)
     empty!(tp)
 end
 

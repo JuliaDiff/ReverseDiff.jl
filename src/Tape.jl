@@ -2,18 +2,26 @@
 # TapeNode/Tape #
 #################
 
-immutable TapeNode{F,I,O,M}
+abstract NodeKind
+abstract Scalar <: NodeKind
+abstract Special <: NodeKind
+
+immutable TapeNode{K<:NodeKind,F,I,O,C}
     func::F
     inputs::I
     outputs::O
-    cache::M # holds data used in reverse pass (gradients, dual arrays, value arrays, etc.)
+    cache::C # holds data/buffers used in forward/reverse passes
+end
+
+@inline function TapeNode{K<:NodeKind,F,I,O,C}(::Type{K}, func::F, inputs::I, outputs::O, cache::C)
+    return TapeNode{K,F,I,O,C}(func, inputs, outputs, cache)
 end
 
 typealias Tape Vector{TapeNode}
 
-function record!(tp::Nullable{Tape}, func, inputs, outputs, cache = nothing)
+function record_node!{K<:NodeKind}(tp::Nullable{Tape}, ::Type{K}, func, inputs, outputs, cache = nothing)
     if !(isnull(tp))
-        node = TapeNode(func, capture(inputs), capture(outputs), cache)
+        node = TapeNode(K, func, capture(inputs), capture(outputs), cache)
         push!(get(tp), node)
     end
     return nothing
@@ -27,16 +35,24 @@ end
 @inline capture(state::Tuple{Vararg{Number}}) = state
 @inline capture(state::Tuple) = map(capture, state)
 
-function Base.:(==)(a::TapeNode, b::TapeNode)
-    return (a.func == b.func &&
+function Base.:(==){A,B}(a::TapeNode{A}, b::TapeNode{B})
+    return (A === B &&
+            a.func == b.func &&
             a.inputs == b.inputs &&
             a.outputs == b.outputs &&
             a.cache == b.cache)
 end
 
-################################################
-# reverse pass (backpropagation over the tape) #
-################################################
+########################
+# forward/reverse pass #
+########################
+
+function forward_pass!(tape::Tape)
+    for node in tape
+        forward_step!(node)
+    end
+    return nothing
+end
 
 function reverse_pass!(tape::Tape)
     for i in length(tape):-1:1
@@ -45,9 +61,19 @@ function reverse_pass!(tape::Tape)
     return nothing
 end
 
-# The *_reverse_step! functions are implemented for relevant functions in the `derivatives` folder
-reverse_step!(node::TapeNode{Void}) = scalar_reverse_step!(node.inputs, node.outputs, node.cache)
-reverse_step!(node::TapeNode) = special_reverse_step!(node.func, node.inputs, node.outputs, node.cache)
+# *_forward_step! and *_reverse_step! methods are implemented in the `derivatives` folder
+function forward_step!(node::TapeNode{Scalar})
+    scalar_forward_step!(node.func, node.inputs, node.outputs, node.cache)
+    unseed!(node.outputs)
+end
+
+function forward_step!(node::TapeNode{Special})
+    special_forward_step!(node.func, node.inputs, node.outputs, node.cache)
+    unseed!(node.outputs)
+end
+
+reverse_step!(node::TapeNode{Scalar}) = scalar_reverse_step!(node.inputs, node.outputs, node.cache)
+reverse_step!(node::TapeNode{Special}) = special_reverse_step!(node.func, node.inputs, node.outputs, node.cache)
 
 ###################
 # Pretty Printing #
@@ -65,7 +91,7 @@ function compactrepr(t::Tuple, pad = "")
     io = IOBuffer()
     print(io, "(")
     print(io, compactrepr(t[1]))
-    if length(t > 1)
+    if length(t) > 1
         for i in t[2:end]
             println(io, ",")
             print(io, " ", pad, compactrepr(i))

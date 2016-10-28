@@ -142,19 +142,19 @@ ntp = Nullable(tp)
 
 @test tracked_is(ReverseDiff.seed!(Tracked(1, 0, ntp)), Tracked(1, 1, ntp))
 
-node = TapeNode(+, (Tracked(2, ntp), Tracked(1, ntp)), Tracked(3, ntp), nothing)
+node = TapeNode(ReverseDiff.Scalar, +, (Tracked(2, ntp), Tracked(1, ntp)), Tracked(3, ntp), nothing)
 @test tracked_is(ReverseDiff.seed!(node).outputs, Tracked(3, 1, ntp))
 
 @test tracked_is(ReverseDiff.unseed!(Tracked(1, 1, ntp)), Tracked(1, 0, ntp))
 
-node = TapeNode(+, (Tracked(2, 2, ntp), Tracked(1, 3, ntp)), Tracked(3, 4, ntp), nothing)
+node = TapeNode(ReverseDiff.Scalar, +, (Tracked(2, 2, ntp), Tracked(1, 3, ntp)), Tracked(3, 4, ntp), nothing)
 ReverseDiff.unseed!(node)
 @test adjoint(node.inputs[1]) === 0
 @test adjoint(node.inputs[2]) === 0
 @test adjoint(node.outputs) === 0
 
-tp2 = [TapeNode(+, (Tracked(2, 2, ntp), Tracked(1, 3, ntp)), Tracked(3, 4, ntp), nothing),
-       TapeNode(+, Tracked(1.0, 3.0, ntp), (Tracked(51.4, 3.1, ntp), Tracked(3, 4, ntp)), nothing)]
+tp2 = [TapeNode(ReverseDiff.Scalar, +, (Tracked(2, 2, ntp), Tracked(1, 3, ntp)), Tracked(3, 4, ntp), nothing),
+       TapeNode(ReverseDiff.Scalar, +, Tracked(1.0, 3.0, ntp), (Tracked(51.4, 3.1, ntp), Tracked(3, 4, ntp)), nothing)]
 ReverseDiff.unseed!(tp2)
 @test adjoint(tp2[1].inputs[1]) === 0
 @test adjoint(tp2[1].inputs[2]) === 0
