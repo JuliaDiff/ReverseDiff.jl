@@ -1,9 +1,9 @@
 module MacrosTests
 
-using ReverseDiff, Base.Test
-using ForwardDiff: Dual, partials
+using ReverseDiff, ForwardDiff, Base.Test
+using ForwardDiff: Dual, Partials, partials
 
-include("../utils.jl")
+include(joinpath(dirname(@__FILE__), "utils.jl"))
 
 println("testing macros (@forward, @skip, etc.)...")
 tic()
@@ -43,7 +43,7 @@ ReverseDiff.@forward function f4(a, b)
 end
 
 function test_forward(f, x, tp)
-    xt = track(x, tp)
+    xt = ReverseDiff.TrackedReal(x, zero(x), tp)
 
     y = f(x)
     @test isempty(tp)
@@ -52,51 +52,50 @@ function test_forward(f, x, tp)
     @test yt == y
     dual = f(Dual(x, one(x)))
     @test length(tp) == 1
-    node = first(tp)
-    @test typeof(node) <: TapeNode{ReverseDiff.Scalar}
-    @test node.inputs === xt
-    @test node.outputs === yt
-    @test node.cache[] === partials(dual, 1)
+    instruction = first(tp)
+    @test typeof(instruction) <: ReverseDiff.ScalarInstruction
+    @test instruction.input === xt
+    @test instruction.output === yt
+    @test instruction.cache[] === partials(dual, 1)
     empty!(tp)
 end
 
 function test_forward(f, a, b, tp)
-    at, bt = track(a, tp), track(b, tp)
+    at = ReverseDiff.TrackedReal(a, zero(a), tp)
+    bt = ReverseDiff.TrackedReal(b, zero(b), tp)
 
     c = f(a, b)
+    dual = f(Dual(a, one(a), zero(a)), Dual(b, zero(b), one(b)))
     @test isempty(tp)
 
     tc = f(at, b)
     @test tc == c
-    dual = f(Dual(a, one(a)), b)
     @test length(tp) == 1
-    node = first(tp)
-    @test typeof(node) <: TapeNode{ReverseDiff.Scalar}
-    @test node.inputs === (at, b)
-    @test node.outputs === tc
-    @test node.cache[] === partials(dual, 1)
+    instruction = first(tp)
+    @test typeof(instruction) <: ReverseDiff.ScalarInstruction
+    @test instruction.input === (at, b)
+    @test instruction.output === tc
+    @test instruction.cache[] === Partials((partials(dual, 1), partials(dual, 1)))
     empty!(tp)
 
     tc = f(a, bt)
     @test tc == c
-    dual = f(a, Dual(b, one(b)))
     @test length(tp) == 1
-    node = first(tp)
-    @test typeof(node) <: TapeNode{ReverseDiff.Scalar}
-    @test node.inputs === (a, bt)
-    @test node.outputs === tc
-    @test node.cache[] === partials(dual, 1)
+    instruction = first(tp)
+    @test typeof(instruction) <: ReverseDiff.ScalarInstruction
+    @test instruction.input === (a, bt)
+    @test instruction.output === tc
+    @test instruction.cache[] === Partials((partials(dual, 2), partials(dual, 2)))
     empty!(tp)
 
     tc = f(at, bt)
     @test tc == c
-    dual = f(Dual(a, one(a), zero(a)), Dual(b, zero(b), one(b)))
     @test length(tp) == 1
-    node = first(tp)
-    @test typeof(node) <: TapeNode{ReverseDiff.Scalar}
-    @test node.inputs === (at, bt)
-    @test node.outputs === tc
-    @test node.cache[] === partials(dual)
+    instruction = first(tp)
+    @test typeof(instruction) <: ReverseDiff.ScalarInstruction
+    @test instruction.input === (at, bt)
+    @test instruction.output === tc
+    @test instruction.cache[] === partials(dual)
     empty!(tp)
 end
 
@@ -143,7 +142,7 @@ ReverseDiff.@skip function g4(a, b)
 end
 
 function test_skip(g, x, tp)
-    xt = track(x, tp)
+    xt = ReverseDiff.TrackedReal(x, zero(x), tp)
 
     y = g(x)
     @test isempty(tp)
@@ -154,7 +153,8 @@ function test_skip(g, x, tp)
 end
 
 function test_skip(g, a, b, tp)
-    at, bt = track(a, tp), track(b, tp)
+    at = ReverseDiff.TrackedReal(a, zero(a), tp)
+    bt = ReverseDiff.TrackedReal(b, zero(b), tp)
 
     c = g(a, b)
     @test isempty(tp)

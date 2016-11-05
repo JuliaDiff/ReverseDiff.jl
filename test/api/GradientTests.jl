@@ -2,16 +2,17 @@ module GradientTests
 
 using DiffBase, ForwardDiff, ReverseDiff, Base.Test
 
-include("../utils.jl")
+include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
 println("testing gradient/gradient!...")
 tic()
 
 ############################################################################################
+
 function test_unary_gradient(f, x)
     test = ForwardDiff.gradient!(DiffBase.GradientResult(x), f, x)
 
-    # without Options
+    # without GradientConfig
 
     @test_approx_eq_eps ReverseDiff.gradient(f, x) DiffBase.gradient(test) EPS
 
@@ -24,24 +25,24 @@ function test_unary_gradient(f, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
 
-    # with Options
+    # with GradientConfig
 
-    opts = ReverseDiff.Options(x)
+    cfg = ReverseDiff.GradientConfig(x)
 
-    @test_approx_eq_eps ReverseDiff.gradient(f, x, opts) DiffBase.gradient(test) EPS
+    @test_approx_eq_eps ReverseDiff.gradient(f, x, cfg) DiffBase.gradient(test) EPS
 
     out = similar(x)
-    ReverseDiff.gradient!(out, f, x, opts)
+    ReverseDiff.gradient!(out, f, x, cfg)
     @test_approx_eq_eps out DiffBase.gradient(test) EPS
 
     result = DiffBase.GradientResult(x)
-    ReverseDiff.gradient!(result, f, x, opts)
+    ReverseDiff.gradient!(result, f, x, cfg)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
 
-    # with Record
+    # with GradientRecord
 
-    r = ReverseDiff.Record(f, rand(size(x)))
+    r = ReverseDiff.GradientRecord(f, rand(size(x)))
 
     @test_approx_eq_eps ReverseDiff.gradient!(r, x) DiffBase.gradient(test) EPS
 
@@ -75,7 +76,7 @@ for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
     test_b = ForwardDiff.gradient(x -> f(a, x, c), b)
     test_c = ForwardDiff.gradient(x -> f(a, b, x), c)
 
-    # without Options
+    # without GradientConfig
 
     ∇a, ∇b, ∇c = ReverseDiff.gradient(f, (a, b, c))
     @test_approx_eq_eps ∇a test_a EPS
@@ -97,23 +98,23 @@ for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
     @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
     @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
 
-    # with Options
+    # with GradientConfig
 
-    opts = ReverseDiff.Options((a, b, c))
+    cfg = ReverseDiff.GradientConfig((a, b, c))
 
-    ∇a, ∇b, ∇c = ReverseDiff.gradient(f, (a, b, c), opts)
+    ∇a, ∇b, ∇c = ReverseDiff.gradient(f, (a, b, c), cfg)
     @test_approx_eq_eps ∇a test_a EPS
     @test_approx_eq_eps ∇b test_b EPS
     @test_approx_eq_eps ∇c test_c EPS
 
     ∇a, ∇b, ∇c = map(similar, (a, b, c))
-    ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c), opts)
+    ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c), cfg)
     @test_approx_eq_eps ∇a test_a EPS
     @test_approx_eq_eps ∇b test_b EPS
     @test_approx_eq_eps ∇c test_c EPS
 
     ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
-    ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c), opts)
+    ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c), cfg)
     @test_approx_eq_eps DiffBase.value(∇a) test_val EPS
     @test_approx_eq_eps DiffBase.value(∇b) test_val EPS
     @test_approx_eq_eps DiffBase.value(∇c) test_val EPS
@@ -121,9 +122,9 @@ for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
     @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
     @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
 
-    # with Record
+    # with GradientRecord
 
-    r = ReverseDiff.Record(f, (rand(size(a)), rand(size(b)), rand(size(c))))
+    r = ReverseDiff.GradientRecord(f, (rand(size(a)), rand(size(b)), rand(size(c))))
 
     ∇a, ∇b, ∇c = ReverseDiff.gradient!(r, (a, b, c))
     @test_approx_eq_eps ∇a test_a EPS

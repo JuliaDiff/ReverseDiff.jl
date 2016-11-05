@@ -15,7 +15,6 @@ function annotate_func_expr(typesym, expr)
                 name = name_and_types.args[1]
                 hidden_name = gensym(name)
                 name_and_types.args[1] = hidden_name
-
             elseif isa(name_and_types, Symbol)
                 name = name_and_types
                 hidden_name = gensym(name)
@@ -60,49 +59,55 @@ end
 # unary #
 #-------#
 
-@inline function (self::ForwardOptimize{F}){F,V,A}(t::Tracked{V,A})
+@inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D})
     dual = self.f(Dual(value(t), one(V)))
     tp = tape(t)
-    out = Tracked(value(dual), A, tp)
-    record_node!(tp, Scalar, self.f, t, out, RefValue(ForwardDiff.partials(dual, 1)))
+    out = track(ForwardDiff.value(dual), D, tp)
+    cache = RefValue(ForwardDiff.partials(dual, 1))
+    record!(tp, ScalarInstruction, self.f, t, out, cache)
     return out
 end
 
 # binary #
 #--------#
 
-@inline function (self::ForwardOptimize{F}){F,V1,V2,A}(a::Tracked{V1,A}, b::Tracked{V2,A})
+@inline function (self::ForwardOptimize{F}){F,V1,V2,D}(a::TrackedReal{V1,D}, b::TrackedReal{V2,D})
     dual_a = Dual(value(a), one(V1), zero(V1))
     dual_b = Dual(value(b), zero(V2), one(V2))
     dual_c = self.f(dual_a, dual_b)
     tp = tape(a, b)
-    out = Tracked(value(dual_c), A, tp)
-    record_node!(tp, Scalar, self.f, (a, b), out, RefValue(ForwardDiff.partials(dual_c)))
+    out = track(ForwardDiff.value(dual_c), D, tp)
+    cache = RefValue(ForwardDiff.partials(dual_c))
+    record!(tp, ScalarInstruction, self.f, (a, b), out, cache)
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,V,A}(x::Real, t::Tracked{V,A})
+@inline function (self::ForwardOptimize{F}){F,V,D}(x::Real, t::TrackedReal{V,D})
     dual = self.f(x, Dual(value(t), one(V)))
     tp = tape(t)
-    out = Tracked(value(dual), A, tp)
-    record_node!(tp, Scalar, self.f, (x, t), out, RefValue(ForwardDiff.partials(dual, 1)))
+    out = track(ForwardDiff.value(dual), D, tp)
+    partial = ForwardDiff.partials(dual, 1)
+    cache = RefValue(Partials((partial, partial)))
+    record!(tp, ScalarInstruction, self.f, (x, t), out, cache)
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,V,A}(t::Tracked{V,A}, x::Real)
+@inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D}, x::Real)
     dual = self.f(Dual(value(t), one(V)), x)
     tp = tape(t)
-    out = Tracked(value(dual), A, tp)
-    record_node!(tp, Scalar, self.f, (t, x), out, RefValue(ForwardDiff.partials(dual, 1)))
+    out = track(ForwardDiff.value(dual), D, tp)
+    partial = ForwardDiff.partials(dual, 1)
+    cache = RefValue(Partials((partial, partial)))
+    record!(tp, ScalarInstruction, self.f, (t, x), out, cache)
     return out
 end
 
-@inline (self::ForwardOptimize{F}){F}(x::Dual, t::Tracked) = invoke(self.f, (Dual, Real), x, t)
-@inline (self::ForwardOptimize{F}){F}(t::Tracked, x::Dual) = invoke(self.f, (Real, Dual), t, x)
+@inline (self::ForwardOptimize{F}){F}(x::Dual, t::TrackedReal) = invoke(self.f, (Dual, Real), x, t)
+@inline (self::ForwardOptimize{F}){F}(t::TrackedReal, x::Dual) = invoke(self.f, (Real, Dual), t, x)
 
-##########################
-# Skip Node Optimization #
-##########################
+#################################
+# Skip Instruction Optimization #
+#################################
 
 immutable SkipOptimize{F}
     f::F
@@ -112,19 +117,7 @@ macro skip(ex)
     return esc(annotate_func_expr(:SkipOptimize, ex))
 end
 
-# fallback #
-#----------#
-
-@inline (self::SkipOptimize{F}){F}(args...) = self.f(args...)
-
-# unary #
-#-------#
-
-@inline (self::SkipOptimize{F}){F}(a::Tracked) = self.f(value(a))
-
-# binary #
-#--------#
-
-@inline (self::SkipOptimize{F}){F}(a::Tracked, b::Tracked) = self.f(value(a), value(b))
-@inline (self::SkipOptimize{F}){F}(a, b::Tracked) = self.f(a, value(b))
-@inline (self::SkipOptimize{F}){F}(a::Tracked, b) = self.f(value(a), b)
+@inline (self::SkipOptimize{F}){F}(args...) = self.f(map(value, args)...)
+@inline (self::SkipOptimize{F}){F}(a) = self.f(value(a))
+@inline (self::SkipOptimize{F}){F}(a, b) = self.f(value(a), value(b))
+@inline (self::SkipOptimize{F}){F}(a, b, c) = self.f(value(a), value(b), value(c))

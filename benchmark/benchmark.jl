@@ -5,12 +5,12 @@ using ReverseDiff
 function grad_benchmark_driver!(out, f, x)
     println("benchmarking ∇$(f)...")
 
-    opts = ReverseDiff.Options(x)
-    rec = ReverseDiff.Record(f, x)
+    cfg = ReverseDiff.GradientConfig(x)
+    rec = ReverseDiff.GradientRecord(f, x)
     tp = rec.tape
 
     # warmup
-    ReverseDiff.gradient!(out, f, x, opts)
+    ReverseDiff.gradient!(out, f, x, cfg)
     ReverseDiff.gradient!(out, rec, x)
     ReverseDiff.forward_pass!(tp)
     ReverseDiff.reverse_pass!(tp)
@@ -18,7 +18,7 @@ function grad_benchmark_driver!(out, f, x)
     # actual
     gc()
     print("  gradient! (no prerecord): ")
-    @time ReverseDiff.gradient!(out, f, x, opts)
+    @time ReverseDiff.gradient!(out, f, x, cfg)
     gc()
     print("  gradient!    (prerecord): ")
     @time ReverseDiff.gradient!(out, rec, x)

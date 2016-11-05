@@ -1,63 +1,45 @@
 module TapeTests
 
 using ReverseDiff, Base.Test
+using ReverseDiff: SpecialInstruction, ScalarInstruction, NULL_TAPE
 
-include("utils.jl")
+include(joinpath(dirname(@__FILE__), "utils.jl"))
 
-println("testing Tape/TapeNode types...")
+println("testing Tape/AbstractInstructions...")
 tic()
 
 ############################################################################################
 
-#################
-# TapeNode/Tape #
-#################
+for Instr in (SpecialInstruction, ScalarInstruction)
+    x, y, k = rand(3), rand(2, 1), rand()
+    z = rand()
+    c = rand(1)
+    instr = Instr(+, (x, y, k), z, c)
+    @test isa(instr, Instr{typeof(+)})
+    @test instr.func === +
+    @test instr.input[1] !== x
+    @test instr.input[2] !== y
+    @test instr.input[3] === k
+    @test instr.input[1] == x
+    @test instr.input[2] == y
+    @test instr.output === z
+    @test instr.cache === c
 
-x, y, k = [1, 2, 3], [4, 5, 6], 7
-z = x + y + k
-c = []
-tn = TapeNode(ReverseDiff.Special, +, (x, y, k), z, c)
-@test typeof(tn) <: TapeNode{ReverseDiff.Special}
-@test tn.func === +
-@test tn.inputs === (x, y, k)
-@test tn.outputs === z
-@test tn.cache === c
+    tp = Tape()
+    ReverseDiff.record!(tp, Instr, +, (x, y, k), z, c)
+    @test tp[1] == instr
+    @test tp[1].func === +
+    @test tp[1].input[1] !== x
+    @test tp[1].input[2] !== y
+    @test tp[1].input[3] === k
+    @test tp[1].input[1] == x
+    @test tp[1].input[2] == y
+    @test tp[1].output === z
+    @test tp[1].cache === c
 
-tp = Tape()
-ntp = Nullable(tp)
-ReverseDiff.record_node!(ntp, ReverseDiff.Special, +, (x, y, k), z, c)
-tp1 = first(tp)
-@test tp1 == tn
-@test tp1.inputs[1] !== x
-@test tp1.inputs[2] !== y
-@test tp1.inputs[3] === k
-@test tp1.outputs !== z
-@test tp1.cache === c
-
-ntp = Nullable{Tape}()
-ReverseDiff.record_node!(ntp, ReverseDiff.Special, +, (x, y, k), z, c)
-@test ntp === Nullable{Tape}()
-
-t = Tracked(1)
-x = [t, t]
-@test ReverseDiff.capture(t) === t
-
-cx = ReverseDiff.capture(x)
-@test cx !== x
-@test cx == x
-@test cx[1] === x[1]
-@test cx[2] === x[2]
-
-cs = ReverseDiff.capture((x, t, x))
-@test cs[1] !== x
-@test cs[1] == x
-@test cs[1][1] === x[1]
-@test cs[1][2] === x[2]
-@test cs[2] === t
-@test cs[3] !== x
-@test cs[3] == x
-@test cs[3][1] === x[1]
-@test cs[3][2] === x[2]
+    ReverseDiff.record!(NULL_TAPE, Instr, +, (x, y, k), z, c)
+    @test isempty(NULL_TAPE)
+end
 
 ############################################################################################
 

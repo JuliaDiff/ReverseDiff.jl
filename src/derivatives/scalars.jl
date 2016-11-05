@@ -6,18 +6,18 @@
 #-------#
 
 for f in FORWARD_UNARY_SCALAR_FUNCS
-    @eval @inline Base.$(f)(t::Tracked) = ForwardOptimize($f)(t)
+    @eval @inline Base.$(f)(t::TrackedReal) = ForwardOptimize($f)(t)
 end
 
 # binary #
 #--------#
 
 for f in FORWARD_BINARY_SCALAR_FUNCS
-    @eval @inline Base.$(f)(a::Tracked, b::Tracked) = ForwardOptimize($f)(a, b)
+    @eval @inline Base.$(f)(a::TrackedReal, b::TrackedReal) = ForwardOptimize($f)(a, b)
     for R in REAL_TYPES
         @eval begin
-            @inline Base.$(f)(a::Tracked, b::$R) = ForwardOptimize($f)(a, b)
-            @inline Base.$(f)(a::$R, b::Tracked) = ForwardOptimize($f)(a, b)
+            @inline Base.$(f)(a::TrackedReal, b::$R) = ForwardOptimize($f)(a, b)
+            @inline Base.$(f)(a::$R, b::TrackedReal) = ForwardOptimize($f)(a, b)
         end
     end
 end
@@ -30,18 +30,18 @@ end
 #-------#
 
 for f in SKIPPED_UNARY_SCALAR_FUNCS
-    @eval @inline Base.$(f)(t::Tracked) = SkipOptimize($(f))(t)
+    @eval @inline Base.$(f)(t::TrackedReal) = SkipOptimize($(f))(t)
 end
 
 # binary #
 #--------#
 
 for f in SKIPPED_BINARY_SCALAR_FUNCS
-    @eval @inline Base.$(f)(a::Tracked, b::Tracked) = SkipOptimize($(f))(a, b)
+    @eval @inline Base.$(f)(a::TrackedReal, b::TrackedReal) = SkipOptimize($(f))(a, b)
     for R in REAL_TYPES
         @eval begin
-            @inline Base.$(f)(a::$R, b::Tracked) = SkipOptimize($(f))(a, b)
-            @inline Base.$(f)(a::Tracked, b::$R) = SkipOptimize($(f))(a, b)
+            @inline Base.$(f)(a::$R, b::TrackedReal) = SkipOptimize($(f))(a, b)
+            @inline Base.$(f)(a::TrackedReal, b::$R) = SkipOptimize($(f))(a, b)
         end
     end
 end
@@ -50,25 +50,27 @@ end
 # reverse #
 ###########
 
-# f(::Number)::Number
-function scalar_reverse_step!(input::Tracked, output::Tracked, deriv::RefValue)
-    increment_adjoint!(input, adjoint(output) * deriv[])
-    return nothing
-end
-
-# f(::Number, ::Number)::Number
-function scalar_reverse_step!{A,B}(inputs::Tuple{A,B}, output::Tracked, grad::RefValue)
-    a, b = inputs
-    output_adjoint = adjoint(output)
-    if A <: Tracked && B <: Tracked
-        a_partial, b_partial = grad[]
-        increment_adjoint!(a, output_adjoint * a_partial)
-        increment_adjoint!(b, output_adjoint * b_partial)
-    elseif A <: Tracked
-        increment_adjoint!(a, output_adjoint * grad[])
+@noinline function scalar_reverse_exec!{F,I,O,C}(instruction::ScalarInstruction{F,I,O,C})
+    f = instruction.func
+    input = instruction.input
+    output = instruction.output
+    partials = instruction.cache[]
+    if istracked(input)
+        increment_deriv!(input, deriv(output) * partials)
     else
-        increment_adjoint!(b, output_adjoint * grad[])
+        a, b = input
+        output_deriv = deriv(output)
+        a_partial, b_partial = partials
+        if istracked(a) && istracked(b)
+            increment_deriv!(a, output_deriv * a_partial)
+            increment_deriv!(b, output_deriv * b_partial)
+        elseif istracked(a)
+            increment_deriv!(a, output_deriv * a_partial)
+        else
+            increment_deriv!(b, output_deriv * b_partial)
+        end
     end
+    unseed!(output)
     return nothing
 end
 
@@ -76,32 +78,38 @@ end
 # forward #
 ###########
 
-# f(::Number)::Number
-function scalar_forward_step!(f, input::Tracked, output::Tracked, deriv::RefValue)
-    dual = f(Dual(value(input), one(valtype(input))))
-    setvalue!(output, value(dual))
-    deriv[] = partials(dual, 1)
-    return nothing
-end
-
-# f(::Number, ::Number)::Number
-function scalar_forward_step!{A,B}(f, inputs::Tuple{A,B}, output::Tracked, grad::RefValue)
-    a, b = inputs
-    if A <: Tracked && B <: Tracked
-        VA, VB = valtype(A), valtype(B)
-        dual_a = Dual(value(a), one(VA), zero(VA))
-        dual_b = Dual(value(b), zero(VB), one(VB))
-        dual_c = f(dual_a, dual_b)
-        setvalue!(output, value(dual_c))
-        grad[] = partials(dual_c)
-    elseif A <: Tracked
-        dual = f(Dual(value(a), one(valtype(a))), b)
-        setvalue!(output, value(dual))
-        grad[] = partials(dual, 1)
+@noinline function scalar_forward_exec!{F,I,O,C}(instruction::ScalarInstruction{F,I,O,C})
+    f = instruction.func
+    input = instruction.input
+    output = instruction.output
+    cache = instruction.cache
+    # these annotations are needed to help inference along
+    local dual1::Dual{1,valtype(output)}
+    local dual2::Dual{2,valtype(output)}
+    if istracked(input)
+        pull_value!(input)
+        dual1 = f(Dual(value(input), one(valtype(input))))
+        value!(output, ForwardDiff.value(dual1))
+        cache[] = ForwardDiff.partials(dual1, 1)
     else
-        dual = f(a, Dual(value(b), one(valtype(b))))
-        setvalue!(output, value(dual))
-        grad[] = partials(dual, 1)
+        a, b = input
+        pull_value!(a)
+        pull_value!(b)
+        if istracked(a) && istracked(b)
+            VA, VB = valtype(a), valtype(b)
+            dual2 = f(Dual(value(a), one(VA), zero(VA)), Dual(value(b), zero(VB), one(VB)))
+            value!(output, ForwardDiff.value(dual2))
+            cache[] = ForwardDiff.partials(dual2)
+        else
+            if istracked(a)
+                dual1 = f(Dual(value(a), one(valtype(a))), b)
+            else
+                dual1 = f(a, Dual(value(b), one(valtype(b))))
+            end
+            value!(output, ForwardDiff.value(dual1))
+            partial = ForwardDiff.partials(dual1, 1)
+            cache[] = Partials((partial, partial))
+        end
     end
     return nothing
 end

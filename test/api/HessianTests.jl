@@ -2,7 +2,7 @@ module HessianTests
 
 using DiffBase, ForwardDiff, ReverseDiff, Base.Test
 
-include("../utils.jl")
+include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
 println("testing hessian/hessian!...")
 tic()
@@ -11,9 +11,9 @@ tic()
 
 function test_unary_hessian(f, x)
     test = DiffBase.HessianResult(x)
-    ForwardDiff.hessian!(test, f, x, ForwardDiff.HessianOptions{1}(test, x))
+    ForwardDiff.hessian!(test, f, x, ForwardDiff.HessianConfig{1}(test, x))
 
-    # without HessianOptions
+    # without HessianConfig
 
     @test_approx_eq_eps ReverseDiff.hessian(f, x) DiffBase.hessian(test) EPS
 
@@ -27,19 +27,19 @@ function test_unary_hessian(f, x)
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
     @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
 
-    # with HessianOptions
+    # with HessianConfig
 
-    opts = ReverseDiff.HessianOptions(x)
+    cfg = ReverseDiff.HessianConfig(x)
 
-    @test_approx_eq_eps ReverseDiff.hessian(f, x, opts) DiffBase.hessian(test) EPS
+    @test_approx_eq_eps ReverseDiff.hessian(f, x, cfg) DiffBase.hessian(test) EPS
 
     out = similar(DiffBase.hessian(test))
-    ReverseDiff.hessian!(out, f, x, opts)
+    ReverseDiff.hessian!(out, f, x, cfg)
     @test_approx_eq_eps out DiffBase.hessian(test) EPS
 
     result = DiffBase.HessianResult(x)
-    opts = ReverseDiff.HessianOptions(result, x)
-    ReverseDiff.hessian!(result, f, x, opts)
+    cfg = ReverseDiff.HessianConfig(result, x)
+    ReverseDiff.hessian!(result, f, x, cfg)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
     @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS

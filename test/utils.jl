@@ -1,5 +1,6 @@
-using ReverseDiff: Tape, TapeNode, Tracked, Options, HessianOptions,
-                   value, adjoint, tape, valtype, adjtype, track, track!
+using ReverseDiff: Tape, GradientConfig, JacobianConfig, HessianConfig,
+                   value, deriv, tape, valtype,
+                   derivtype, track, track!
 
 const EPS = 1e-5
 
@@ -9,6 +10,6 @@ srand(1)
 
 testprintln(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 
-tracked_is(a, b) = value(a) === value(b) && adjoint(a) === adjoint(b) && tape(a) === tape(b)
+tracked_is(a, b) = value(a) === value(b) && deriv(a) === deriv(b) && tape(a) === tape(b)
 tracked_is(a::AbstractArray, b::AbstractArray) = all(map(tracked_is, a, b))
 tracked_is(a::Tuple, b::Tuple) = all(map(tracked_is, a, b))
