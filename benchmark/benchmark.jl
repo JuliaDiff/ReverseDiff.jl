@@ -7,13 +7,12 @@ function grad_benchmark_driver!(out, f, x)
 
     cfg = ReverseDiff.GradientConfig(x)
     rec = ReverseDiff.GradientRecord(f, x)
-    tp = rec.tape
 
     # warmup
     ReverseDiff.gradient!(out, f, x, cfg)
     ReverseDiff.gradient!(out, rec, x)
-    ReverseDiff.forward_pass!(tp)
-    ReverseDiff.reverse_pass!(tp)
+    ReverseDiff.forward_pass!(rec)
+    ReverseDiff.reverse_pass!(rec)
 
     # actual
     gc()
@@ -24,11 +23,33 @@ function grad_benchmark_driver!(out, f, x)
     @time ReverseDiff.gradient!(out, rec, x)
     gc()
     print("  forward pass: ")
-    @time ReverseDiff.forward_pass!(tp)
+    @time ReverseDiff.forward_pass!(rec)
     gc()
     print("  reverse pass: ")
-    @time ReverseDiff.reverse_pass!(tp)
+    @time ReverseDiff.reverse_pass!(rec)
     gc()
+
+    if length(rec.tape) <= 10000
+        crec = ReverseDiff.compile(rec)
+
+        # warmup
+        ReverseDiff.gradient!(out, crec, x)
+        ReverseDiff.forward_pass!(crec)
+        ReverseDiff.reverse_pass!(crec)
+
+        # actual
+        print("  gradient! (compiled): ")
+        @time ReverseDiff.gradient!(out, crec, x)
+        gc()
+        print("  forward pass (compiled): ")
+        @time ReverseDiff.forward_pass!(crec)
+        gc()
+        print("  reverse pass (compiled): ")
+        @time ReverseDiff.reverse_pass!(crec)
+        gc()
+    else
+        println("skipping compiled GradientRecord benchmark because the tape is too long ($(length(rec.tape)) elements)")
+    end
 end
 
 ####################################################################
