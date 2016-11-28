@@ -5,18 +5,18 @@
 # derivative (input is an scalar, output is an array/scalar) #
 #------------------------------------------------------------#
 
-function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, input::TrackedReal, tp::Tape)
+function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, input::TrackedReal, rec)
     result_vector = reshape(result, length(output))
     for i in eachindex(output)
-        result_vector[i] = seeded_reverse_pass!(output[i], input, tp)
+        result_vector[i] = seeded_reverse_pass!(output[i], input, rec)
     end
     return result
 end
 
-function seeded_reverse_pass!(output::TrackedReal, input::TrackedReal, tp::Tape)
+function seeded_reverse_pass!(output::TrackedReal, input::TrackedReal, rec)
     seed!(output)
     unseed!(input)
-    reverse_pass!(tp)
+    reverse_pass!(rec)
     unseed!(output)
     return deriv(input)
 end
@@ -24,15 +24,15 @@ end
 # gradient (input is an array, output is a scalar) #
 #--------------------------------------------------#
 
-function seeded_reverse_pass!(result, output::TrackedReal, input, tp::Tape)
+function seeded_reverse_pass!(result, output::TrackedReal, input, rec)
     seed!(output)
     unseed!(input)
-    reverse_pass!(tp)
+    reverse_pass!(rec)
     extract_result!(result, output, input)
     return result
 end
 
-function seeded_reverse_pass!(result, output::Number, input, tp::Tape)
+function seeded_reverse_pass!(result, output::Number, input, rec)
     extract_result!(result, output)
     return result
 end
@@ -40,14 +40,14 @@ end
 # jacobian (input and output are both arrays) #
 #---------------------------------------------#
 
-function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, input::TrackedArray, tp::Tape)
+function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, input::TrackedArray, rec)
     result_matrix = reshape(result, length(output), length(input))
     input_deriv = deriv(input)
     for i in eachindex(output)
         output_element = output[i]
         seed!(output_element)
         unseed!(input)
-        reverse_pass!(tp)
+        reverse_pass!(rec)
         for j in eachindex(input)
             result_matrix[i, j] = input_deriv[j]
         end
@@ -56,15 +56,15 @@ function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, inpu
     return result
 end
 
-function seeded_reverse_pass!(result::DiffResult, output::AbstractArray, input::TrackedArray, tp::Tape)
-    seeded_reverse_pass!(DiffBase.jacobian(result), output, input, tp)
+function seeded_reverse_pass!(result::DiffResult, output::AbstractArray, input::TrackedArray, rec)
+    seeded_reverse_pass!(DiffBase.jacobian(result), output, input, rec)
     extract_result_value!(result, output)
     return result
 end
 
-function seeded_reverse_pass!(result::Tuple, output::AbstractArray, input::Tuple, tp::Tape)
+function seeded_reverse_pass!(result::Tuple, output::AbstractArray, input::Tuple, rec)
     for i in eachindex(result)
-        seeded_reverse_pass!(result[i], output, input[i], tp)
+        seeded_reverse_pass!(result[i], output, input[i], rec)
     end
     return result
 end

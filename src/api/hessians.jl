@@ -37,21 +37,21 @@ end
 # Executing HessianRecords #
 ############################
 
-function hessian!(rec::HessianRecord, input::AbstractArray)
+function hessian!(rec::Union{HessianRecord,CompiledHessian}, input::AbstractArray)
     result = construct_result(rec.output, rec.input)
     hessian!(result, rec, input)
     return result
 end
 
-function hessian!(result::AbstractArray, rec::HessianRecord, input::AbstractArray)
-    jrec = _JacobianRecord(rec.func, rec.input, rec.output, rec.tape)
-    jacobian!(result, jrec, input)
+function hessian!(result::AbstractArray, rec::Union{HessianRecord,CompiledHessian}, input::AbstractArray)
+    seeded_forward_pass!(rec, input)
+    seeded_reverse_pass!(result, rec)
     return result
 end
 
-function hessian!(result::DiffResult, rec::HessianRecord, input::AbstractArray)
-    jrec = _JacobianRecord(rec.func, rec.input, rec.output, rec.tape)
-    jacobian!(DiffResult(DiffBase.gradient(result), DiffBase.hessian(result)), jrec, input)
+function hessian!(result::DiffResult, rec::Union{HessianRecord,CompiledHessian}, input::AbstractArray)
+    seeded_forward_pass!(rec, input)
+    seeded_reverse_pass!(DiffResult(DiffBase.gradient(result), DiffBase.hessian(result)), rec)
     DiffBase.value!(result, rec.func(input))
     return result
 end

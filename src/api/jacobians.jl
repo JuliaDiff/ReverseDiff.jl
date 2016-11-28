@@ -40,6 +40,29 @@ function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConf
     return result
 end
 
+#############################
+# Executing JacobianRecords #
+#############################
+
+#=
+We can't support changing `y` values for recorded `f!(y, x)` because, in general, our
+tracked `y` input will get dereferenced/mutated such that the tracked `y` values only
+reference output instructions, not input instructions. Thus, we have no "hook" into `y`
+values as we do with the `x` values.
+=#
+
+function jacobian!(rec::Union{JacobianRecord,CompiledJacobian}, input)
+    result = construct_result(rec.output, rec.input)
+    jacobian!(result, rec, input)
+    return result
+end
+
+function jacobian!(result, rec::Union{JacobianRecord,CompiledJacobian}, input)
+    seeded_forward_pass!(rec, input)
+    seeded_reverse_pass!(result, rec)
+    return result
+end
+
 ##################################################
 # unused (but faster) versions of the above code #
 ##################################################
@@ -84,27 +107,3 @@ differentation.
 #     empty!(rec.tape)
 #     return result
 # end
-
-#############################
-# Executing JacobianRecords #
-#############################
-
-#=
-We can't support changing `y` values for recorded `f!(y, x)` because, in general, our
-tracked `y` input will get dereferenced/mutated such that the tracked `y` values only
-reference output instructions, not input instructions. Thus, we have no "hook" into `y`
-values as we do with the `x` values.
-=#
-
-function jacobian!(rec::JacobianRecord, input)
-    result = construct_result(rec.output, rec.input)
-    jacobian!(result, rec, input)
-    return result
-end
-
-function jacobian!(result, rec::JacobianRecord, input)
-    value!(rec.input, input)
-    forward_pass!(rec.tape)
-    seeded_reverse_pass!(result, rec.output, rec.input, rec.tape)
-    return result
-end

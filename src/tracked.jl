@@ -16,7 +16,9 @@ When performing a forward pass through a previously-recorded `Tape`, any encount
 `TrackedReal` instances which are direct descendents of their origin array must re-validate
 themselves by re-retrieving their value from their origin via the given index. A similar
 strategy is taken during the reverse pass, when derivs are updated; they are always
-re-validated with the origin before and after "local" updates to the TrackedReal.
+re-validated with the origin before and after "local" updates to the TrackedReal. The big
+benefit of this strategy is that scalar `getindex` operations don't need to be explicitly
+recorded to the tape.
 
 Note that we don't have to worry about the origin's values being invalidated during `Tape`
 execution, since the `TrackedArray` type is immutable.

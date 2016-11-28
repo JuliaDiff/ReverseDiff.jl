@@ -54,6 +54,23 @@ function test_unary_gradient(f, x)
     ReverseDiff.gradient!(result, r, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+
+    # with compiled GradientRecord
+
+    if length(r.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+        cr = ReverseDiff.compile(r)
+
+        @test_approx_eq_eps ReverseDiff.gradient!(cr, x) DiffBase.gradient(test) EPS
+
+        out = similar(x)
+        ReverseDiff.gradient!(out, cr, x)
+        @test_approx_eq_eps out DiffBase.gradient(test) EPS
+
+        result = DiffBase.GradientResult(x)
+        ReverseDiff.gradient!(result, cr, x)
+        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+        @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+    end
 end
 
 for f in DiffBase.MATRIX_TO_NUMBER_FUNCS
@@ -145,6 +162,32 @@ for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
     @test_approx_eq_eps DiffBase.gradient(∇a) test_a EPS
     @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
     @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
+
+    # with compiled GradientRecord
+
+    if length(r.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+        cr = ReverseDiff.compile(r)
+
+        ∇a, ∇b, ∇c = ReverseDiff.gradient!(cr, (a, b, c))
+        @test_approx_eq_eps ∇a test_a EPS
+        @test_approx_eq_eps ∇b test_b EPS
+        @test_approx_eq_eps ∇c test_c EPS
+
+        ∇a, ∇b, ∇c = map(similar, (a, b, c))
+        ReverseDiff.gradient!((∇a, ∇b, ∇c), cr, (a, b, c))
+        @test_approx_eq_eps ∇a test_a EPS
+        @test_approx_eq_eps ∇b test_b EPS
+        @test_approx_eq_eps ∇c test_c EPS
+
+        ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
+        ReverseDiff.gradient!((∇a, ∇b, ∇c), cr, (a, b, c))
+        @test_approx_eq_eps DiffBase.value(∇a) test_val EPS
+        @test_approx_eq_eps DiffBase.value(∇b) test_val EPS
+        @test_approx_eq_eps DiffBase.value(∇c) test_val EPS
+        @test_approx_eq_eps DiffBase.gradient(∇a) test_a EPS
+        @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
+        @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
+    end
 end
 
 ############################################################################################

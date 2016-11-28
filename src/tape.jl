@@ -77,7 +77,7 @@ end
 # pass compilation #
 ####################
 
-function compile_forward_pass(tape::Tape)
+function generate_forward_code(tape::Tape)
     expr = Expr(:block)
     for instruction in tape
         push!(expr.args, :(ReverseDiff.forward_exec!($instruction)))
@@ -86,7 +86,7 @@ function compile_forward_pass(tape::Tape)
     return expr
 end
 
-function compile_reverse_pass(tape::Tape)
+function generate_reverse_code(tape::Tape)
     expr = Expr(:block)
     for i in length(tape):-1:1
         push!(expr.args, :(ReverseDiff.reverse_exec!($(tape[i]))))
