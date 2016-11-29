@@ -44,35 +44,35 @@ function test_unary_hessian(f, x)
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
     @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
 
-    # with HessianRecord
+    # with HessianTape
 
-    r = ReverseDiff.HessianRecord(f, rand(size(x)))
+    tp = ReverseDiff.HessianTape(f, rand(size(x)))
 
-    @test_approx_eq_eps ReverseDiff.hessian!(r, x) DiffBase.hessian(test) EPS
+    @test_approx_eq_eps ReverseDiff.hessian!(tp, x) DiffBase.hessian(test) EPS
 
     out = similar(DiffBase.hessian(test))
-    ReverseDiff.hessian!(out, r, x)
+    ReverseDiff.hessian!(out, tp, x)
     @test_approx_eq_eps out DiffBase.hessian(test) EPS
 
     result = DiffBase.HessianResult(x)
-    ReverseDiff.hessian!(result, r, x)
+    ReverseDiff.hessian!(result, tp, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
     @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
 
-    # with compiled HessianRecord
+    # with compiled HessianTape
 
-    if length(r.tape) <= 10000 # otherwise compile time can be crazy
-        cr = ReverseDiff.compile(r)
+    if length(tp.tape) <= 10000 # otherwise compile time can be crazy
+        ctp = ReverseDiff.compile(tp)
 
-        @test_approx_eq_eps ReverseDiff.hessian!(cr, x) DiffBase.hessian(test) EPS
+        @test_approx_eq_eps ReverseDiff.hessian!(ctp, x) DiffBase.hessian(test) EPS
 
         out = similar(DiffBase.hessian(test))
-        ReverseDiff.hessian!(out, cr, x)
+        ReverseDiff.hessian!(out, ctp, x)
         @test_approx_eq_eps out DiffBase.hessian(test) EPS
 
         result = DiffBase.HessianResult(x)
-        ReverseDiff.hessian!(result, cr, x)
+        ReverseDiff.hessian!(result, ctp, x)
         @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
         @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
         @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS

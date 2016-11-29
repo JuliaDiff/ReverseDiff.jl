@@ -19,7 +19,7 @@ issimilar(x::Tuple, y::Tuple) = all(map(issimilar, x, y))
 # Config #
 ###########
 
-tp = Tape()
+tp = RawTape()
 x, y = rand(3), rand(3, 2)
 z = rand(Int, 4)
 
@@ -62,7 +62,7 @@ cfg2 = JacobianConfig(DiffBase.JacobianResult(z), (x, y), tp)
 # HessianConfig #
 ##################
 
-gtp, jtp = Tape(), Tape()
+gtp, jtp = RawTape(), RawTape()
 x, y = rand(3), rand(Int, 3)
 
 cfg = HessianConfig(x, gtp, jtp)

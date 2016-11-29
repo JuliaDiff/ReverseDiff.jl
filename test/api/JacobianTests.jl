@@ -40,34 +40,34 @@ function test_unary_jacobian(f, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
 
-    # with JacobianRecord
+    # with JacobianTape
 
-    r = ReverseDiff.JacobianRecord(f, rand(size(x)))
+    tp = ReverseDiff.JacobianTape(f, rand(size(x)))
 
-    @test_approx_eq_eps ReverseDiff.jacobian!(r, x) DiffBase.jacobian(test) EPS
+    @test_approx_eq_eps ReverseDiff.jacobian!(tp, x) DiffBase.jacobian(test) EPS
 
     out = similar(DiffBase.jacobian(test))
-    ReverseDiff.jacobian!(out, r, x)
+    ReverseDiff.jacobian!(out, tp, x)
     @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
     result = DiffBase.JacobianResult(x)
-    ReverseDiff.jacobian!(result, r, x)
+    ReverseDiff.jacobian!(result, tp, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
 
-    # with compiled JacobianRecord
+    # with compiled JacobianTape
 
-    if length(r.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        cr = ReverseDiff.compile(r)
+    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+        ctp = ReverseDiff.compile(tp)
 
-        @test_approx_eq_eps ReverseDiff.jacobian!(cr, x) DiffBase.jacobian(test) EPS
+        @test_approx_eq_eps ReverseDiff.jacobian!(ctp, x) DiffBase.jacobian(test) EPS
 
         out = similar(DiffBase.jacobian(test))
-        ReverseDiff.jacobian!(out, cr, x)
+        ReverseDiff.jacobian!(out, ctp, x)
         @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
         result = DiffBase.JacobianResult(x)
-        ReverseDiff.jacobian!(result, cr, x)
+        ReverseDiff.jacobian!(result, ctp, x)
         @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
         @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
     end
@@ -120,36 +120,36 @@ function test_unary_jacobian(f!, y, x)
     @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
     copy!(y, y_original)
 
-    # with JacobianRecord
+    # with JacobianTape
 
-    r = ReverseDiff.JacobianRecord(f!, y, rand(size(x)))
+    tp = ReverseDiff.JacobianTape(f!, y, rand(size(x)))
 
-    out = ReverseDiff.jacobian!(r, x)
+    out = ReverseDiff.jacobian!(tp, x)
     @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
     out = similar(DiffBase.jacobian(test))
-    ReverseDiff.jacobian!(out, r, x)
+    ReverseDiff.jacobian!(out, tp, x)
     @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
     result = DiffBase.JacobianResult(y, x)
-    ReverseDiff.jacobian!(result, r, x)
+    ReverseDiff.jacobian!(result, tp, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
 
-    # with compiled JacobianRecord
+    # with compiled JacobianTape
 
-    if length(r.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        cr = ReverseDiff.compile(r)
+    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+        ctp = ReverseDiff.compile(tp)
 
-        out = ReverseDiff.jacobian!(cr, x)
+        out = ReverseDiff.jacobian!(ctp, x)
         @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
         out = similar(DiffBase.jacobian(test))
-        ReverseDiff.jacobian!(out, cr, x)
+        ReverseDiff.jacobian!(out, ctp, x)
         @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
         result = DiffBase.JacobianResult(y, x)
-        ReverseDiff.jacobian!(result, cr, x)
+        ReverseDiff.jacobian!(result, ctp, x)
         @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
         @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
     end
@@ -202,46 +202,46 @@ function test_binary_jacobian(f, a, b)
     @test_approx_eq_eps DiffBase.jacobian(Ja) test_a EPS
     @test_approx_eq_eps DiffBase.jacobian(Jb) test_b EPS
 
-    # with JacobianRecord
+    # with JacobianTape
 
-    r = ReverseDiff.JacobianRecord(f, (rand(size(a)), rand(size(b))))
+    tp = ReverseDiff.JacobianTape(f, (rand(size(a)), rand(size(b))))
 
-    Ja, Jb = ReverseDiff.jacobian!(r, (a, b))
+    Ja, Jb = ReverseDiff.jacobian!(tp, (a, b))
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
     Ja = similar(a, length(a), length(b))
     Jb = copy(Ja)
-    ReverseDiff.jacobian!((Ja, Jb), r, (a, b))
+    ReverseDiff.jacobian!((Ja, Jb), tp, (a, b))
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
     Ja = DiffBase.JacobianResult(a, b)
     Jb = copy(Ja)
-    ReverseDiff.jacobian!((Ja, Jb), r, (a, b))
+    ReverseDiff.jacobian!((Ja, Jb), tp, (a, b))
     @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
     @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
     @test_approx_eq_eps DiffBase.gradient(Ja) test_a EPS
     @test_approx_eq_eps DiffBase.gradient(Jb) test_b EPS
 
-    # with compiled JacobianRecord
+    # with compiled JacobianTape
 
-    if length(r.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        cr = ReverseDiff.compile(r)
+    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+        ctp = ReverseDiff.compile(tp)
 
-        Ja, Jb = ReverseDiff.jacobian!(cr, (a, b))
+        Ja, Jb = ReverseDiff.jacobian!(ctp, (a, b))
         @test_approx_eq_eps Ja test_a EPS
         @test_approx_eq_eps Jb test_b EPS
 
         Ja = similar(a, length(a), length(b))
         Jb = copy(Ja)
-        ReverseDiff.jacobian!((Ja, Jb), cr, (a, b))
+        ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
         @test_approx_eq_eps Ja test_a EPS
         @test_approx_eq_eps Jb test_b EPS
 
         Ja = DiffBase.JacobianResult(a, b)
         Jb = copy(Ja)
-        ReverseDiff.jacobian!((Ja, Jb), cr, (a, b))
+        ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
         @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
         @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
         @test_approx_eq_eps DiffBase.gradient(Ja) test_a EPS
@@ -280,21 +280,21 @@ for f in (DiffBase.ARRAY_TO_ARRAY_FUNCS..., DiffBase.MATRIX_TO_MATRIX_FUNCS...)
     x = rand(5, 5)
     test = ForwardDiff.jacobian(y -> ForwardDiff.jacobian(f, y), x)
 
-    # without JacobianRecord
+    # without JacobianTape
 
     J = ReverseDiff.jacobian(y -> ReverseDiff.jacobian(f, y), x)
     @test_approx_eq_eps J test EPS
 
-    # with JacobianRecord
+    # with JacobianTape
 
-    r = ReverseDiff.JacobianRecord(y -> ReverseDiff.jacobian(f, y), rand(size(x)))
-    J = ReverseDiff.jacobian!(r, x)
+    tp = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(f, y), rand(size(x)))
+    J = ReverseDiff.jacobian!(tp, x)
     @test_approx_eq_eps J test EPS
 
-    # with compiled JacobianRecord
+    # with compiled JacobianTape
 
-    if length(r.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        J = ReverseDiff.jacobian!(ReverseDiff.compile(r), x)
+    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+        J = ReverseDiff.jacobian!(ReverseDiff.compile(tp), x)
         @test_approx_eq_eps J test EPS
     end
 end
@@ -308,23 +308,23 @@ for f in DiffBase.BINARY_MATRIX_TO_MATRIX_FUNCS
     test_a = ForwardDiff.jacobian(y -> ForwardDiff.jacobian(x -> f(x, b), y), a)
     test_b = ForwardDiff.jacobian(y -> ForwardDiff.jacobian(x -> f(a, x), y), b)
 
-    # without JacobianRecord
+    # without JacobianTape
 
     Ja = ReverseDiff.jacobian(y -> ReverseDiff.jacobian(x -> f(x, b), y), a)
     Jb = ReverseDiff.jacobian(y -> ReverseDiff.jacobian(x -> f(a, x), y), b)
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
-    # with JacobianRecord
+    # with JacobianTape
 
-    ra = ReverseDiff.JacobianRecord(y -> ReverseDiff.jacobian(x -> f(x, b), y), rand(size(a)))
-    rb = ReverseDiff.JacobianRecord(y -> ReverseDiff.jacobian(x -> f(a, x), y), rand(size(b)))
+    ra = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(x -> f(x, b), y), rand(size(a)))
+    rb = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(x -> f(a, x), y), rand(size(b)))
     Ja = ReverseDiff.jacobian!(ra, a)
     Jb = ReverseDiff.jacobian!(rb, b)
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
-    # with compiled JacobianRecord
+    # with compiled JacobianTape
 
     if length(ra.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
         cra = ReverseDiff.compile(ra)

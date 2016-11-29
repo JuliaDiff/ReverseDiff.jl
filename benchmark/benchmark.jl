@@ -6,49 +6,49 @@ function grad_benchmark_driver!(out, f, x)
     println("benchmarking ∇$(f)...")
 
     cfg = ReverseDiff.GradientConfig(x)
-    rec = ReverseDiff.GradientRecord(f, x)
+    tp = ReverseDiff.GradientTape(f, x)
 
     # warmup
     ReverseDiff.gradient!(out, f, x, cfg)
-    ReverseDiff.gradient!(out, rec, x)
-    ReverseDiff.forward_pass!(rec)
-    ReverseDiff.reverse_pass!(rec)
+    ReverseDiff.gradient!(out, tp, x)
+    ReverseDiff.forward_pass!(tp)
+    ReverseDiff.reverse_pass!(tp)
 
     # actual
     gc()
-    print("  gradient! (no prerecord): ")
+    print("  gradient! (no precord): ")
     @time ReverseDiff.gradient!(out, f, x, cfg)
     gc()
-    print("  gradient!    (prerecord): ")
-    @time ReverseDiff.gradient!(out, rec, x)
+    print("  gradient!    (precord): ")
+    @time ReverseDiff.gradient!(out, tp, x)
     gc()
     print("  forward pass: ")
-    @time ReverseDiff.forward_pass!(rec)
+    @time ReverseDiff.forward_pass!(tp)
     gc()
     print("  reverse pass: ")
-    @time ReverseDiff.reverse_pass!(rec)
+    @time ReverseDiff.reverse_pass!(tp)
     gc()
 
-    if length(rec.tape) <= 10000
-        crec = ReverseDiff.compile(rec)
+    if length(tp.tape) <= 10000
+        ctp = ReverseDiff.compile(tp)
 
         # warmup
-        ReverseDiff.gradient!(out, crec, x)
-        ReverseDiff.forward_pass!(crec)
-        ReverseDiff.reverse_pass!(crec)
+        ReverseDiff.gradient!(out, ctp, x)
+        ReverseDiff.forward_pass!(ctp)
+        ReverseDiff.reverse_pass!(ctp)
 
         # actual
         print("  gradient! (compiled): ")
-        @time ReverseDiff.gradient!(out, crec, x)
+        @time ReverseDiff.gradient!(out, ctp, x)
         gc()
         print("  forward pass (compiled): ")
-        @time ReverseDiff.forward_pass!(crec)
+        @time ReverseDiff.forward_pass!(ctp)
         gc()
         print("  reverse pass (compiled): ")
-        @time ReverseDiff.reverse_pass!(crec)
+        @time ReverseDiff.reverse_pass!(ctp)
         gc()
     else
-        println("skipping compiled GradientRecord benchmark because the tape is too long ($(length(rec.tape)) elements)")
+        println("skipping compiled GradientTape benchmark because the tape is too long ($(length(tp.tape)) elements)")
     end
 end
 

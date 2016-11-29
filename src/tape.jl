@@ -4,7 +4,7 @@
 
 abstract AbstractInstruction
 
-typealias Tape Vector{AbstractInstruction}
+typealias RawTape Vector{AbstractInstruction}
 
 # Define some AbstractInstruction types. They all have the same structure,
 # but are defined this way to make dispatch more readable (and possibly
@@ -31,7 +31,7 @@ for InstructionType in (:ScalarInstruction, :SpecialInstruction)
     end
 end
 
-function record!{InstructionType}(tp::Tape, ::Type{InstructionType}, args...)
+function record!{InstructionType}(tp::RawTape, ::Type{InstructionType}, args...)
     tp !== NULL_TAPE && push!(tp, InstructionType(args...))
     return nothing
 end
@@ -53,7 +53,7 @@ end
 # passes #
 ##########
 
-function forward_pass!(tape::Tape)
+function forward_pass!(tape::RawTape)
     for instruction in tape
         forward_exec!(instruction)
     end
@@ -63,7 +63,7 @@ end
 @noinline forward_exec!(instruction::ScalarInstruction) = scalar_forward_exec!(instruction)
 @noinline forward_exec!(instruction::SpecialInstruction) = special_forward_exec!(instruction)
 
-function reverse_pass!(tape::Tape)
+function reverse_pass!(tape::RawTape)
     for i in length(tape):-1:1
         reverse_exec!(tape[i])
     end
@@ -77,7 +77,7 @@ end
 # pass compilation #
 ####################
 
-function generate_forward_code(tape::Tape)
+function generate_forward_code(tape::RawTape)
     expr = Expr(:block)
     for instruction in tape
         push!(expr.args, :(ReverseDiff.forward_exec!($instruction)))
@@ -86,7 +86,7 @@ function generate_forward_code(tape::Tape)
     return expr
 end
 
-function generate_reverse_code(tape::Tape)
+function generate_reverse_code(tape::RawTape)
     expr = Expr(:block)
     for i in length(tape):-1:1
         push!(expr.args, :(ReverseDiff.reverse_exec!($(tape[i]))))
@@ -112,10 +112,10 @@ function Base.show(io::IO, instruction::AbstractInstruction, pad = "")
     print(io,   pad, "  cache:  ", compactrepr(instruction.cache))
 end
 
-Base.display(tp::Tape) = show(STDOUT, tp)
+Base.display(tp::RawTape) = show(STDOUT, tp)
 
-function Base.show(io::IO, tp::Tape)
-    println("$(length(tp))-element Tape:")
+function Base.show(io::IO, tp::RawTape)
+    println("$(length(tp))-element RawTape:")
     i = 1
     for instruction in tp
         print(io, "$i => ")

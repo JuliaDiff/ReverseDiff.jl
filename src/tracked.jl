@@ -3,7 +3,7 @@
 #########
 
 const NULL_INDEX = typemin(Int)
-const NULL_TAPE = Tape()
+const NULL_TAPE = RawTape()
 
 # TrackedReal #
 #-------------#
@@ -12,7 +12,7 @@ const NULL_TAPE = Tape()
 A `TrackedReal` stores a value and a reference back to the original `TrackedArray` which
 provided the value.
 
-When performing a forward pass through a previously-recorded `Tape`, any encountered
+When performing a forward pass through a previously-recorded `RawTape`, any encountered
 `TrackedReal` instances which are direct descendents of their origin array must re-validate
 themselves by re-retrieving their value from their origin via the given index. A similar
 strategy is taken during the reverse pass, when derivs are updated; they are always
@@ -20,7 +20,7 @@ re-validated with the origin before and after "local" updates to the TrackedReal
 benefit of this strategy is that scalar `getindex` operations don't need to be explicitly
 recorded to the tape.
 
-Note that we don't have to worry about the origin's values being invalidated during `Tape`
+Note that we don't have to worry about the origin's values being invalidated during `RawTape`
 execution, since the `TrackedArray` type is immutable.
 
 Also note that it's possible to instantiate an origin-less `TrackedReal`. This will most
@@ -47,7 +47,7 @@ making the below implementation preferable.
 type TrackedReal{V<:Real,D<:Real,O} <: Real
     value::V
     deriv::D
-    tape::Tape
+    tape::RawTape
     index::Int
     origin::O
     TrackedReal(value, deriv, tape, index, origin) = new(value, deriv, tape, index, origin)
@@ -56,9 +56,9 @@ type TrackedReal{V<:Real,D<:Real,O} <: Real
     TrackedReal(value) = new(value, zero(D), NULL_TAPE, NULL_INDEX)
 end
 
-TrackedReal{V,D,O}(v::V, a::D, tp::Tape, i::Int, o::O) = TrackedReal{V,D,O}(v, a, tp, i, o)
+TrackedReal{V,D,O}(v::V, a::D, tp::RawTape, i::Int, o::O) = TrackedReal{V,D,O}(v, a, tp, i, o)
 
-TrackedReal{V,D}(v::V, a::D, tp::Tape = NULL_TAPE) = TrackedReal{V,D,Void}(v, a, tp)
+TrackedReal{V,D}(v::V, a::D, tp::RawTape = NULL_TAPE) = TrackedReal{V,D,Void}(v, a, tp)
 
 # TrackedArray #
 #--------------#
@@ -66,8 +66,8 @@ TrackedReal{V,D}(v::V, a::D, tp::Tape = NULL_TAPE) = TrackedReal{V,D,Void}(v, a,
 immutable TrackedArray{V,D,N,VA,DA} <: AbstractArray{TrackedReal{V,D,TrackedArray{V,D,N,VA,DA}},N}
     value::VA
     deriv::DA
-    tape::Tape
-    function TrackedArray(value::AbstractArray{V,N}, deriv::AbstractArray{D,N}, tape::Tape)
+    tape::RawTape
+    function TrackedArray(value::AbstractArray{V,N}, deriv::AbstractArray{D,N}, tape::RawTape)
         @assert Base.linearindexing(value) === Base.LinearFast()
         @assert size(value) === size(deriv)
         return new(value, deriv, tape)
@@ -76,7 +76,7 @@ end
 
 function TrackedArray{V,D,N}(value::AbstractArray{V,N},
                              deriv::AbstractArray{D,N},
-                             tape::Tape)
+                             tape::RawTape)
     return TrackedArray{V,D,N,typeof(value),typeof(deriv)}(value, deriv, tape)
 end
 
@@ -276,7 +276,7 @@ function decrement_deriv!(t::AbstractArray, x::Real)
 end
 
 #########################
-# capture (see Tape.jl) #
+# capture (see RawTape.jl) #
 #########################
 
 # This is type unstable, but that shouldn't be too much of a problem as it's only used below
@@ -447,19 +447,19 @@ Base.round{R<:Real}(::Type{R}, t::TrackedReal) = round(R, value(t))
 # track/track! #
 ################
 
-track(x::Real, tp::Tape = Tape()) = track(x, typeof(x), tp)
+track(x::Real, tp::RawTape = RawTape()) = track(x, typeof(x), tp)
 
-track(x::AbstractArray, tp::Tape = Tape()) = track(x, eltype(x), tp)
+track(x::AbstractArray, tp::RawTape = RawTape()) = track(x, eltype(x), tp)
 
-track{D}(x::Real, ::Type{D}, tp::Tape = Tape()) = TrackedReal(x, zero(D), tp)
+track{D}(x::Real, ::Type{D}, tp::RawTape = RawTape()) = TrackedReal(x, zero(D), tp)
 
-track{D}(x::AbstractArray, ::Type{D}, tp::Tape = Tape()) = TrackedArray(x, fill!(similar(x, D), zero(D)), tp)
+track{D}(x::AbstractArray, ::Type{D}, tp::RawTape = RawTape()) = TrackedArray(x, fill!(similar(x, D), zero(D)), tp)
 
 track!(t::TrackedArray, x::AbstractArray) = (value!(t, x); unseed!(t); t)
 
 track!(t::TrackedReal, x::Real) = (value!(t, x); unseed!(t); t)
 
-function track!{D}(t::AbstractArray{TrackedReal{D,D,Void}}, x::AbstractArray, tp::Tape)
+function track!{D}(t::AbstractArray{TrackedReal{D,D,Void}}, x::AbstractArray, tp::RawTape)
     for i in eachindex(t)
         t[i] = track(x[i], D, tp)
     end

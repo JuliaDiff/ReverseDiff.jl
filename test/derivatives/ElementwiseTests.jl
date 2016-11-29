@@ -11,7 +11,7 @@ tic()
 x, y = rand(3, 3), rand(3, 3)
 a, b = rand(3), rand(3)
 n = rand()
-tp = Tape()
+tp = RawTape()
 offset = 0.00001
 
 function test_elementwise(f, fopt, x, tp)

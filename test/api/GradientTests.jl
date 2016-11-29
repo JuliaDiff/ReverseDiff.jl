@@ -40,34 +40,34 @@ function test_unary_gradient(f, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
 
-    # with GradientRecord
+    # with GradientTape
 
-    r = ReverseDiff.GradientRecord(f, rand(size(x)))
+    tp = ReverseDiff.GradientTape(f, rand(size(x)))
 
-    @test_approx_eq_eps ReverseDiff.gradient!(r, x) DiffBase.gradient(test) EPS
+    @test_approx_eq_eps ReverseDiff.gradient!(tp, x) DiffBase.gradient(test) EPS
 
     out = similar(x)
-    ReverseDiff.gradient!(out, r, x)
+    ReverseDiff.gradient!(out, tp, x)
     @test_approx_eq_eps out DiffBase.gradient(test) EPS
 
     result = DiffBase.GradientResult(x)
-    ReverseDiff.gradient!(result, r, x)
+    ReverseDiff.gradient!(result, tp, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
 
-    # with compiled GradientRecord
+    # with compiled GradientTape
 
-    if length(r.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        cr = ReverseDiff.compile(r)
+    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+        ctp = ReverseDiff.compile(tp)
 
-        @test_approx_eq_eps ReverseDiff.gradient!(cr, x) DiffBase.gradient(test) EPS
+        @test_approx_eq_eps ReverseDiff.gradient!(ctp, x) DiffBase.gradient(test) EPS
 
         out = similar(x)
-        ReverseDiff.gradient!(out, cr, x)
+        ReverseDiff.gradient!(out, ctp, x)
         @test_approx_eq_eps out DiffBase.gradient(test) EPS
 
         result = DiffBase.GradientResult(x)
-        ReverseDiff.gradient!(result, cr, x)
+        ReverseDiff.gradient!(result, ctp, x)
         @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
         @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
     end
@@ -139,23 +139,23 @@ for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
     @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
     @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
 
-    # with GradientRecord
+    # with GradientTape
 
-    r = ReverseDiff.GradientRecord(f, (rand(size(a)), rand(size(b)), rand(size(c))))
+    tp = ReverseDiff.GradientTape(f, (rand(size(a)), rand(size(b)), rand(size(c))))
 
-    ∇a, ∇b, ∇c = ReverseDiff.gradient!(r, (a, b, c))
+    ∇a, ∇b, ∇c = ReverseDiff.gradient!(tp, (a, b, c))
     @test_approx_eq_eps ∇a test_a EPS
     @test_approx_eq_eps ∇b test_b EPS
     @test_approx_eq_eps ∇c test_c EPS
 
     ∇a, ∇b, ∇c = map(similar, (a, b, c))
-    ReverseDiff.gradient!((∇a, ∇b, ∇c), r, (a, b, c))
+    ReverseDiff.gradient!((∇a, ∇b, ∇c), tp, (a, b, c))
     @test_approx_eq_eps ∇a test_a EPS
     @test_approx_eq_eps ∇b test_b EPS
     @test_approx_eq_eps ∇c test_c EPS
 
     ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
-    ReverseDiff.gradient!((∇a, ∇b, ∇c), r, (a, b, c))
+    ReverseDiff.gradient!((∇a, ∇b, ∇c), tp, (a, b, c))
     @test_approx_eq_eps DiffBase.value(∇a) test_val EPS
     @test_approx_eq_eps DiffBase.value(∇b) test_val EPS
     @test_approx_eq_eps DiffBase.value(∇c) test_val EPS
@@ -163,24 +163,24 @@ for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
     @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
     @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
 
-    # with compiled GradientRecord
+    # with compiled GradientTape
 
-    if length(r.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        cr = ReverseDiff.compile(r)
+    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+        ctp = ReverseDiff.compile(tp)
 
-        ∇a, ∇b, ∇c = ReverseDiff.gradient!(cr, (a, b, c))
+        ∇a, ∇b, ∇c = ReverseDiff.gradient!(ctp, (a, b, c))
         @test_approx_eq_eps ∇a test_a EPS
         @test_approx_eq_eps ∇b test_b EPS
         @test_approx_eq_eps ∇c test_c EPS
 
         ∇a, ∇b, ∇c = map(similar, (a, b, c))
-        ReverseDiff.gradient!((∇a, ∇b, ∇c), cr, (a, b, c))
+        ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
         @test_approx_eq_eps ∇a test_a EPS
         @test_approx_eq_eps ∇b test_b EPS
         @test_approx_eq_eps ∇c test_c EPS
 
         ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
-        ReverseDiff.gradient!((∇a, ∇b, ∇c), cr, (a, b, c))
+        ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
         @test_approx_eq_eps DiffBase.value(∇a) test_val EPS
         @test_approx_eq_eps DiffBase.value(∇b) test_val EPS
         @test_approx_eq_eps DiffBase.value(∇c) test_val EPS

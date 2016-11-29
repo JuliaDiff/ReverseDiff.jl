@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]><html class="no-js ie6"><![endif]-->
+<!--[if IE 7 ]><html class="no-js ie7"><![endif]-->
+<!--[if IE 8 ]><html class="no-js ie8"><![endif]-->
+<!--[if IE 9 ]><html class="no-js ie9"><![endif]-->
+<!--[if (gt IE 9)|!(IE)]><!--> <html class="no-js"> <!--<![endif]-->
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1,maximum-scale=1">
+    
+      
+        <title>ReverseDiff API - ReverseDiff.jl</title>
+      
+      
+      
+      
+        <meta name="author" content="jrevels">
+      
+    
+    <meta property="og:url" content="None">
+    <meta property="og:title" content="ReverseDiff.jl">
+    <meta property="og:image" content="None/../">
+    <meta name="apple-mobile-web-app-title" content="ReverseDiff.jl">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    
+    <link rel="shortcut icon" type="image/x-icon" href="../assets/images/favicon-e565ddfa3b.ico">
+    <link rel="icon" type="image/x-icon" href="../assets/images/favicon-e565ddfa3b.ico">
+    <style>
+      @font-face {
+      	font-family: 'Icon';
+      	src: url('../assets/fonts/icon.eot?52m981');
+      	src: url('../assets/fonts/icon.eot?#iefix52m981')
+               format('embedded-opentype'),
+      		   url('../assets/fonts/icon.woff?52m981')
+               format('woff'),
+      		   url('../assets/fonts/icon.ttf?52m981')
+               format('truetype'),
+      		   url('../assets/fonts/icon.svg?52m981#icon')
+               format('svg');
+      	font-weight: normal;
+      	font-style: normal;
+      }
+    </style>
+    <link rel="stylesheet" href="../assets/stylesheets/application-a422ff04cc.css">
+    
+    
+      
+      
+      
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu:400,700|Ubuntu+Mono">
+      <style>
+        body, input {
+          font-family: 'Ubuntu', Helvetica, Arial, sans-serif;
+        }
+        pre, code {
+          font-family: 'Ubuntu Mono', 'Courier New', 'Courier', monospace;
+        }
+      </style>
+    
+    
+      <link rel="stylesheet" href="../assets/Documenter.css">
+    
+    <script src="../assets/javascripts/modernizr-4ab42b99fd.js"></script>
+    
+  </head>
+  
+  
+  
+  <body class=" ">
+    
+      
+      
+    
+    <div class="backdrop">
+      <div class="backdrop-paper"></div>
+    </div>
+    <input class="toggle" type="checkbox" id="toggle-drawer">
+    <input class="toggle" type="checkbox" id="toggle-search">
+    <label class="toggle-button overlay" for="toggle-drawer"></label>
+    <header class="header">
+      <nav aria-label="Header">
+  <div class="bar default">
+    <div class="button button-menu" role="button" aria-label="Menu">
+      <label class="toggle-button icon icon-menu" for="toggle-drawer">
+        <span></span>
+      </label>
+    </div>
+    <div class="stretch">
+      <div class="title">
+        
+          <span class="path">
+            
+          </span>
+        
+        ReverseDiff API
+      </div>
+    </div>
+    
+    
+    <div class="button button-search" role="button" aria-label="Search">
+      <label class="toggle-button icon icon-search" title="Search" for="toggle-search"></label>
+    </div>
+  </div>
+  <div class="bar search">
+    <div class="button button-close" role="button" aria-label="Close">
+      <label class="toggle-button icon icon-back" for="toggle-search"></label>
+    </div>
+    <div class="stretch">
+      <div class="field">
+        <input class="query" type="text" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck>
+      </div>
+    </div>
+    <div class="button button-reset" role="button" aria-label="Search">
+      <button class="toggle-button icon icon-close" id="reset-search"></button>
+    </div>
+  </div>
+</nav>
+    </header>
+    <main class="main">
+      
+      <div class="drawer">
+        <nav aria-label="Navigation">
+  
+  <a href="https://github.com/JuliaDiff/ReverseDiff.jl" class="project">
+    <div class="banner">
+      
+      <div class="name">
+        <strong>
+          ReverseDiff.jl
+          <span class="version">
+            
+          </span>
+        </strong>
+        
+          <br>
+          JuliaDiff/ReverseDiff.jl
+        
+      </div>
+    </div>
+  </a>
+  <div class="scrollable">
+    <div class="wrapper">
+      
+        <ul class="repo">
+          <li class="repo-download">
+            
+            <a href="https://github.com/JuliaDiff/ReverseDiff.jl/archive/master.zip" target="_blank" title="Download" data-action="download">
+              <i class="icon icon-download"></i> Download
+            </a>
+          </li>
+          <li class="repo-stars">
+            <a href="https://github.com/JuliaDiff/ReverseDiff.jl/stargazers" target="_blank" title="Stargazers" data-action="star">
+              <i class="icon icon-star"></i> Stars
+              <span class="count">&ndash;</span>
+            </a>
+          </li>
+        </ul>
+        <hr>
+      
+      <div class="toc">
+        <ul>
+          
+            
+  <li>
+    <a class="" title="Introduction" href="..">
+      Introduction
+    </a>
+    
+  </li>
+
+          
+            
+  <li>
+    <a class="" title="Limitations of ReverseDiff" href="../limits/">
+      Limitations of ReverseDiff
+    </a>
+    
+  </li>
+
+          
+            
+  <li>
+    <a class="current" title="ReverseDiff API" href="./">
+      ReverseDiff API
+    </a>
+    
+      
+        
+      
+      
+        <ul>
+          
+            <li class="anchor">
+              <a title="Gradients of f(x::AbstractArray{Real}...)::Real" href="#gradients-of-fxabstractarrayrealreal">
+                Gradients of f(x::AbstractArray{Real}...)::Real
+              </a>
+            </li>
+          
+            <li class="anchor">
+              <a title="Jacobians of f(x::AbstractArray{Real}...)::AbstractArray{Real}" href="#jacobians-of-fxabstractarrayrealabstractarrayreal">
+                Jacobians of f(x::AbstractArray{Real}...)::AbstractArray{Real}
+              </a>
+            </li>
+          
+            <li class="anchor">
+              <a title="Hessians of f(x::AbstractArray{Real})::Real" href="#hessians-of-fxabstractarrayrealreal">
+                Hessians of f(x::AbstractArray{Real})::Real
+              </a>
+            </li>
+          
+            <li class="anchor">
+              <a title="The AbstractTape API" href="#the-abstracttape-api">
+                The AbstractTape API
+              </a>
+            </li>
+          
+            <li class="anchor">
+              <a title="The AbstractConfig API" href="#the-abstractconfig-api">
+                The AbstractConfig API
+              </a>
+            </li>
+          
+        </ul>
+      
+    
+  </li>
+
+          
+        </ul>
+        
+      </div>
+    </div>
+  </div>
+</nav>
+      </div>
+      <article class="article">
+        <div class="wrapper">
+          
+          <p><a id='ReverseDiff-API-1'></a></p>
+<h1 id="reversediff-api">ReverseDiff API</h1>
+<p><a id='Gradients-of-f(x::AbstractArray{Real}...)::Real-1'></a></p>
+<h2 id="gradients-of-fxabstractarrayrealreal">Gradients of <code>f(x::AbstractArray{Real}...)::Real</code></h2>
+<p><a id='ReverseDiff.gradient' href='#ReverseDiff.gradient'>#</a>
+<strong><code>ReverseDiff.gradient</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>ReverseDiff.gradient(f, input, cfg::GradientConfig = GradientConfig(input))
+</code></pre>
+
+<p>If <code>input</code> is an <code>AbstractArray</code>, assume <code>f</code> has the form <code>f(::AbstractArray{Real})::Real</code> and return <code>∇f(input)</code>.</p>
+<p>If <code>input</code> is a tuple of <code>AbstractArray</code>s, assume <code>f</code> has the form <code>f(::AbstractArray{Real}...)::Real</code> (such that it can be called as <code>f(input...)</code>) and return a <code>Tuple</code> where the <code>i</code>th element is the gradient of <code>f</code> w.r.t. <code>input[i].</code></p>
+<p>Note that <code>cfg</code> can be preallocated and reused for subsequent calls.</p>
+<p>If possible, it is highly recommended to use <code>ReverseDiff.GradientTape</code> to prerecord <code>f</code>. Otherwise, this method will have to re-record <code>f</code>'s execution trace for every subsequent call.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/gradients.jl#L5-L20' class='documenter-source'>source</a><br></p>
+<p><a id='ReverseDiff.gradient!' href='#ReverseDiff.gradient!'>#</a>
+<strong><code>ReverseDiff.gradient!</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>ReverseDiff.gradient!(result, f, input, cfg::GradientConfig = GradientConfig(input))
+</code></pre>
+
+<p>Returns <code>result</code>. This method is exactly like <code>ReverseDiff.gradient(f, input, cfg)</code>, except it stores the resulting gradient(s) in <code>result</code> rather than allocating new memory.</p>
+<p><code>result</code> can be an <code>AbstractArray</code> or a <code>Tuple</code> of <code>AbstractArray</code>s. The <code>result</code> (or any of its elements, if <code>isa(result, Tuple)</code>), can also be a <code>DiffBase.DiffResult</code>, in which case the primal value <code>f(input)</code> (or <code>f(input...)</code>, if <code>isa(input, Tuple)</code>) will be stored in it as well.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/gradients.jl#L29-L39' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.gradient!(tape::Union{GradientTape,CompiledGradient}, input)
+</code></pre>
+
+<p>If <code>input</code> is an <code>AbstractArray</code>, assume <code>tape</code> represents a function of the form <code>f(::AbstractArray)::Real</code> and return <code>∇f(input)</code>.</p>
+<p>If <code>input</code> is a tuple of <code>AbstractArray</code>s, assume <code>tape</code> represents a function of the form <code>f(::AbstractArray...)::Real</code> and return a <code>Tuple</code> where the <code>i</code>th element is the gradient of <code>f</code> w.r.t. <code>input[i].</code></p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/gradients.jl#L51-L60' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.gradient!(result, tape::Union{GradientTape,CompiledGradient}, input)
+</code></pre>
+
+<p>Returns <code>result</code>. This method is exactly like <code>ReverseDiff.gradient!(tape, input)</code>, except it stores the resulting gradient(s) in <code>result</code> rather than allocating new memory.</p>
+<p><code>result</code> can be an <code>AbstractArray</code> or a <code>Tuple</code> of <code>AbstractArray</code>s. The <code>result</code> (or any of its elements, if <code>isa(result, Tuple)</code>), can also be a <code>DiffBase.DiffResult</code>, in which case the primal value <code>f(input)</code> (or <code>f(input...)</code>, if <code>isa(input, Tuple)</code>) will be stored in it as well.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/gradients.jl#L67-L77' class='documenter-source'>source</a><br></p>
+<p><a id='Jacobians-of-f(x::AbstractArray{Real}...)::AbstractArray{Real}-1'></a></p>
+<h2 id="jacobians-of-fxabstractarrayrealabstractarrayreal">Jacobians of <code>f(x::AbstractArray{Real}...)::AbstractArray{Real}</code></h2>
+<p><a id='ReverseDiff.jacobian' href='#ReverseDiff.jacobian'>#</a>
+<strong><code>ReverseDiff.jacobian</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>ReverseDiff.jacobian(f, input, cfg::JacobianConfig = JacobianConfig(input))
+</code></pre>
+
+<p>If <code>input</code> is an <code>AbstractArray</code>, assume <code>f</code> has the form <code>f(::AbstractArray{Real})::AbstractArray{Real}</code> and return <code>J(f)(input)</code>.</p>
+<p>If <code>input</code> is a tuple of <code>AbstractArray</code>s, assume <code>f</code> has the form <code>f(::AbstractArray{Real}...)::AbstractArray{Real}</code> (such that it can be called as <code>f(input...)</code>) and return a <code>Tuple</code> where the <code>i</code>th element is the  Jacobian of <code>f</code> w.r.t. <code>input[i].</code></p>
+<p>Note that <code>cfg</code> can be preallocated and reused for subsequent calls.</p>
+<p>If possible, it is highly recommended to use <code>ReverseDiff.JacobianTape</code> to prerecord <code>f</code>. Otherwise, this method will have to re-record <code>f</code>'s execution trace for every subsequent call.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/jacobians.jl#L5-L21' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
+</code></pre>
+
+<p>Exactly like <code>ReverseDiff.jacobian(f, input, cfg)</code>, except the target function has the form <code>f!(output::AbstractArray{Real}, input::AbstractArray{Real}...)</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/jacobians.jl#L53-L58' class='documenter-source'>source</a><br></p>
+<p><a id='ReverseDiff.jacobian!' href='#ReverseDiff.jacobian!'>#</a>
+<strong><code>ReverseDiff.jacobian!</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>ReverseDiff.jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input))
+</code></pre>
+
+<p>Returns <code>result</code>. This method is exactly like <code>ReverseDiff.jacobian(f, input, cfg)</code>, except it stores the resulting Jacobian(s) in <code>result</code> rather than allocating new memory.</p>
+<p><code>result</code> can be an <code>AbstractArray</code> or a <code>Tuple</code> of <code>AbstractArray</code>s. The <code>result</code> (or any of its elements, if <code>isa(result, Tuple)</code>), can also be a <code>DiffBase.DiffResult</code>, in which case the primal value <code>f(input)</code> (or <code>f(input...)</code>, if <code>isa(input, Tuple)</code>) will be stored in it as well.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/jacobians.jl#L30-L40' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
+</code></pre>
+
+<p>Exactly like <code>ReverseDiff.jacobian!(result, f, input, cfg)</code>, except the target function has the form <code>f!(output::AbstractArray{Real}, input::AbstractArray{Real}...)</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/jacobians.jl#L68-L73' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.jacobian!(tape::Union{JacobianTape,CompiledJacobian}, input)
+</code></pre>
+
+<p>If <code>input</code> is an <code>AbstractArray</code>, assume <code>tape</code> represents a function of the form <code>f(::AbstractArray{Real})::AbstractArray{Real}</code> or <code>f!(::AbstractArray{Real}, ::AbstractArray{Real})</code> and return <code>tape</code>'s Jacobian w.r.t. <code>input</code>.</p>
+<p>If <code>input</code> is a tuple of <code>AbstractArray</code>s, assume <code>tape</code> represents a function of the form <code>f(::AbstractArray{Real}...)::AbstractArray{Real}</code> or <code>f!(::AbstractArray{Real}, ::AbstractArray{Real}...)</code> and return a <code>Tuple</code> where the <code>i</code>th element is <code>tape</code>'s Jacobian w.r.t. <code>input[i].</code></p>
+<p>Note that if <code>tape</code> represents a function of the form <code>f!(output, input...)</code>, you can only execute <code>tape</code> with new <code>input</code> values. There is no way to re-run <code>tape</code>'s tape with new <code>output</code> values; since <code>f!</code> can mutate <code>output</code>, there exists no stable "hook" for loading new <code>output</code> values into the tape.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/jacobians.jl#L87-L103' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.jacobian!(result, tape::Union{JacobianTape,CompiledJacobian}, input)
+</code></pre>
+
+<p>Returns <code>result</code>. This method is exactly like <code>ReverseDiff.jacobian!(tape, input)</code>, except it stores the resulting Jacobian(s) in <code>result</code> rather than allocating new memory.</p>
+<p><code>result</code> can be an <code>AbstractArray</code> or a <code>Tuple</code> of <code>AbstractArray</code>s. The <code>result</code> (or any of its elements, if <code>isa(result, Tuple)</code>), can also be a <code>DiffBase.DiffResult</code>, in which case the primal value of the target function will be stored in it as well.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/jacobians.jl#L110-L119' class='documenter-source'>source</a><br></p>
+<p><a id='Hessians-of-f(x::AbstractArray{Real})::Real-1'></a></p>
+<h2 id="hessians-of-fxabstractarrayrealreal">Hessians of <code>f(x::AbstractArray{Real})::Real</code></h2>
+<p><a id='ReverseDiff.hessian' href='#ReverseDiff.hessian'>#</a>
+<strong><code>ReverseDiff.hessian</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>ReverseDiff.hessian(f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
+</code></pre>
+
+<p>Given <code>f(input::AbstractArray{Real})::Real</code>, return <code>f</code>s Hessian w.r.t. to the given <code>input</code>.</p>
+<p>Note that <code>cfg</code> can be preallocated and reused for subsequent calls.</p>
+<p>If possible, it is highly recommended to use <code>ReverseDiff.HessianTape</code> to prerecord <code>f</code>. Otherwise, this method will have to re-record <code>f</code>'s execution trace for every subsequent call.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/hessians.jl#L8-L19' class='documenter-source'>source</a><br></p>
+<p><a id='ReverseDiff.hessian!' href='#ReverseDiff.hessian!'>#</a>
+<strong><code>ReverseDiff.hessian!</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>ReverseDiff.hessian!(result::AbstractArray, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
+
+ReverseDiff.hessian!(result::DiffResult, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(result, input))
+</code></pre>
+
+<p>Returns <code>result</code>. This method is exactly like <code>ReverseDiff.hessian(f, input, cfg)</code>, except it stores the resulting Hessian in <code>result</code> rather than allocating new memory.</p>
+<p>If <code>result</code> is a <code>DiffBase.DiffResult</code>, the primal value <code>f(input)</code> and the gradient <code>∇f(input)</code> will be stored in it along with the Hessian <code>H(f)(input)</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/hessians.jl#L28-L38' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.hessian!(tape::Union{HessianTape,CompiledHessian}, input)
+</code></pre>
+
+<p>Assuming <code>tape</code> represents a function of the form <code>f(::AbstractArray{Real})::Real</code>, return the Hessian <code>H(f)(input)</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/hessians.jl#L63-L68' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.hessian!(result::AbstractArray, tape::Union{HessianTape,CompiledHessian}, input)
+
+ReverseDiff.hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input)
+</code></pre>
+
+<p>Returns <code>result</code>. This method is exactly like <code>ReverseDiff.hessian!(tape, input)</code>, except it stores the resulting Hessian in <code>result</code> rather than allocating new memory.</p>
+<p>If <code>result</code> is a <code>DiffBase.DiffResult</code>, the primal value <code>f(input)</code> and the gradient <code>∇f(input)</code> will be stored in it along with the Hessian <code>H(f)(input)</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/hessians.jl#L75-L85' class='documenter-source'>source</a><br></p>
+<p><a id='The-AbstractTape-API-1'></a></p>
+<h2 id="the-abstracttape-api">The <code>AbstractTape</code> API</h2>
+<p>ReverseDiff works by recording the target function's execution trace to a "tape", then running the tape forwards and backwards to propagate new input values and derivative information.</p>
+<p>In many cases, it is the recording phase of this process that consumes the most time and memory, while the forward and reverse execution passes are often fast and non-allocating. Luckily, ReverseDiff provides the <code>AbstractTape</code> family of types, which enable the user to <em>pre-record</em> a reusable tape for a given function and differentiation operation.</p>
+<p><strong>Note that pre-recording a tape can only capture the the execution trace of the target function with the given input values.</strong> Therefore, re-running the tape (even with new input values) will only execute the paths that were recorded using the original input values. In other words, the tape cannot any re-enact branching behavior that depends on the input values. You can guarantee your own safety in this regard by never using the <code>AbstractTape</code> API with functions that contain control flow based on the input values.</p>
+<p>Similarly to the branching issue, a tape is not guaranteed to capture any side-effects caused or depended on by the target function.</p>
+<p><a id='ReverseDiff.GradientTape' href='#ReverseDiff.GradientTape'>#</a>
+<strong><code>ReverseDiff.GradientTape</code></strong> &mdash; <em>Type</em>.</p>
+<pre><code>ReverseDiff.GradientTape(f, input, cfg::GradientConfig = GradientConfig(input))
+</code></pre>
+
+<p>Return a <code>GradientTape</code> instance containing a pre-recorded execution trace of <code>f</code> at the given <code>input</code>.</p>
+<p>This <code>GradientTape</code> can then be passed to <code>ReverseDiff.gradient!</code> to take gradients of the execution trace with new <code>input</code> values.</p>
+<p>See <code>ReverseDiff.gradient</code> for a description of acceptable types for <code>input</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/tape.jl#L87-L97' class='documenter-source'>source</a><br></p>
+<p><a id='ReverseDiff.JacobianTape' href='#ReverseDiff.JacobianTape'>#</a>
+<strong><code>ReverseDiff.JacobianTape</code></strong> &mdash; <em>Type</em>.</p>
+<pre><code>ReverseDiff.JacobianTape(f, input, cfg::JacobianConfig = JacobianConfig(input))
+</code></pre>
+
+<p>Return a <code>JacobianTape</code> instance containing a pre-recorded execution trace of <code>f</code> at the given <code>input</code>.</p>
+<p>This <code>JacobianTape</code> can then be passed to <code>ReverseDiff.jacobian!</code> to take Jacobians of the execution trace with new <code>input</code> values.</p>
+<p>See <code>ReverseDiff.jacobian</code> for a description of acceptable types for <code>input</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/tape.jl#L116-L126' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.JacobianTape(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
+</code></pre>
+
+<p>Return a <code>JacobianTape</code> instance containing a pre-recorded execution trace of <code>f</code> at the given <code>output</code> and <code>input</code>.</p>
+<p>This <code>JacobianTape</code> can then be passed to <code>ReverseDiff.jacobian!</code> to take Jacobians of the execution trace with new <code>input</code> values.</p>
+<p>See <code>ReverseDiff.jacobian</code> for a description of acceptable types for <code>input</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/tape.jl#L141-L151' class='documenter-source'>source</a><br></p>
+<p><a id='ReverseDiff.HessianTape' href='#ReverseDiff.HessianTape'>#</a>
+<strong><code>ReverseDiff.HessianTape</code></strong> &mdash; <em>Type</em>.</p>
+<pre><code>ReverseDiff.HessianTape(f, input, cfg::HessianConfig = HessianConfig(input))
+</code></pre>
+
+<p>Return a <code>HessianTape</code> instance containing a pre-recorded execution trace of <code>f</code> at the given <code>input</code>.</p>
+<p>This <code>HessianTape</code> can then be passed to <code>ReverseDiff.hessian!</code> to take Hessians of the execution trace with new <code>input</code> values.</p>
+<p>See <code>ReverseDiff.hessian</code> for a description of acceptable types for <code>input</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/tape.jl#L172-L182' class='documenter-source'>source</a><br></p>
+<p><a id='ReverseDiff.compile' href='#ReverseDiff.compile'>#</a>
+<strong><code>ReverseDiff.compile</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>ReverseDiff.compile(t::AbstractTape)
+</code></pre>
+
+<p>Return a fully compiled representation of <code>t</code>. The type of this representation will be <code>CompiledGradient</code>/<code>CompiledJacobian</code>/<code>CompiledHessian</code>, depending on the type of <code>t</code>. This object can be passed to any API methods that accept <code>t</code>.</p>
+<p>In many cases, compiling <code>t</code> can significantly speed up execution time. Note that the longer the tape, the more time compilation may take. Very long tapes (i.e. when <code>length(t)</code> is on the order of 10000 elements) can take a very long time to compile.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/tape.jl#L62-L72' class='documenter-source'>source</a><br></p>
+<p><a id='The-AbstractConfig-API-1'></a></p>
+<h2 id="the-abstractconfig-api">The <code>AbstractConfig</code> API</h2>
+<p>For the sake of convenience and performance, all "extra" information used by ReverseDiff's API methods is bundled up in the <code>ReverseDiff.AbstractConfig</code> family of types. These types allow the user to easily feed several different parameters to ReverseDiff's API methods, such as work buffers and tape configurations.</p>
+<p>ReverseDiff's basic API methods will allocate these types automatically by default, but you can reduce memory usage and improve performance if you preallocate them yourself.</p>
+<p><a id='ReverseDiff.GradientConfig' href='#ReverseDiff.GradientConfig'>#</a>
+<strong><code>ReverseDiff.GradientConfig</code></strong> &mdash; <em>Type</em>.</p>
+<pre><code>ReverseDiff.GradientConfig(input, tp::RawTape = RawTape())
+</code></pre>
+
+<p>Return a <code>GradientConfig</code> instance containing the preallocated tape and work buffers used by the <code>ReverseDiff.gradient</code>/<code>ReverseDiff.gradient!</code> methods.</p>
+<p>Note that <code>input</code> is only used for type and shape information; it is not stored or modified in any way. It is assumed that the element type of <code>input</code> is same as the element type of the target function's output.</p>
+<p>See <code>ReverseDiff.gradient</code> for a description of acceptable types for <code>input</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/Config.jl#L23-L34' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.GradientConfig(input, ::Type{D}, tp::RawTape = RawTape())
+</code></pre>
+
+<p>Like <code>GradientConfig(input, tp)</code>, except the provided type <code>D</code> is assumed to be the element type of the target function's output.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/Config.jl#L39-L44' class='documenter-source'>source</a><br></p>
+<p><a id='ReverseDiff.JacobianConfig' href='#ReverseDiff.JacobianConfig'>#</a>
+<strong><code>ReverseDiff.JacobianConfig</code></strong> &mdash; <em>Type</em>.</p>
+<pre><code>ReverseDiff.JacobianConfig(input, tp::RawTape = RawTape())
+</code></pre>
+
+<p>Return a <code>JacobianConfig</code> instance containing the preallocated tape and work buffers used by the <code>ReverseDiff.jacobian</code>/<code>ReverseDiff.jacobian!</code> methods.</p>
+<p>Note that <code>input</code> is only used for type and shape information; it is not stored or modified in any way. It is assumed that the element type of <code>input</code> is same as the element type of the target function's output.</p>
+<p>See <code>ReverseDiff.jacobian</code> for a description of acceptable types for <code>input</code>.</p>
+<pre><code>ReverseDiff.JacobianConfig(input, ::Type{D}, tp::RawTape = RawTape())
+</code></pre>
+
+<p>Like <code>JacobianConfig(input, tp)</code>, except the provided type <code>D</code> is assumed to be the element type of the target function's output.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/Config.jl#L68-L84' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.JacobianConfig(output::AbstractArray, input, tp::RawTape = RawTape())
+</code></pre>
+
+<p>Return a <code>JacobianConfig</code> instance containing the preallocated tape and work buffers used by the <code>ReverseDiff.jacobian</code>/<code>ReverseDiff.jacobian!</code> methods. This method assumes the target function has the form <code>f!(output, input)</code></p>
+<p>Note that <code>input</code> and <code>output</code> are only used for type and shape information; they are not stored or modified in any way.</p>
+<p>See <code>ReverseDiff.jacobian</code> for a description of acceptable types for <code>input</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/Config.jl#L90-L101' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.JacobianConfig(result::DiffBase.DiffResult, input, tp::RawTape = RawTape())
+</code></pre>
+
+<p>A convenience method for <code>JacobianConfig(DiffBase.value(result), input, tp)</code>.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/Config.jl#L114-L118' class='documenter-source'>source</a><br></p>
+<p><a id='ReverseDiff.HessianConfig' href='#ReverseDiff.HessianConfig'>#</a>
+<strong><code>ReverseDiff.HessianConfig</code></strong> &mdash; <em>Type</em>.</p>
+<pre><code>ReverseDiff.HessianConfig(input::AbstractArray, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+</code></pre>
+
+<p>Return a <code>HessianConfig</code> instance containing the preallocated tape and work buffers used by the <code>ReverseDiff.hessian</code>/<code>ReverseDiff.hessian!</code> methods. <code>gtp</code> is the tape used for the inner gradient calculation, while <code>jtp</code> is used for outer Jacobian calculation.</p>
+<p>Note that <code>input</code> is only used for type and shape information; it is not stored or modified in any way. It is assumed that the element type of <code>input</code> is same as the element type of the target function's output.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/Config.jl#L130-L140' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.HessianConfig(input::AbstractArray, ::Type{D}, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+</code></pre>
+
+<p>Like <code>HessianConfig(input, tp)</code>, except the provided type <code>D</code> is assumed to be the element type of the target function's output.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/Config.jl#L145-L150' class='documenter-source'>source</a><br></p>
+<pre><code>ReverseDiff.HessianConfig(result::DiffBase.DiffResult, input::AbstractArray, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+</code></pre>
+
+<p>Like <code>HessianConfig(input, tp)</code>, but utilize <code>result</code> along with <code>input</code> to construct work buffers.</p>
+<p>Note that <code>result</code> and <code>input</code> are only used for type and shape information; they are not stored or modified in any way.</p>
+<p><a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/c08fd636889968774cdb223662c39fa45b2dc30d/src/api/Config.jl#L157-L165' class='documenter-source'>source</a><br></p>
+          <aside class="copyright" role="note">
+            
+            Documentation built with
+            <a href="http://www.mkdocs.org" target="_blank">MkDocs</a>
+            using the
+            <a href="http://squidfunk.github.io/mkdocs-material/" target="_blank">
+              Material
+            </a>
+            theme.
+          </aside>
+          
+            <footer class="footer">
+              
+  <nav class="pagination" aria-label="Footer">
+    <div class="previous">
+      
+        <a href="../limits/" title="Limitations of ReverseDiff">
+          <span class="direction">
+            Previous
+          </span>
+          <div class="page">
+            <div class="button button-previous" role="button" aria-label="Previous">
+              <i class="icon icon-back"></i>
+            </div>
+            <div class="stretch">
+              <div class="title">
+                Limitations of ReverseDiff
+              </div>
+            </div>
+          </div>
+        </a>
+      
+    </div>
+    <div class="next">
+      
+    </div>
+  </nav>
+
+            </footer>
+          
+        </div>
+      </article>
+      <div class="results" role="status" aria-live="polite">
+        <div class="scrollable">
+          <div class="wrapper">
+            <div class="meta"></div>
+            <div class="list"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <script>
+      var base_url = '..';
+      var repo_id  = 'JuliaDiff/ReverseDiff.jl';
+    </script>
+    <script src="../assets/javascripts/application-997097ee0c.js"></script>
+    
+      <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+    
+      <script src="../assets/mathjaxhelper.js"></script>
+    
+    
+  </body>
+</html>

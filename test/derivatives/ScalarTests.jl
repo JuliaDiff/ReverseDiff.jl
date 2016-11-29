@@ -9,9 +9,9 @@ tic()
 
 ############################################################################################
 x, a, b = rand(3)
-tp = Tape()
+tp = RawTape()
 
-function test_forward(f, x, tp::Tape, is_domain_err_func::Bool)
+function test_forward(f, x, tp::RawTape, is_domain_err_func::Bool)
     xt = ReverseDiff.TrackedReal(x, zero(x), tp)
     y = f(x)
 

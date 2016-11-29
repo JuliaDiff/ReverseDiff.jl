@@ -1,4 +1,4 @@
-using ReverseDiff: Tape, GradientConfig, JacobianConfig, HessianConfig,
+using ReverseDiff: RawTape, GradientConfig, JacobianConfig, HessianConfig,
                    value, deriv, tape, valtype,
                    derivtype, track, track!
 
