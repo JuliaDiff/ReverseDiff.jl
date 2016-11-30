@@ -22,8 +22,8 @@ differentiation methods (such as [finite differencing](https://en.wikipedia.org/
 
 To install ReverseDiff, simply use Julia's package manager:
 
-```
-    julia> Pkg.add("ReverseDiff")
+```julia
+julia> Pkg.add("ReverseDiff")
 ```
 
 The current version of ReverseDiff supports Julia v0.5 and v0.6.
