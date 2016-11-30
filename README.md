@@ -4,7 +4,7 @@
 
 [![Build Status](https://travis-ci.org/JuliaDiff/ReverseDiff.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ReverseDiff.jl)
 
-[**Go To ReverseDiff's Documentation**](http://www.juliadiff.org/DiffBase.jl/)
+[**Go To ReverseDiff's Documentation**](http://www.juliadiff.org/ReverseDiff.jl/)
 
 ReverseDiff implements methods to take **gradients**, **Jacobians**, **Hessians**, and
 higher-order derivatives of native Julia functions (or any callable object, really) using
