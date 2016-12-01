@@ -26,7 +26,7 @@ To install ReverseDiff, simply use Julia's package manager:
 julia> Pkg.add("ReverseDiff")
 ```
 
-The current version of ReverseDiff supports Julia v0.5 and v0.6.
+The current version of ReverseDiff supports Julia v0.5 (and intends to support Julia v0.6 once it is released).
 
 ## Why use ReverseDiff?
 
