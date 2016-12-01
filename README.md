@@ -6,6 +6,8 @@
 
 [**Go To ReverseDiff's Documentation**](http://www.juliadiff.org/ReverseDiff.jl/)
 
+[**See ReverseDiff Usage Examples**](https://github.com/JuliaDiff/ReverseDiff.jl/tree/master/examples)
+
 ReverseDiff implements methods to take **gradients**, **Jacobians**, **Hessians**, and
 higher-order derivatives of native Julia functions (or any callable object, really) using
 **reverse mode automatic differentiation (AD)**.
@@ -43,6 +45,51 @@ of them (as far as I know at the time of this writing):
 - suitable as an execution backend for graphical machine learning libraries
 - ReverseDiff doesn't need to record scalar indexing operations (a huge cost for many similar libraries)
 - higher-order `map` and `broadcast` optimizations
+- it's well tested
+
+...and, simply put, it's fast. Using the code from `examples/gradient.jl`:
+
+```julia
+julia> using BenchmarkTools
+
+# this script defines f and ∇f!
+julia> include(joinpath(Pkg.dir("ReverseDiff"), "examples/gradient.jl"));
+
+julia> a, b = rand(100, 100), rand(100, 100);
+
+julia> inputs = (a, b);
+
+julia> results = (similar(a), similar(b));
+
+# Benchmark the original objective function, sum(a' * b + a * b')
+julia> @benchmark f($a, $b)
+BenchmarkTools.Trial:
+  memory estimate:  234.61 kb
+  allocs estimate:  6
+  --------------
+  minimum time:     110.000 μs (0.00% GC)
+  median time:      137.416 μs (0.00% GC)
+  mean time:        173.085 μs (11.63% GC)
+  maximum time:     3.613 ms (91.47% GC)
+
+# Benchmark ∇f! at the same inputs (this is executing the function,
+# getting the gradient w.r.t. `a`, and getting the gradient w.r.t
+# to `b` simultaneously). Notice that the whole thing is
+# non-allocating.
+julia> @benchmark ∇f!($results, $inputs)
+BenchmarkTools.Trial:
+  memory estimate:  0.00 bytes
+  allocs estimate:  0
+  --------------
+  minimum time:     429.650 μs (0.00% GC)
+  median time:      431.460 μs (0.00% GC)
+  mean time:        469.916 μs (0.00% GC)
+  maximum time:     937.512 μs (0.00% GC)
+```
+
+I've used this benchmark (and others) to pit ReverseDiff against every other native
+Julia reverse-mode AD package that I know of (including source-to-source packages),
+and have found ReverseDiff to be faster and use less memory in most cases.
 
 ## Should I use ReverseDiff or ForwardDiff?
 

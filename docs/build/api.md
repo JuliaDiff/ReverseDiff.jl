@@ -28,7 +28,7 @@ Note that `cfg` can be preallocated and reused for subsequent calls.
 If possible, it is highly recommended to use `ReverseDiff.GradientTape` to prerecord `f`. Otherwise, this method will have to re-record `f`'s execution trace for every subsequent call.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/gradients.jl#L5-L20' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/gradients.jl#L5-L20' class='documenter-source'>source</a><br>
 
 <a id='ReverseDiff.gradient!' href='#ReverseDiff.gradient!'>#</a>
 **`ReverseDiff.gradient!`** &mdash; *Function*.
@@ -44,7 +44,7 @@ Returns `result`. This method is exactly like `ReverseDiff.gradient(f, input, cf
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any of its elements, if `isa(result, Tuple)`), can also be a `DiffBase.DiffResult`, in which case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored in it as well.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/gradients.jl#L29-L39' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/gradients.jl#L29-L39' class='documenter-source'>source</a><br>
 
 
 ```
@@ -56,7 +56,7 @@ If `input` is an `AbstractArray`, assume `tape` represents a function of the for
 If `input` is a tuple of `AbstractArray`s, assume `tape` represents a function of the form `f(::AbstractArray...)::Real` and return a `Tuple` where the `i`th element is the gradient of `f` w.r.t. `input[i].`
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/gradients.jl#L51-L60' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/gradients.jl#L51-L60' class='documenter-source'>source</a><br>
 
 
 ```
@@ -68,7 +68,7 @@ Returns `result`. This method is exactly like `ReverseDiff.gradient!(tape, input
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any of its elements, if `isa(result, Tuple)`), can also be a `DiffBase.DiffResult`, in which case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored in it as well.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/gradients.jl#L67-L77' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/gradients.jl#L67-L77' class='documenter-source'>source</a><br>
 
 
 <a id='Jacobians-of-f(x::AbstractArray{Real}...)::AbstractArray{Real}-1'></a>
@@ -93,7 +93,7 @@ Note that `cfg` can be preallocated and reused for subsequent calls.
 If possible, it is highly recommended to use `ReverseDiff.JacobianTape` to prerecord `f`. Otherwise, this method will have to re-record `f`'s execution trace for every subsequent call.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/jacobians.jl#L5-L21' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/jacobians.jl#L5-L21' class='documenter-source'>source</a><br>
 
 
 ```
@@ -103,7 +103,7 @@ ReverseDiff.jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(out
 Exactly like `ReverseDiff.jacobian(f, input, cfg)`, except the target function has the form `f!(output::AbstractArray{Real}, input::AbstractArray{Real}...)`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/jacobians.jl#L53-L58' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/jacobians.jl#L53-L58' class='documenter-source'>source</a><br>
 
 <a id='ReverseDiff.jacobian!' href='#ReverseDiff.jacobian!'>#</a>
 **`ReverseDiff.jacobian!`** &mdash; *Function*.
@@ -119,7 +119,7 @@ Returns `result`. This method is exactly like `ReverseDiff.jacobian(f, input, cf
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any of its elements, if `isa(result, Tuple)`), can also be a `DiffBase.DiffResult`, in which case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored in it as well.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/jacobians.jl#L30-L40' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/jacobians.jl#L30-L40' class='documenter-source'>source</a><br>
 
 
 ```
@@ -129,7 +129,7 @@ ReverseDiff.jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianC
 Exactly like `ReverseDiff.jacobian!(result, f, input, cfg)`, except the target function has the form `f!(output::AbstractArray{Real}, input::AbstractArray{Real}...)`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/jacobians.jl#L68-L73' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/jacobians.jl#L68-L73' class='documenter-source'>source</a><br>
 
 
 ```
@@ -143,7 +143,7 @@ If `input` is a tuple of `AbstractArray`s, assume `tape` represents a function o
 Note that if `tape` represents a function of the form `f!(output, input...)`, you can only execute `tape` with new `input` values. There is no way to re-run `tape`'s tape with new `output` values; since `f!` can mutate `output`, there exists no stable "hook" for loading new `output` values into the tape.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/jacobians.jl#L87-L103' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/jacobians.jl#L87-L103' class='documenter-source'>source</a><br>
 
 
 ```
@@ -155,7 +155,7 @@ Returns `result`. This method is exactly like `ReverseDiff.jacobian!(tape, input
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any of its elements, if `isa(result, Tuple)`), can also be a `DiffBase.DiffResult`, in which case the primal value of the target function will be stored in it as well.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/jacobians.jl#L110-L119' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/jacobians.jl#L110-L119' class='documenter-source'>source</a><br>
 
 
 <a id='Hessians-of-f(x::AbstractArray{Real})::Real-1'></a>
@@ -178,7 +178,7 @@ Note that `cfg` can be preallocated and reused for subsequent calls.
 If possible, it is highly recommended to use `ReverseDiff.HessianTape` to prerecord `f`. Otherwise, this method will have to re-record `f`'s execution trace for every subsequent call.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/hessians.jl#L8-L19' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/hessians.jl#L8-L19' class='documenter-source'>source</a><br>
 
 <a id='ReverseDiff.hessian!' href='#ReverseDiff.hessian!'>#</a>
 **`ReverseDiff.hessian!`** &mdash; *Function*.
@@ -196,7 +196,7 @@ Returns `result`. This method is exactly like `ReverseDiff.hessian(f, input, cfg
 If `result` is a `DiffBase.DiffResult`, the primal value `f(input)` and the gradient `∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/hessians.jl#L28-L38' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/hessians.jl#L28-L38' class='documenter-source'>source</a><br>
 
 
 ```
@@ -206,7 +206,7 @@ ReverseDiff.hessian!(tape::Union{HessianTape,CompiledHessian}, input)
 Assuming `tape` represents a function of the form `f(::AbstractArray{Real})::Real`, return the Hessian `H(f)(input)`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/hessians.jl#L63-L68' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/hessians.jl#L63-L68' class='documenter-source'>source</a><br>
 
 
 ```
@@ -220,7 +220,7 @@ Returns `result`. This method is exactly like `ReverseDiff.hessian!(tape, input)
 If `result` is a `DiffBase.DiffResult`, the primal value `f(input)` and the gradient `∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/hessians.jl#L75-L85' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/hessians.jl#L75-L85' class='documenter-source'>source</a><br>
 
 
 <a id='The-AbstractTape-API-1'></a>
@@ -255,7 +255,7 @@ This `GradientTape` can then be passed to `ReverseDiff.gradient!` to take gradie
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/tape.jl#L87-L97' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/tape.jl#L87-L97' class='documenter-source'>source</a><br>
 
 <a id='ReverseDiff.JacobianTape' href='#ReverseDiff.JacobianTape'>#</a>
 **`ReverseDiff.JacobianTape`** &mdash; *Type*.
@@ -273,7 +273,7 @@ This `JacobianTape` can then be passed to `ReverseDiff.jacobian!` to take Jacobi
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/tape.jl#L116-L126' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/tape.jl#L116-L126' class='documenter-source'>source</a><br>
 
 
 ```
@@ -287,7 +287,7 @@ This `JacobianTape` can then be passed to `ReverseDiff.jacobian!` to take Jacobi
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/tape.jl#L141-L151' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/tape.jl#L141-L151' class='documenter-source'>source</a><br>
 
 <a id='ReverseDiff.HessianTape' href='#ReverseDiff.HessianTape'>#</a>
 **`ReverseDiff.HessianTape`** &mdash; *Type*.
@@ -305,7 +305,7 @@ This `HessianTape` can then be passed to `ReverseDiff.hessian!` to take Hessians
 See `ReverseDiff.hessian` for a description of acceptable types for `input`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/tape.jl#L172-L182' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/tape.jl#L172-L182' class='documenter-source'>source</a><br>
 
 <a id='ReverseDiff.compile' href='#ReverseDiff.compile'>#</a>
 **`ReverseDiff.compile`** &mdash; *Function*.
@@ -321,7 +321,7 @@ Return a fully compiled representation of `t`. The type of this representation w
 In many cases, compiling `t` can significantly speed up execution time. Note that the longer the tape, the more time compilation may take. Very long tapes (i.e. when `length(t)` is on the order of 10000 elements) can take a very long time to compile.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/tape.jl#L62-L72' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/tape.jl#L62-L72' class='documenter-source'>source</a><br>
 
 
 <a id='The-AbstractConfig-API-1'></a>
@@ -350,7 +350,7 @@ Note that `input` is only used for type and shape information; it is not stored 
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/Config.jl#L23-L34' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/Config.jl#L23-L34' class='documenter-source'>source</a><br>
 
 
 ```
@@ -360,7 +360,7 @@ ReverseDiff.GradientConfig(input, ::Type{D}, tp::RawTape = RawTape())
 Like `GradientConfig(input, tp)`, except the provided type `D` is assumed to be the element type of the target function's output.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/Config.jl#L39-L44' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/Config.jl#L39-L44' class='documenter-source'>source</a><br>
 
 <a id='ReverseDiff.JacobianConfig' href='#ReverseDiff.JacobianConfig'>#</a>
 **`ReverseDiff.JacobianConfig`** &mdash; *Type*.
@@ -384,7 +384,7 @@ ReverseDiff.JacobianConfig(input, ::Type{D}, tp::RawTape = RawTape())
 Like `JacobianConfig(input, tp)`, except the provided type `D` is assumed to be the element type of the target function's output.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/Config.jl#L68-L84' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/Config.jl#L68-L84' class='documenter-source'>source</a><br>
 
 
 ```
@@ -398,7 +398,7 @@ Note that `input` and `output` are only used for type and shape information; the
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/Config.jl#L90-L101' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/Config.jl#L90-L101' class='documenter-source'>source</a><br>
 
 
 ```
@@ -408,7 +408,7 @@ ReverseDiff.JacobianConfig(result::DiffBase.DiffResult, input, tp::RawTape = Raw
 A convenience method for `JacobianConfig(DiffBase.value(result), input, tp)`.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/Config.jl#L114-L118' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/Config.jl#L114-L118' class='documenter-source'>source</a><br>
 
 <a id='ReverseDiff.HessianConfig' href='#ReverseDiff.HessianConfig'>#</a>
 **`ReverseDiff.HessianConfig`** &mdash; *Type*.
@@ -424,7 +424,7 @@ Return a `HessianConfig` instance containing the preallocated tape and work buff
 Note that `input` is only used for type and shape information; it is not stored or modified in any way. It is assumed that the element type of `input` is same as the element type of the target function's output.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/Config.jl#L130-L140' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/Config.jl#L130-L140' class='documenter-source'>source</a><br>
 
 
 ```
@@ -434,7 +434,7 @@ ReverseDiff.HessianConfig(input::AbstractArray, ::Type{D}, gtp::RawTape = RawTap
 Like `HessianConfig(input, tp)`, except the provided type `D` is assumed to be the element type of the target function's output.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/Config.jl#L145-L150' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/Config.jl#L145-L150' class='documenter-source'>source</a><br>
 
 
 ```
@@ -446,5 +446,5 @@ Like `HessianConfig(input, tp)`, but utilize `result` along with `input` to cons
 Note that `result` and `input` are only used for type and shape information; they are not stored or modified in any way.
 
 
-<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/72437a6501c17e427e3068a61a184e38bf28752d/src/api/Config.jl#L157-L165' class='documenter-source'>source</a><br>
+<a target='_blank' href='https://github.com/JuliaDiff/ReverseDiff.jl/tree/18691152c816da7041c1fd6255b9affb11681d84/src/api/Config.jl#L157-L165' class='documenter-source'>source</a><br>
 
