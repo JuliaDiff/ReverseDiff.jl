@@ -68,3 +68,10 @@ ReverseDiff.GradientConfig
 ReverseDiff.JacobianConfig
 ReverseDiff.HessianConfig
 ```
+
+## Optimization Annotations
+
+```@docs
+ReverseDiff.@forward
+ReverseDiff.@skip
+```

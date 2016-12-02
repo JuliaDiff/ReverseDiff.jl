@@ -99,7 +99,7 @@ function test_forward(f, a, b, tp)
     empty!(tp)
 end
 
-for f in (ReverseDiff.@forward(f0), f1, f2, f3, f4)
+for f in (ReverseDiff.@forward(f0), f1, f2, f3, f4, ReverseDiff.@forward(-))
     testprintln("@forward named functions", f)
     test_forward(f, x, tp)
     test_forward(f, a, b, tp)

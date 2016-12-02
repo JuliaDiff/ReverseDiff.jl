@@ -47,6 +47,35 @@ immutable ForwardOptimize{F}
     f::F
 end
 
+@inline ForwardOptimize(f::ForwardOptimize) = f
+
+"""
+    ReverseDiff.@forward(f)(args::Real...)
+    ReverseDiff.@forward f(args::Real...) = ...
+    ReverseDiff.@forward f = (args::Real...) -> ...
+
+Declare that the given function should be differentiated using forward mode automatic
+differentiation. Note that the macro can be used at either the definition site or at the
+call site of `f`. Currently, only `length(args) <= 2` is supported. **Note that, if `f` is
+defined within another function `g`, `f` should not close over any differentiable input of
+`g`.** By using this macro, you are providing a guarantee that this property holds true.
+
+This macro can be very beneficial for performance when intermediate functions in your
+computation are low dimensional scalar functions, because it minimizes the number of
+instructions that must be recorded to the tape. For example, take the function `sigmoid(n) =
+1. / (1. + exp(-n))`. Normally, using ReverseDiff to differentiate this function would
+require recording 4 instructions (`-`, `exp`, `+`, and `/`). However, if we apply the
+`@forward` macro, only one instruction will be recorded (`sigmoid`). The `sigmoid` function
+will then be differentiated using ForwardDiff's `Dual` number type.
+
+This is also beneficial for higher-order elementwise function application. ReverseDiff
+overloads `map`/`broadcast` to dispatch on `@forward`-applied functions. For example,
+`map(@forward(f), x)` will usually be more performant than `map(f, x)`.
+
+By default, ReverseDiff overloads many Base scalar functions to behave as `@forward`
+functions by default. A full list is given by `ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS`
+and `ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS`.
+"""
 macro forward(ex)
     return esc(annotate_func_expr(:ForwardOptimize, ex))
 end
@@ -113,6 +142,23 @@ immutable SkipOptimize{F}
     f::F
 end
 
+@inline SkipOptimize(f::SkipOptimize) = f
+
+"""
+    ReverseDiff.@skip(f)(args::Real...)
+    ReverseDiff.@skip f(args::Real...) = ...
+    ReverseDiff.@skip f = (args::Real...) -> ...
+
+Declare that the given function should be skipped during the instruction-recording phase of
+differentiation. Note that the macro can be used at either the definition site or at the
+call site of `f`. **Note that, if `f` is defined within another function `g`, `f` should not
+close over any differentiable input of `g`.** By using this macro, you are providing a
+guarantee that this property holds true.
+
+By default, ReverseDiff overloads many Base scalar functions to behave as `@skip`
+functions by default. A full list is given by `ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS`
+and `ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS`.
+"""
 macro skip(ex)
     return esc(annotate_func_expr(:SkipOptimize, ex))
 end

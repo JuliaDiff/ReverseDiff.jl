@@ -47,7 +47,7 @@ of them (as far as I know at the time of this writing):
 - higher-order `map` and `broadcast` optimizations
 - it's well tested
 
-...and, simply put, it's fast. Using the code from `examples/gradient.jl`:
+...and, simply put, it's fast (for gradients, at least). Using the code from `examples/gradient.jl`:
 
 ```julia
 julia> using BenchmarkTools

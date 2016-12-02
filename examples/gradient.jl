@@ -28,22 +28,22 @@ cfg = GradientConfig(inputs)
 
 # with a pre-recorded/comiled tape (generated in the setup above) #
 #-----------------------------------------------------------------#
-# this should be very fast and non-allocating
+# this should be the fastest method, and non-allocating
 
 ∇f!(results, inputs)
 
 # with a pre-allocated GradientConfig #
 #-------------------------------------#
-# this should still be fairly fast, but will allocate memory for recording the tape
+# this is more flexible than a pre-recorded tape, but can be wasteful since the tape
+# will be re-recorded for every call.
 
 gradient!(results, f, inputs, cfg)
 
 gradient(f, inputs, cfg)
 
-
 # without a pre-allocated GradientConfig #
 #----------------------------------------#
-# this will be the slowest and allocate the most
+# convenient, but pretty wasteful since it has to allocate the GradientConfig itself
 
 gradient!(results, f, inputs)
 
