@@ -4,6 +4,8 @@
 
 [![Build Status](https://travis-ci.org/JuliaDiff/ReverseDiff.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ReverseDiff.jl)
 
+[![Coverage Status](https://coveralls.io/repos/github/JuliaDiff/ReverseDiff.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
+
 [**Go To ReverseDiff's Documentation**](http://www.juliadiff.org/ReverseDiff.jl/)
 
 [**See ReverseDiff Usage Examples**](https://github.com/JuliaDiff/ReverseDiff.jl/tree/master/examples)

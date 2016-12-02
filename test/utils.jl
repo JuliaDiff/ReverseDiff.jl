@@ -5,6 +5,7 @@ using ReverseDiff: RawTape, GradientConfig, JacobianConfig, HessianConfig,
 const EPS = 1e-5
 
 const COMPILED_TAPE_LIMIT = 5000
+
 # make RNG deterministic, and thus make result inaccuracies
 # deterministic so we don't have to retune EPS for arbitrary inputs
 srand(1)
