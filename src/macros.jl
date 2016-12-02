@@ -62,11 +62,11 @@ defined within another function `g`, `f` should not close over any differentiabl
 
 This macro can be very beneficial for performance when intermediate functions in your
 computation are low dimensional scalar functions, because it minimizes the number of
-instructions that must be recorded to the tape. For example, take the function `sigmoid(n) =
-1. / (1. + exp(-n))`. Normally, using ReverseDiff to differentiate this function would
-require recording 4 instructions (`-`, `exp`, `+`, and `/`). However, if we apply the
-`@forward` macro, only one instruction will be recorded (`sigmoid`). The `sigmoid` function
-will then be differentiated using ForwardDiff's `Dual` number type.
+instructions that must be recorded to the tape. For example, take the function
+`sigmoid(n) = 1. / (1. + exp(-n))`. Normally, using ReverseDiff to differentiate this
+function would require recording 4 instructions (`-`, `exp`, `+`, and `/`). However, if we
+apply the `@forward` macro, only one instruction will be recorded (`sigmoid`). The `sigmoid`
+function will then be differentiated using ForwardDiff's `Dual` number type.
 
 This is also beneficial for higher-order elementwise function application. ReverseDiff
 overloads `map`/`broadcast` to dispatch on `@forward`-applied functions. For example,
