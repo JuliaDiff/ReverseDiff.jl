@@ -43,6 +43,7 @@ of them (as far as I know at the time of this writing):
 - built-in definitions leverage the benefits of ForwardDiff's `Dual` numbers (e.g. SIMD, zero-overhead arithmetic)
 - a familiar differentiation API for ForwardDiff users
 - non-allocating linear algebra optimizations
+- nested differentiation
 - suitable as an execution backend for graphical machine learning libraries
 - ReverseDiff doesn't need to record scalar indexing operations (a huge cost for many similar libraries)
 - higher-order `map` and `broadcast` optimizations
