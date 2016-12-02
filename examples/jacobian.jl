@@ -32,7 +32,7 @@ fcfg = JacobianConfig(inputs)
 gcfg = JacobianConfig(output, inputs)
 
 ####################
-# taking gradients #
+# taking Jacobians #
 ####################
 
 # with a pre-recorded/comiled tape (generated in the setup above) #
