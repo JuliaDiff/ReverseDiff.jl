@@ -72,8 +72,8 @@ the order of 10000 elements) can take a very long time to compile.
 """
 function compile(t::AbstractTape)
     return Compiled(typeof(t), t.func, t.input, t.output,
-                    eval(ReverseDiff, :(() -> $(generate_forward_code(t.tape)))),
-                    eval(ReverseDiff, :(() -> $(generate_reverse_code(t.tape)))))
+                    eval(current_module(), :(() -> $(generate_forward_code(t.tape)))),
+                    eval(current_module(), :(() -> $(generate_reverse_code(t.tape)))))
 end
 
 forward_pass!(ct::Compiled) = ct.forward_pass!()
