@@ -6,6 +6,12 @@ os:
 julia:
   - 0.5
   - nightly
+matrix:
+  allow_failures:
+    # this just times out due to slow compile time, not
+    # really worth fixing as long as tests pass on Linux
+    - os: osx
+      julia: 0.5
 notifications:
   email: false
 script:
