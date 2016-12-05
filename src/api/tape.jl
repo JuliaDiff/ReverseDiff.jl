@@ -59,6 +59,10 @@ typealias CompiledGradient{T<:GradientTape,F,I,O,FP,RP} Compiled{T,F,I,O,FP,RP}
 typealias CompiledJacobian{T<:JacobianTape,F,I,O,FP,RP} Compiled{T,F,I,O,FP,RP}
 typealias CompiledHessian{T<:HessianTape,F,I,O,FP,RP}   Compiled{T,F,I,O,FP,RP}
 
+forward_pass!(ct::Compiled) = ct.forward_pass!()
+
+reverse_pass!(ct::Compiled) = ct.reverse_pass!()
+
 """
     ReverseDiff.compile(t::AbstractTape)
 
@@ -76,9 +80,67 @@ function compile(t::AbstractTape)
                     eval(current_module(), :(() -> $(generate_reverse_code(t.tape)))))
 end
 
-forward_pass!(ct::Compiled) = ct.forward_pass!()
+"""
+    ReverseDiff.compile_gradient(f, args...)
 
-reverse_pass!(ct::Compiled) = ct.reverse_pass!()
+Return a function equivalent to `(result, input) -> gradient!(result, f, input)`.
+`ReverseDiff.compile_gradient` will record and compile a `GradientTape` for `f`, which
+will generally make the returned function far more efficient than naively calling
+`gradient!(result, f, input)`.
+
+The arguments to `ReverseDiff.compile_gradient` are the same as the arguments to
+`GradientTape`; see `ReverseDiff.GradientTape` documentation for details.
+
+The usage restrictions on the returned function are the same as the usage restrictions
+for calling `gradient!(result, tape, input)` where `tape` is a compiled `GradientTape`;
+see `ReverseDiff.compile` for details.
+"""
+function compile_gradient(f, args...)
+    tape = compile(GradientTape(f, args...))
+    return (result, input) -> gradient!(result, tape, input)
+end
+
+"""
+    ReverseDiff.compile_jacobian(f, args...)
+
+Return a function equivalent to `(result, input) -> jacobian!(result, f, input)`.
+`ReverseDiff.compile_jacobian` will record and compile a `JacobianTape` for `f`, which
+will generally make the returned function far more efficient than naively calling
+`jacobian!(result, f, input)`.
+
+The arguments to `ReverseDiff.compile_jacobian` are the same as the arguments to
+`JacobianTape`; see `ReverseDiff.JacobianTape` documentation for details. Note that
+this means `ReverseDiff.compile_jacobian` also supports target functions of the form
+`f!(output, input)`.
+
+The usage restrictions on the returned function are the same as the usage restrictions
+for calling `jacobian!(result, tape, input)` where `tape` is a compiled `JacobianTape`;
+see `ReverseDiff.compile` for details.
+"""
+function compile_jacobian(f, args...)
+    tape = compile(JacobianTape(f, args...))
+    return (result, input) -> jacobian!(result, tape, input)
+end
+
+"""
+    ReverseDiff.compile_hessian(f, args...)
+
+Return a function equivalent to `(result, input) -> hessian!(result, f, input)`.
+`ReverseDiff.compile_hessian` will record and compile a `HessianTape` for `f`, which
+will generally make the returned function far more efficient than naively calling
+`hessian!(result, f, input)`.
+
+The arguments to `ReverseDiff.compile_hessian` are the same as the arguments to
+`HessianTape`; see `ReverseDiff.HessianTape` documentation for details.
+
+The usage restrictions on the returned function are the same as the usage restrictions
+for calling `hessian!(result, tape, input)` where `tape` is a compiled `HessianTape`;
+see `ReverseDiff.compile` for details.
+"""
+function compile_hessian(f, args...)
+    tape = compile(HessianTape(f, args...))
+    return (result, input) -> hessian!(result, tape, input)
+end
 
 ################
 # GradientTape #

@@ -1,20 +1,14 @@
-using ReverseDiff: GradientTape, GradientConfig, compile, gradient!, gradient
+using ReverseDiff: GradientTape, GradientConfig, gradient, gradient!, compile_gradient
 
 #########
 # setup #
 #########
 
-# generates a gradient function for any recordable function at the given inputs
-function generate_gradient(f, inputs)
-    tape = compile(GradientTape(f, inputs))
-    return (results, inputs) -> gradient!(results, tape, inputs)
-end
-
 # some objective function to work with
 f(a, b) = sum(a' * b + a * b')
 
 # generate a gradient function for `f` using inputs of shape 100x100 with Float64 elements
-const ∇f! = generate_gradient(f, (rand(100, 100), rand(100, 100)))
+const ∇f! = compile_gradient(f, (rand(100, 100), rand(100, 100)))
 
 # some inputs and work buffers to play around with
 a, b = rand(100, 100), rand(100, 100)

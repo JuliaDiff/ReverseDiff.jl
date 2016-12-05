@@ -1,27 +1,16 @@
-using ReverseDiff: JacobianTape, JacobianConfig, compile, jacobian!, jacobian
+using ReverseDiff: JacobianTape, JacobianConfig, jacobian, jacobian!, compile_jacobian
 
 #########
 # setup #
 #########
-
-# generates a jacobin function for any recordable function at the given inputs
-function generate_jacobian(f!, output, inputs)
-    tape = compile(JacobianTape(f!, output, inputs))
-    return (results, inputs) -> jacobian!(results, tape, inputs)
-end
-
-function generate_jacobian(f, inputs)
-    tape = compile(JacobianTape(f, inputs))
-    return (results, inputs) -> jacobian!(results, tape, inputs)
-end
 
 # some objective functions to work with
 f(a, b) = (a + b) * (a * b)'
 g!(out, a, b) = A_mul_Bc!(out, a + b, a * b)
 
 # generate a jacobian function for `f` using inputs of shape 10x10 with Float64 elements
-const Jf! = generate_jacobian(f, (rand(10, 10), rand(10, 10)))
-const Jg! = generate_jacobian(g!, rand(10, 10), (rand(10, 10), rand(10, 10)))
+const Jf! = compile_jacobian(f, (rand(10, 10), rand(10, 10)))
+const Jg! = compile_jacobian(g!, rand(10, 10), (rand(10, 10), rand(10, 10)))
 
 # some inputs and work buffers to play around with
 a, b = rand(10, 10), rand(10, 10)
