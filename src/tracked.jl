@@ -188,12 +188,16 @@ push_deriv!(x::AbstractArray) = (istracked(x) && foreach(push_deriv!, x); nothin
 
 seed!(x) = nothing
 seed!(t::TrackedReal) = (t.deriv = one(derivtype(t)); push_deriv!(t); nothing)
+seed!(t::TrackedArray, i) = (t.deriv[i] = one(derivtype(t)); nothing)
+seed!(x::AbstractArray, i) = seed!(x[i])
 
 unseed!(x) = nothing
 unseed!(t::TrackedReal) = (t.deriv = zero(derivtype(t)); push_deriv!(t); nothing)
 unseed!(t::TrackedArray) = (fill!(deriv(t), zero(derivtype(t))); nothing)
 unseed!(x::AbstractArray) = (istracked(x) && foreach(unseed!, x); nothing)
 unseed!(t::Tuple) = foreach(unseed!, t)
+unseed!(t::TrackedArray, i) = (t.deriv[i] = zero(derivtype(t)); nothing)
+unseed!(x::AbstractArray, i) = unseed!(x[i])
 
 # increment_deriv #
 #-----------------#

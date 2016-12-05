@@ -44,14 +44,13 @@ function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, inpu
     result_matrix = reshape(result, length(output), length(input))
     input_deriv = deriv(input)
     for i in eachindex(output)
-        output_element = output[i]
-        seed!(output_element)
+        seed!(output, i)
         unseed!(input)
         reverse_pass!(tape)
         for j in eachindex(input)
             result_matrix[i, j] = input_deriv[j]
         end
-        unseed!(output_element)
+        unseed!(output, i)
     end
     return result
 end
