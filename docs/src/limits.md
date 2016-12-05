@@ -12,6 +12,6 @@ seen users run into ("target function" here refers to the function being differe
 
 - **Nested differentiation of closures is dangerous.** Differentiating closures is safe, and nested differentation is safe, but you might be vulnerable to a subtle bug if you try to do both. See [this ForwardDiff issue](https://github.com/JuliaDiff/ForwardDiff.jl/issues/83) for details. A fix is currently being planned for this problem.
 
-- **The types of array inputs must be subtypes of `AbstractArray`.**
+- **Array input types must obey `A<:AbstractArray` and `Base.linearindexing(::A) == Base.LinearFast()`.**
 
 - **Array inputs that are being differentiated cannot be mutated**. This also applies to any "descendent" arrays that must be tracked (e.g. if `A` is an immutable input array, then `C = A * A` will also be immutable). If you try to perform `setindex!` on such arrays, an error will be thrown. In the future, this restriction might be lifted. Note that arrays explicitly constructed within the target function (e.g. via `ones`, `similar`, etc.) can be mutated, as well as output arrays used when taking the Jacobian of a function of the form `f!(output, input....).`
