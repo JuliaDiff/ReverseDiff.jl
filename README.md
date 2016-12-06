@@ -34,7 +34,7 @@ The current version of ReverseDiff supports Julia v0.5 (and intends to support J
 Other Julia packages may provide some of these features, but only ReverseDiff provides all
 of them (as far as I know at the time of this writing):
 
-- supports most of the Julia language, including loops, recursion, and control flow
+- supports a large subset of the Julia language, including loops, recursion, and control flow
 - user-friendly API for reusing and compiling tapes
 - user-friendly performance annotations such as `@forward` and `@skip` (with more to come!)
 - compatible with ForwardDiff, enabling mixed-mode AD
