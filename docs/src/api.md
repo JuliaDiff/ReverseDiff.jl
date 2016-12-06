@@ -4,7 +4,7 @@
 CurrentModule = ReverseDiff
 ```
 
-## Gradients of `f(x::AbstractArray{Real}...)::Real`
+## Gradients of `f(x::AbstractArray{<:Real}...)::Real`
 
 ```@docs
 ReverseDiff.gradient
@@ -12,7 +12,7 @@ ReverseDiff.gradient!
 ReverseDiff.compile_gradient
 ```
 
-## Jacobians of `f(x::AbstractArray{Real}...)::AbstractArray{Real}`
+## Jacobians of `f(x::AbstractArray{<:Real}...)::AbstractArray{<:Real}`
 
 ```@docs
 ReverseDiff.jacobian
@@ -20,7 +20,7 @@ ReverseDiff.jacobian!
 ReverseDiff.compile_jacobian
 ```
 
-## Hessians of `f(x::AbstractArray{Real})::Real`
+## Hessians of `f(x::AbstractArray{<:Real})::Real`
 
 ```@docs
 ReverseDiff.hessian

@@ -8,7 +8,7 @@
 """
     ReverseDiff.hessian(f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
 
-Given `f(input::AbstractArray{Real})::Real`, return `f`s Hessian w.r.t. to the given
+Given `f(input::AbstractArray{<:Real})::Real`, return `f`s Hessian w.r.t. to the given
 `input`.
 
 Note that `cfg` can be preallocated and reused for subsequent calls.
@@ -63,7 +63,7 @@ end
 """
     ReverseDiff.hessian!(tape::Union{HessianTape,CompiledHessian}, input)
 
-Assuming `tape` represents a function of the form `f(::AbstractArray{Real})::Real`,
+Assuming `tape` represents a function of the form `f(::AbstractArray{<:Real})::Real`,
 return the Hessian `H(f)(input)`.
 """
 function hessian!(tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)

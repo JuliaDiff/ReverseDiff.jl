@@ -5,11 +5,11 @@
 """
     ReverseDiff.gradient(f, input, cfg::GradientConfig = GradientConfig(input))
 
-If `input` is an `AbstractArray`, assume `f` has the form `f(::AbstractArray{Real})::Real`
+If `input` is an `AbstractArray`, assume `f` has the form `f(::AbstractArray{<:Real})::Real`
 and return `∇f(input)`.
 
 If `input` is a tuple of `AbstractArray`s, assume `f` has the form
-`f(::AbstractArray{Real}...)::Real` (such that it can be called as `f(input...)`) and return
+`f(::AbstractArray{<:Real}...)::Real` (such that it can be called as `f(input...)`) and return
 a `Tuple` where the `i`th element is the gradient of `f` w.r.t. `input[i].`
 
 Note that `cfg` can be preallocated and reused for subsequent calls.

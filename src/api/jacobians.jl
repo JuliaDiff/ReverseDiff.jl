@@ -6,10 +6,10 @@
     ReverseDiff.jacobian(f, input, cfg::JacobianConfig = JacobianConfig(input))
 
 If `input` is an `AbstractArray`, assume `f` has the form
-`f(::AbstractArray{Real})::AbstractArray{Real}` and return `J(f)(input)`.
+`f(::AbstractArray{<:Real})::AbstractArray{<:Real}` and return `J(f)(input)`.
 
 If `input` is a tuple of `AbstractArray`s, assume `f` has the form
-`f(::AbstractArray{Real}...)::AbstractArray{Real}` (such that it can be called as
+`f(::AbstractArray{<:Real}...)::AbstractArray{<:Real}` (such that it can be called as
 `f(input...)`) and return a `Tuple` where the `i`th element is the  Jacobian of `f` w.r.t.
 `input[i].`
 
@@ -54,7 +54,7 @@ end
     ReverseDiff.jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
 
 Exactly like `ReverseDiff.jacobian(f, input, cfg)`, except the target function has the
-form `f!(output::AbstractArray{Real}, input::AbstractArray{Real}...)`.
+form `f!(output::AbstractArray{<:Real}, input::AbstractArray{<:Real}...)`.
 """
 function jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
     tape = JacobianTape(f!, output, input, cfg)
@@ -69,7 +69,7 @@ end
     ReverseDiff.jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
 
 Exactly like `ReverseDiff.jacobian!(result, f, input, cfg)`, except the target function has the
-form `f!(output::AbstractArray{Real}, input::AbstractArray{Real}...)`.
+form `f!(output::AbstractArray{<:Real}, input::AbstractArray{<:Real}...)`.
 """
 function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
     tape = JacobianTape(f!, output, input, cfg)
@@ -88,12 +88,12 @@ end
     ReverseDiff.jacobian!(tape::Union{JacobianTape,CompiledJacobian}, input)
 
 If `input` is an `AbstractArray`, assume `tape` represents a function of the form
-`f(::AbstractArray{Real})::AbstractArray{Real}` or `f!(::AbstractArray{Real},
-::AbstractArray{Real})` and return `tape`'s Jacobian w.r.t. `input`.
+`f(::AbstractArray{<:Real})::AbstractArray{<:Real}` or `f!(::AbstractArray{<:Real},
+::AbstractArray{<:Real})` and return `tape`'s Jacobian w.r.t. `input`.
 
 If `input` is a tuple of `AbstractArray`s, assume `tape` represents a function of the form
-`f(::AbstractArray{Real}...)::AbstractArray{Real}` or `f!(::AbstractArray{Real},
-::AbstractArray{Real}...)` and return a `Tuple` where the `i`th element is `tape`'s Jacobian
+`f(::AbstractArray{<:Real}...)::AbstractArray{<:Real}` or `f!(::AbstractArray{<:Real},
+::AbstractArray{<:Real}...)` and return a `Tuple` where the `i`th element is `tape`'s Jacobian
 w.r.t. `input[i].`
 
 Note that if `tape` represents a function of the form `f!(output, input...)`, you can only
