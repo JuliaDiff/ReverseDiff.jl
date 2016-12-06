@@ -93,17 +93,20 @@ and have found ReverseDiff to be faster and use less memory in most cases.
 
 ## Should I use ReverseDiff or ForwardDiff?
 
-ForwardDiff is theoretically more efficient for differentiating functions where the input
-dimension is less than the output dimension, while ReverseDiff is theoretically more
-efficient for differentiating functions where the output dimension is less than the
-input dimension.
+ForwardDiff is algorithmically more efficient for differentiating functions where the input
+dimension is less than the output dimension, while ReverseDiff is algorithmically more
+efficient for differentiating functions where the output dimension is less than the input
+dimension.
 
 Thus, ReverseDiff is generally a better choice for gradients, but Jacobians and Hessians are
 trickier to determine. For example, optimized methods for computing nested derivatives might
 use a combination of forward-mode and reverse-mode AD.
 
 ForwardDiff is often faster than ReverseDiff for lower dimensional gradients (`length(input)
-< 100`), or gradients of functions that are implemented as very large programs.
+< 100`), or gradients of functions where the number of input parameters is small compared
+to the number of operations performed on them. ReverseDiff is often faster if your code
+is expressed as a series of array operations, e.g. a composition of Julia's Base linear
+algebra methods.
 
 In general, your choice of algorithms will depend on the function being differentiated, and
 you should benchmark different methods to see how they fare.
