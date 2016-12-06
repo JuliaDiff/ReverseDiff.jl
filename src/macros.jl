@@ -72,9 +72,9 @@ This is also beneficial for higher-order elementwise function application. Rever
 overloads `map`/`broadcast` to dispatch on `@forward`-applied functions. For example,
 `map(@forward(f), x)` will usually be more performant than `map(f, x)`.
 
-By default, ReverseDiff overloads many Base scalar functions to behave as `@forward`
-functions by default. A full list is given by `ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS`
-and `ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS`.
+ReverseDiff overloads many Base scalar functions to behave as `@forward` functions by
+default. A full list is given by `ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS` and
+`ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS`.
 """
 macro forward(ex)
     return esc(annotate_func_expr(:ForwardOptimize, ex))
@@ -155,9 +155,9 @@ call site of `f`. **Note that, if `f` is defined within another function `g`, `f
 close over any differentiable input of `g`.** By using this macro, you are providing a
 guarantee that this property holds true.
 
-By default, ReverseDiff overloads many Base scalar functions to behave as `@skip`
-functions by default. A full list is given by `ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS`
-and `ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS`.
+ReverseDiff overloads many Base scalar functions to behave as `@skip` functions by default.
+A full list is given by `ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS` and
+`ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS`.
 """
 macro skip(ex)
     return esc(annotate_func_expr(:SkipOptimize, ex))

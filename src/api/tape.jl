@@ -152,8 +152,9 @@ end
 Return a `GradientTape` instance containing a pre-recorded execution trace of `f` at the
 given `input`.
 
-This `GradientTape` can then be passed to `ReverseDiff.gradient!` to take
-gradients of the execution trace with new `input` values.
+This `GradientTape` can then be passed to `ReverseDiff.gradient!` to take gradients of the
+execution trace with new `input` values. Note that these new values must have the same
+element type and shape as `input`.
 
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 """
@@ -181,8 +182,9 @@ end
 Return a `JacobianTape` instance containing a pre-recorded execution trace of
 `f` at the given `input`.
 
-This `JacobianTape` can then be passed to `ReverseDiff.jacobian!` to take
-Jacobians of the execution trace with new `input` values.
+This `JacobianTape` can then be passed to `ReverseDiff.jacobian!` to take Jacobians of the
+execution trace with new `input` values. Note that these new values must have the same
+element type and shape as `input`.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
@@ -206,8 +208,9 @@ end
 Return a `JacobianTape` instance containing a pre-recorded execution trace of
 `f` at the given `output` and `input`.
 
-This `JacobianTape` can then be passed to `ReverseDiff.jacobian!` to take
-Jacobians of the execution trace with new `input` values.
+This `JacobianTape` can then be passed to `ReverseDiff.jacobian!` to take Jacobians of the
+execution trace with new `input` values. Note that these new values must have the same
+element type and shape as `input`.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
@@ -237,8 +240,9 @@ end
 Return a `HessianTape` instance containing a pre-recorded execution trace of
 `f` at the given `input`.
 
-This `HessianTape` can then be passed to `ReverseDiff.hessian!` to take
-Hessians of the execution trace with new `input` values.
+This `HessianTape` can then be passed to `ReverseDiff.hessian!` to take Hessians of the
+execution trace with new `input` values. Note that these new values must have the same
+element type and shape as `input`.
 
 See `ReverseDiff.hessian` for a description of acceptable types for `input`.
 """
