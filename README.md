@@ -1,7 +1,5 @@
 # ReverseDiff
 
-**This package and it's dependencies are not yet fully released. Tests should pass locally, but fail on Travis. The installation instructions will only work once the package is registered; until then, use `Pkg.clone`.**
-
 [![Build Status](https://travis-ci.org/JuliaDiff/ReverseDiff.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ReverseDiff.jl)
 [![Coverage Status](https://coveralls.io/repos/github/JuliaDiff/ReverseDiff.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
 
