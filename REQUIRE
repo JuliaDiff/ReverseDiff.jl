@@ -1,4 +1,4 @@
 julia 0.5
-DiffBase
-ForwardDiff 0.3
+DiffBase 0.0.2
+ForwardDiff 0.3.2
 Calculus 0.1.15
