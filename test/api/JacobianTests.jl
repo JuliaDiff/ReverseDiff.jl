@@ -10,7 +10,8 @@ tic()
 ############################################################################################
 
 function test_unary_jacobian(f, x)
-    test = ForwardDiff.jacobian!(DiffBase.JacobianResult(x), f, x, ForwardDiff.JacobianConfig(x))
+    test_val = f(x)
+    test = ForwardDiff.jacobian!(DiffBase.JacobianResult(test_val, x), f, x, ForwardDiff.JacobianConfig(x))
 
     # without JacobianConfig
 
@@ -20,7 +21,7 @@ function test_unary_jacobian(f, x)
     ReverseDiff.jacobian!(out, f, x)
     @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
-    result = DiffBase.JacobianResult(x)
+    result = DiffBase.JacobianResult(test_val, x)
     ReverseDiff.jacobian!(result, f, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
@@ -35,7 +36,7 @@ function test_unary_jacobian(f, x)
     ReverseDiff.jacobian!(out, f, x, cfg)
     @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
-    result = DiffBase.JacobianResult(x)
+    result = DiffBase.JacobianResult(test_val, x)
     ReverseDiff.jacobian!(result, f, x, cfg)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
@@ -50,7 +51,7 @@ function test_unary_jacobian(f, x)
     ReverseDiff.jacobian!(out, tp, x)
     @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
-    result = DiffBase.JacobianResult(x)
+    result = DiffBase.JacobianResult(test_val, x)
     ReverseDiff.jacobian!(result, tp, x)
     @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
     @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
@@ -71,12 +72,12 @@ function test_unary_jacobian(f, x)
         Jf!(out, x)
         @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
-        result = DiffBase.JacobianResult(x)
+        result = DiffBase.JacobianResult(test_val, x)
         ReverseDiff.jacobian!(result, ctp, x)
         @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
         @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
 
-        result = DiffBase.JacobianResult(x)
+        result = DiffBase.JacobianResult(test_val, x)
         Jf!(result, x)
         @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
         @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
@@ -186,14 +187,14 @@ function test_binary_jacobian(f, a, b)
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
-    Ja = similar(a, length(a), length(b))
-    Jb = copy(Ja)
+    Ja = similar(a, length(test_val), length(a))
+    Jb = similar(b, length(test_val), length(b))
     ReverseDiff.jacobian!((Ja, Jb), f, (a, b))
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
-    Ja = DiffBase.JacobianResult(a, b)
-    Jb = copy(Ja)
+    Ja = DiffBase.JacobianResult(test_val, a)
+    Jb = DiffBase.JacobianResult(test_val, b)
     ReverseDiff.jacobian!((Ja, Jb), f, (a, b))
     @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
     @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
@@ -208,14 +209,14 @@ function test_binary_jacobian(f, a, b)
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
-    Ja = similar(a, length(a), length(b))
-    Jb = copy(Ja)
+    Ja = similar(a, length(test_val), length(a))
+    Jb = similar(b, length(test_val), length(b))
     ReverseDiff.jacobian!((Ja, Jb), f, (a, b), cfg)
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
-    Ja = DiffBase.JacobianResult(a, b)
-    Jb = copy(Ja)
+    Ja = DiffBase.JacobianResult(test_val, a)
+    Jb = DiffBase.JacobianResult(test_val, b)
     ReverseDiff.jacobian!((Ja, Jb), f, (a, b), cfg)
     @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
     @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
@@ -230,14 +231,14 @@ function test_binary_jacobian(f, a, b)
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
-    Ja = similar(a, length(a), length(b))
-    Jb = copy(Ja)
+    Ja = similar(a, length(test_val), length(a))
+    Jb = similar(b, length(test_val), length(b))
     ReverseDiff.jacobian!((Ja, Jb), tp, (a, b))
     @test_approx_eq_eps Ja test_a EPS
     @test_approx_eq_eps Jb test_b EPS
 
-    Ja = DiffBase.JacobianResult(a, b)
-    Jb = copy(Ja)
+    Ja = DiffBase.JacobianResult(test_val, a)
+    Jb = DiffBase.JacobianResult(test_val, b)
     ReverseDiff.jacobian!((Ja, Jb), tp, (a, b))
     @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
     @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
@@ -254,28 +255,28 @@ function test_binary_jacobian(f, a, b)
         @test_approx_eq_eps Ja test_a EPS
         @test_approx_eq_eps Jb test_b EPS
 
-        Ja = similar(a, length(a), length(b))
-        Jb = copy(Ja)
+        Ja = similar(a, length(test_val), length(a))
+        Jb = similar(b, length(test_val), length(b))
         ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
         @test_approx_eq_eps Ja test_a EPS
         @test_approx_eq_eps Jb test_b EPS
 
-        Ja = similar(a, length(a), length(b))
-        Jb = copy(Ja)
+        Ja = similar(a, length(test_val), length(a))
+        Jb = similar(b, length(test_val), length(b))
         Jf!((Ja, Jb), (a, b))
         @test_approx_eq_eps Ja test_a EPS
         @test_approx_eq_eps Jb test_b EPS
 
-        Ja = DiffBase.JacobianResult(a, b)
-        Jb = copy(Ja)
+        Ja = DiffBase.JacobianResult(test_val, a)
+        Jb = DiffBase.JacobianResult(test_val, b)
         ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
         @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
         @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
         @test_approx_eq_eps DiffBase.gradient(Ja) test_a EPS
         @test_approx_eq_eps DiffBase.gradient(Jb) test_b EPS
 
-        Ja = DiffBase.JacobianResult(a, b)
-        Jb = copy(Ja)
+        Ja = DiffBase.JacobianResult(test_val, a)
+        Jb = DiffBase.JacobianResult(test_val, b)
         Jf!((Ja, Jb), (a, b))
         @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
         @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
