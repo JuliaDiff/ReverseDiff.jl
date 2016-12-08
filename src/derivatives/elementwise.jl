@@ -613,8 +613,10 @@ function broadcast_duals_increment!(input::TrackedReal, output, duals, p::Int)
     return nothing
 end
 
-# broadcast_deriv_increment! #
-#----------------------------#
+# broadcast_deriv_increment!/broadcast_deriv_decrement! #
+#-------------------------------------------------------#
+
+#######
 
 function broadcast_deriv_increment!(input::TrackedArray, output)
     max_input_index = max_leftover_index(input, output)
@@ -625,6 +627,17 @@ function broadcast_deriv_increment!(input::TrackedArray, output)
     return nothing
 end
 
+function broadcast_deriv_increment!(input::AbstractArray, output)
+    max_input_index = max_leftover_index(input, output)
+    output_deriv = deriv(output)
+    for i in CartesianRange(size(output))
+        increment_deriv!(input[min(max_input_index, i)], output_deriv[i])
+    end
+    return nothing
+end
+
+#######
+
 function broadcast_deriv_decrement!(input::TrackedArray, output)
     max_input_index = max_leftover_index(input, output)
     input_deriv, output_deriv = deriv(input), deriv(output)
@@ -634,12 +647,44 @@ function broadcast_deriv_decrement!(input::TrackedArray, output)
     return nothing
 end
 
+function broadcast_deriv_decrement!(input::AbstractArray, output)
+    max_input_index = max_leftover_index(input, output)
+    output_deriv = deriv(output)
+    for i in CartesianRange(size(output))
+        decrement_deriv!(input[min(max_input_index, i)], output_deriv[i])
+    end
+    return nothing
+end
+
+#######
+
 function broadcast_deriv_increment!(input::TrackedArray, output, partials::AbstractArray)
     max_input_index = max_leftover_index(input, output)
     max_partials_index = max_leftover_index(partials, output)
     input_deriv, output_deriv = deriv(input), deriv(output)
     for i in CartesianRange(size(output))
         input_deriv[min(max_input_index, i)] += output_deriv[i] * partials[min(max_partials_index, i)]
+    end
+    return nothing
+end
+
+function broadcast_deriv_increment!(input::AbstractArray, output, partials::AbstractArray)
+    max_input_index = max_leftover_index(input, output)
+    max_partials_index = max_leftover_index(partials, output)
+    output_deriv = deriv(output)
+    for i in CartesianRange(size(output))
+        increment_deriv!(input_deriv[min(max_input_index, i)], output_deriv[i] * partials[min(max_partials_index, i)])
+    end
+    return nothing
+end
+
+#######
+
+function broadcast_deriv_increment!(input::TrackedArray, output, partials::Real)
+    max_input_index = max_leftover_index(input, output)
+    input_deriv, output_deriv = deriv(input), deriv(output)
+    for i in CartesianRange(size(output))
+        input_deriv[min(max_input_index, i)] += output_deriv[i] * partials
     end
     return nothing
 end
@@ -653,24 +698,7 @@ function broadcast_deriv_increment!(input::AbstractArray, output, partials::Real
     return nothing
 end
 
-function broadcast_deriv_increment!(input::TrackedArray, output, partials::Real)
-    max_input_index = max_leftover_index(input, output)
-    input_deriv, output_deriv = deriv(input), deriv(output)
-    for i in CartesianRange(size(output))
-        input_deriv[min(max_input_index, i)] += output_deriv[i] * partials
-    end
-    return nothing
-end
-
-function broadcast_deriv_increment!(input::AbstractArray, output, partials::AbstractArray)
-    max_input_index = max_leftover_index(input, output)
-    max_partials_index = max_leftover_index(partials, output)
-    output_deriv = deriv(output)
-    for i in CartesianRange(size(output))
-        increment_deriv!(input[min(max_input_index, i)], output_deriv[i] * partials[min(max_partials_index, i)])
-    end
-    return nothing
-end
+#######
 
 function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray, partials::AbstractArray)
     output_deriv = deriv(output)
@@ -680,6 +708,8 @@ function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray, pa
     return nothing
 end
 
+#######
+
 function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray, partials::Real)
     output_deriv = deriv(output)
     for i in eachindex(output_deriv)
@@ -688,6 +718,8 @@ function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray, pa
     return nothing
 end
 
+#######
+
 function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray)
     output_deriv = deriv(output)
     for i in eachindex(output_deriv)
@@ -695,6 +727,8 @@ function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray)
     end
     return nothing
 end
+
+#######
 
 function broadcast_deriv_decrement!(input::TrackedReal, output::TrackedArray)
     output_deriv = deriv(output)
