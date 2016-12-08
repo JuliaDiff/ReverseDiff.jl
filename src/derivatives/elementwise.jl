@@ -673,7 +673,7 @@ function broadcast_deriv_increment!(input::AbstractArray, output, partials::Abst
     max_partials_index = max_leftover_index(partials, output)
     output_deriv = deriv(output)
     for i in CartesianRange(size(output))
-        increment_deriv!(input_deriv[min(max_input_index, i)], output_deriv[i] * partials[min(max_partials_index, i)])
+        increment_deriv!(input[min(max_input_index, i)], output_deriv[i] * partials[min(max_partials_index, i)])
     end
     return nothing
 end
