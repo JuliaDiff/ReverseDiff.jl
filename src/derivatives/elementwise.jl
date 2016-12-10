@@ -303,6 +303,8 @@ end
 # built-in infix operations #
 #############################
 
+typealias TrackedType Union{TrackedArray,TrackedReal}
+
 # dispatch #
 #----------#
 
@@ -311,7 +313,7 @@ for (f, broadcast_f) in ((:.+, :broadcast_plus),
                          (:.*, :broadcast_mul),
                          (:./, :broadcast_rdiv),
                          (:.\, :broadcast_ldiv),
-                         (:.^, :broadcast_exp))
+                         (:.^, :broadcast_pow))
     @eval begin
         @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
         @inline Base.$(f){X,Y,D}(x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
@@ -431,13 +433,14 @@ denom_partials(n, d) = broadcast(denom_partials_kernel, n, d)
 denom_partials!(out::Ref, n, d) = (out[] = denom_partials_kernel(n, d); nothing)
 denom_partials!(out::AbstractArray, n, d) = (broadcast!(denom_partials_kernel, out, n, d); nothing)
 
+rdiv_cache(x::TrackedType, y::TrackedType) = (numer_partials(value(y)), denom_partials(value(x), value(y)))
+rdiv_cache(x::TrackedType, y) = (numer_partials(value(y)), nothing)
+rdiv_cache(x, y::TrackedType) = (nothing, denom_partials(value(x), value(y)))
+
 function broadcast_rdiv{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) ./ value(y), D, tp)
-    n_partials = numer_partials(value(y))
-    d_partials = denom_partials(value(x), value(y))
-    cache = (n_partials, d_partials)
-    record!(tp, SpecialInstruction, Base.:(./), (x, y), out, cache)
+    record!(tp, SpecialInstruction, Base.:(./), (x, y), out, rdiv_cache(x, y))
     return out
 end
 
@@ -449,8 +452,8 @@ end
     pull_value!(a)
     pull_value!(b)
     broadcast!(/, value(output), a_value, b_value)
-    numer_partials!(n_partials, b_value)
-    denom_partials!(d_partials, a_value, b_value)
+    !(isa(n_partials, Void)) && numer_partials!(n_partials, b_value)
+    !(isa(d_partials, Void)) && denom_partials!(d_partials, a_value, b_value)
     return nothing
 end
 
@@ -470,10 +473,7 @@ end
 function broadcast_ldiv{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) .\ value(y), D, tp)
-    n_partials = numer_partials(value(x))
-    d_partials = denom_partials(value(y), value(x))
-    cache = (n_partials, d_partials)
-    record!(tp, SpecialInstruction, Base.:(.\), (x, y), out, cache)
+    record!(tp, SpecialInstruction, Base.:(.\), (x, y), out, rdiv_cache(y, x))
     return out
 end
 
@@ -485,8 +485,8 @@ end
     pull_value!(a)
     pull_value!(b)
     broadcast!(\, value(output), a_value, b_value)
-    numer_partials!(n_partials, a_value)
-    denom_partials!(d_partials, b_value, a_value)
+    !(isa(n_partials, Void)) && numer_partials!(n_partials, a_value)
+    !(isa(d_partials, Void)) && denom_partials!(d_partials, b_value, a_value)
     return nothing
 end
 
@@ -515,13 +515,14 @@ exp_partials(b, e) = broadcast(exp_partials_kernel, b, e)
 exp_partials!(out::Ref, b, e) = (out[] = exp_partials_kernel(b, e); nothing)
 exp_partials!(out::AbstractArray, b, e) = (broadcast!(exp_partials_kernel, out, b, e); nothing)
 
-function broadcast_exp{D}(x, y, ::Type{D})
+pow_cache(x::TrackedType, y::TrackedType) = (base_partials(value(x), value(y)), exp_partials(value(x), value(y)))
+pow_cache(x::TrackedType, y) = (base_partials(value(x), value(y)), nothing)
+pow_cache(x, y::TrackedType) = (nothing, exp_partials(value(x), value(y)))
+
+function broadcast_pow{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) .^ value(y), D, tp)
-    bs_partials = base_partials(value(x), value(y))
-    ex_partials = exp_partials(value(x), value(y))
-    cache = (bs_partials, ex_partials)
-    record!(tp, SpecialInstruction, Base.:(.^), (x, y), out, cache)
+    record!(tp, SpecialInstruction, Base.:(.^), (x, y), out, pow_cache(x, y))
     return out
 end
 
@@ -533,8 +534,8 @@ end
     pull_value!(a)
     pull_value!(b)
     broadcast!(^, value(output), a_value, b_value)
-    base_partials!(bs_partials, a_value, b_value)
-    exp_partials!(ex_partials, a_value, b_value)
+    !(isa(bs_partials, Void)) && base_partials!(bs_partials, a_value, b_value)
+    !(isa(ex_partials, Void)) && exp_partials!(ex_partials, a_value, b_value)
     return nothing
 end
 
