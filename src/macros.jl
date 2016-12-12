@@ -24,9 +24,12 @@ function annotate_func_expr(typesym, expr)
             end
             return quote
                 $expr
-                @inline function $(old_name_and_types)($(args_signature...))
-                    return ReverseDiff.$(typesym)($(hidden_name))($(args_signature...))
-                end
+                const $(old_name_and_types) = ReverseDiff.$(typesym)(
+                    ($(args_signature...)) -> begin
+                        $(Expr(:meta, :inline))
+                        return $(hidden_name)($(args_signature...))
+                    end
+                )
             end
         elseif isa(lhs, Symbol) # variable assignment site
             expr.args[2] = :(ReverseDiff.$(typesym)($(expr.args[2])))
