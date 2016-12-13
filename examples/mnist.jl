@@ -1,6 +1,6 @@
 using MNIST, ReverseDiff
 
-const BATCH_SIZE = 1000
+const BATCH_SIZE = 100
 const IMAGE_SIZE = 784
 const CLASS_COUNT = 10
 
@@ -67,12 +67,9 @@ function softmax(x)
     return exp_x ./ denom
 end
 
-# The `@forward` here tells ReverseDiff to compute this function's derivatives using
-# forward-mode AD. This isn't necessary, but can improve performance (it also shows off that
-# you can do this!).
 ReverseDiff.@forward negative_log(x::Real) = -log(x)
 
-cross_entropy(y′, y) = mean(sum(y′ .* (negative_log.(y)), 2))
+cross_entropy(y′, y) = mean(sum(y′ .* (negative_log.(y)), 1))
 
 function model(weights, bias, pixels, labels)
     y = softmax((weights * pixels) .+ bias)
