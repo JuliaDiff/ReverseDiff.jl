@@ -208,7 +208,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     empty!(tp)
 end
 
-for f in (sum, det, y -> dot(vec(y), vec(y)))
+for f in (sum, det, y -> dot(vec(y), vec(y)), mean)
     testprintln("Array -> Number functions", f)
     test_arr2num(f, x, tp)
 end

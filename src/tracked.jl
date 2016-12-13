@@ -199,88 +199,8 @@ unseed!(t::Tuple) = foreach(unseed!, t)
 unseed!(t::TrackedArray, i) = (t.deriv[i] = zero(derivtype(t)); nothing)
 unseed!(x::AbstractArray, i) = unseed!(x[i])
 
-# increment_deriv #
-#-----------------#
-
-function increment_deriv!(t::TrackedReal, x::Real)
-    pull_deriv!(t)
-    t.deriv += x
-    push_deriv!(t)
-    return nothing
-end
-
-function increment_deriv!(t::TrackedArray, x::AbstractArray)
-    a = deriv(t)
-    for i in eachindex(a)
-        a[i] += x[i]
-    end
-    return nothing
-end
-
-function increment_deriv!(t::TrackedArray, x::Real)
-    a = deriv(t)
-    for i in eachindex(a)
-        a[i] += x
-    end
-    return nothing
-end
-
-function increment_deriv!(t::AbstractArray, x::AbstractArray)
-    for i in eachindex(t)
-        increment_deriv!(t[i], x[i])
-    end
-    return nothing
-end
-
-function increment_deriv!(t::AbstractArray, x::Real)
-    for i in eachindex(t)
-        increment_deriv!(t[i], x)
-    end
-    return nothing
-end
-
-# decrement deriv #
-#-----------------#
-
-function decrement_deriv!(t::TrackedReal, x::Real)
-    pull_deriv!(t)
-    t.deriv -= x;
-    push_deriv!(t)
-    return nothing
-end
-
-function decrement_deriv!(t::TrackedArray, x::AbstractArray)
-    a = deriv(t)
-    for i in eachindex(a)
-        a[i] -= x[i]
-    end
-    return nothing
-end
-
-function decrement_deriv!(t::TrackedArray, x::Real)
-    a = deriv(t)
-    for i in eachindex(a)
-        a[i] -= x
-    end
-    return nothing
-end
-
-function decrement_deriv!(t::AbstractArray, x::AbstractArray)
-    for i in eachindex(t)
-        decrement_deriv!(t[i], x[i])
-    end
-    return nothing
-end
-
-function decrement_deriv!(t::AbstractArray, x::Real)
-    for i in eachindex(t)
-        decrement_deriv!(t[i], x)
-    end
-    return nothing
-end
-
 #########################
-# capture (see RawTape.jl) #
+# capture (see tape.jl) #
 #########################
 
 # This is type unstable, but that shouldn't be too much of a problem as it's only used below
