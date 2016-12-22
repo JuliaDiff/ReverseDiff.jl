@@ -58,6 +58,10 @@ end
 # model definition #
 ####################
 
+# Here, we make a model out of simple `softmax` and `cross_entropy` functions. This could be
+# improved by implementing something like Tensorflow's `softmax_cross_entropy_with_logits`,
+# but my main goal is to show off ReverseDiff rather than implement the best possible model.
+
 # objective definitions #
 #-----------------------#
 
