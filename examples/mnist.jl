@@ -61,12 +61,6 @@ end
 # objective definitions #
 #-----------------------#
 
-function softmax(x)
-    exp_x = exp.(x)
-    denom = sum(exp_x)
-    return exp_x ./ denom
-end
-
 # Here we use `@forward` to tell ReverseDiff to differentiate this scalar function in
 # forward-mode. This allows us to call `minus_log.(y)` instead of `-(log.(y))`. By defining
 # our own "fused" `minus_log` kernel using `@forward`, the operation `minus_log.(y)` becomes
@@ -76,6 +70,8 @@ end
 ReverseDiff.@forward minus_log(x::Real) = -log(x)
 
 cross_entropy(y′, y) = mean(sum(y′ .* (minus_log.(y)), 1))
+
+softmax(x) = (exp_x = exp.(x); exp_x ./ sum(exp_x))
 
 function model(weights, bias, pixels, labels)
     y = softmax((weights * pixels) .+ bias)
