@@ -62,6 +62,11 @@ end
 # improved by implementing something like Tensorflow's `softmax_cross_entropy_with_logits`,
 # but my main goal is to show off ReverseDiff rather than implement the best possible model.
 
+# Also note that our input's orientation is transposed compared to example implementations
+# presented by row-major frameworks like Tensorflow. Julia is column-major, so I've set up
+# the `Batch` code (see above) such that each column of `pixels` is an image and
+# `size(pixels, 2) == BATCH_SIZE`.
+
 # objective definitions #
 #-----------------------#
 
@@ -75,7 +80,7 @@ ReverseDiff.@forward minus_log(x::Real) = -log(x)
 
 cross_entropy(y′, y) = mean(sum(y′ .* (minus_log.(y)), 1))
 
-softmax(x) = (exp_x = exp.(x); exp_x ./ sum(exp_x))
+softmax(x) = (exp_x = exp.(x); exp_x ./ sum(exp_x, 1))
 
 function model(weights, bias, pixels, labels)
     y = softmax((weights * pixels) .+ bias)
