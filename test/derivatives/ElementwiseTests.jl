@@ -408,8 +408,8 @@ for fsym in ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS
     test_broadcast(f, f, a, n, tp)
 end
 
-for f in (.+, .-, .*, ./, .\, .^)
-    testprintln("built-in broadcast functions", f)
+for f in DiffBase.BINARY_BROADCAST_OPS
+    testprintln("built-in broadcast operators", f)
     test_broadcast(f, f, x, y, tp, true)
     test_broadcast(f, f, a, b, tp, true)
     test_broadcast(f, f, x, a, tp, true)
