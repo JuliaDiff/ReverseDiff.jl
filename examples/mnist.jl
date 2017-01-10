@@ -111,7 +111,7 @@ end
 # training #
 ############
 
-function train_step!(∇batch::Batch, batch::Batch, rate = 0.5, iters = 20)
+function train_batch!(∇batch::Batch, batch::Batch, rate = 0.5, iters = 20)
     for _ in 1:iters
         ∇model!(∇batch, batch)
         for i in eachindex(batch.weights)
@@ -123,11 +123,11 @@ function train_step!(∇batch::Batch, batch::Batch, rate = 0.5, iters = 20)
     end
 end
 
-function train!(∇batch::Batch, batch::Batch, images, labels, rate = 0.5, iters = 20)
+function train_all!(∇batch::Batch, batch::Batch, images, labels, rate = 0.5, iters = 20)
     batch_count = floor(Int, size(images, 2) / BATCH_SIZE)
     for i in 1:batch_count
         load_batch!(batch, images, labels, i)
-        train_step!(∇batch, batch, rate, iters)
+        train_batch!(∇batch, batch, rate, iters)
     end
     return ∇batch
 end
@@ -139,7 +139,7 @@ end
 #=
 
 # load the code
-include("examples/mnist.jl")
+include(joinpath(Pkg.dir("ReverseDiff"), "examples", "mnist.jl"))
 
 # Construct the initial batch.
 batch = Batch(TRAIN_IMAGES, TRAIN_LABELS, 1);
@@ -149,6 +149,6 @@ batch = Batch(TRAIN_IMAGES, TRAIN_LABELS, 1);
 # the initial values don't matter.
 ∇batch = Batch(TRAIN_IMAGES, TRAIN_LABELS, 1);
 
-train!(∇batch, batch, TRAIN_IMAGES, TRAIN_LABELS)
+train_all!(∇batch, batch, TRAIN_IMAGES, TRAIN_LABELS)
 
 =#
