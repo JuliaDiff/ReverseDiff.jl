@@ -131,3 +131,24 @@ function train!(∇batch::Batch, batch::Batch, images, labels, rate = 0.5, iters
     end
     return ∇batch
 end
+
+#######################
+# running the example #
+#######################
+
+#=
+
+# load the code
+include("examples/mnist.jl")
+
+# Construct the initial batch.
+batch = Batch(TRAIN_IMAGES, TRAIN_LABELS, 1);
+
+# Pre-allocate a reusable `Batch` for gradient storage.
+# Note that this is essentially just a storage buffer;
+# the initial values don't matter.
+∇batch = Batch(TRAIN_IMAGES, TRAIN_LABELS, 1);
+
+train!(∇batch, batch, TRAIN_IMAGES, TRAIN_LABELS)
+
+=#
