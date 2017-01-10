@@ -322,29 +322,58 @@ typealias TrackedType Union{TrackedArray,TrackedReal}
 # dispatch #
 #----------#
 
-for (f, broadcast_f) in ((:.+, :broadcast_plus),
-                         (:.-, :broadcast_minus),
-                         (:.*, :broadcast_mul),
-                         (:./, :broadcast_rdiv),
-                         (:.\, :broadcast_ldiv),
-                         (:.^, :broadcast_pow))
-    @eval begin
-        @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-        @inline Base.$(f){X,Y,D}(x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-        @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
-    end
-    for A in ARRAY_TYPES
+if VERSION >= v"0.6.0-dev.1614"
+    for (F, broadcast_f) in ((typeof(+), :broadcast_plus),
+                             (typeof(-), :broadcast_minus),
+                             (typeof(*), :broadcast_mul),
+                             (typeof(/), :broadcast_rdiv),
+                             (typeof(\), :broadcast_ldiv),
+                             (typeof(^), :broadcast_pow))
         @eval begin
-            @inline Base.$(f){X,D}(x::TrackedArray{X,D}, y::$A) = $(broadcast_f)(x, y, D)
-            @inline Base.$(f){Y,D}(x::$A, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-            @inline Base.$(f){X,D}(x::TrackedReal{X,D}, y::$A) = $(broadcast_f)(x, y, D)
-            @inline Base.$(f){Y,D}(x::$A, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{X,Y,D}(::$F, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{X,Y,D}(::$F, x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{X,Y,D}(::$F, x::TrackedArray{X,D}, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+        end
+        for A in ARRAY_TYPES
+            @eval begin
+                @inline Base.broadcast{X,D}(::$F, x::TrackedArray{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+                @inline Base.broadcast{Y,D}(::$F, x::$A, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+                @inline Base.broadcast{X,D}(::$F, x::TrackedReal{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+                @inline Base.broadcast{Y,D}(::$F, x::$A, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+            end
+        end
+        for R in REAL_TYPES
+            @eval begin
+                @inline Base.broadcast{X,D}(::$F, x::TrackedArray{X,D}, y::$R) = $(broadcast_f)(x, y, D)
+                @inline Base.broadcast{Y,D}(::$F, x::$R, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            end
         end
     end
-    for R in REAL_TYPES
+else
+    for (f, broadcast_f) in ((:.+, :broadcast_plus),
+                             (:.-, :broadcast_minus),
+                             (:.*, :broadcast_mul),
+                             (:./, :broadcast_rdiv),
+                             (:.\, :broadcast_ldiv),
+                             (:.^, :broadcast_pow))
         @eval begin
-            @inline Base.$(f){X,D}(x::TrackedArray{X,D}, y::$R) = $(broadcast_f)(x, y, D)
-            @inline Base.$(f){Y,D}(x::$R, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.$(f){X,Y,D}(x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+        end
+        for A in ARRAY_TYPES
+            @eval begin
+                @inline Base.$(f){X,D}(x::TrackedArray{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+                @inline Base.$(f){Y,D}(x::$A, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+                @inline Base.$(f){X,D}(x::TrackedReal{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+                @inline Base.$(f){Y,D}(x::$A, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+            end
+        end
+        for R in REAL_TYPES
+            @eval begin
+                @inline Base.$(f){X,D}(x::TrackedArray{X,D}, y::$R) = $(broadcast_f)(x, y, D)
+                @inline Base.$(f){Y,D}(x::$R, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            end
         end
     end
 end
