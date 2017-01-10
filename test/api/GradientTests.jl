@@ -62,43 +62,35 @@ function test_unary_gradient(f, x)
         ∇f! = ReverseDiff.compile_gradient(f, seedx)
         ctp = ReverseDiff.compile(tp)
 
-        @test_approx_eq_eps ReverseDiff.gradient!(ctp, x) DiffBase.gradient(test) EPS
+        # circumvent world-age problems (`ctp` and `∇f!` were generated via `eval`)
+        @eval begin
+            test, x, EPS = $test, $x, $EPS
+            ∇f!, ctp = $∇f!, $ctp
 
-        out = similar(x)
-        ReverseDiff.gradient!(out, ctp, x)
-        @test_approx_eq_eps out DiffBase.gradient(test) EPS
+            @test_approx_eq_eps ReverseDiff.gradient!(ctp, x) DiffBase.gradient(test) EPS
 
-        out = similar(x)
-        ∇f!(out, x)
-        @test_approx_eq_eps out DiffBase.gradient(test) EPS
+            out = similar(x)
+            ReverseDiff.gradient!(out, ctp, x)
+            @test_approx_eq_eps out DiffBase.gradient(test) EPS
 
-        result = DiffBase.GradientResult(x)
-        ReverseDiff.gradient!(result, ctp, x)
-        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-        @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+            out = similar(x)
+            ∇f!(out, x)
+            @test_approx_eq_eps out DiffBase.gradient(test) EPS
 
-        result = DiffBase.GradientResult(x)
-        ∇f!(result, x)
-        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-        @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+            result = DiffBase.GradientResult(x)
+            ReverseDiff.gradient!(result, ctp, x)
+            @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+            @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+
+            result = DiffBase.GradientResult(x)
+            ∇f!(result, x)
+            @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+            @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
+        end
     end
 end
 
-for f in DiffBase.MATRIX_TO_NUMBER_FUNCS
-    testprintln("MATRIX_TO_NUMBER_FUNCS", f)
-    test_unary_gradient(f, rand(5, 5))
-end
-
-for f in DiffBase.VECTOR_TO_NUMBER_FUNCS
-    testprintln("VECTOR_TO_NUMBER_FUNCS", f)
-    test_unary_gradient(f, rand(5))
-end
-
-for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
-    testprintln("TERNARY_MATRIX_TO_NUMBER_FUNCS", f)
-
-    a, b, c = rand(5, 5), rand(5, 5), rand(5, 5)
-
+function test_ternary_gradient(f, a, b, c)
     test_val = f(a, b, c)
     test_a = ForwardDiff.gradient(x -> f(x, b, c), a)
     test_b = ForwardDiff.gradient(x -> f(a, x, c), b)
@@ -180,41 +172,63 @@ for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
         ∇f! = ReverseDiff.compile_gradient(f, (rand(size(a)), rand(size(b)), rand(size(c))))
         ctp = ReverseDiff.compile(tp)
 
-        ∇a, ∇b, ∇c = ReverseDiff.gradient!(ctp, (a, b, c))
-        @test_approx_eq_eps ∇a test_a EPS
-        @test_approx_eq_eps ∇b test_b EPS
-        @test_approx_eq_eps ∇c test_c EPS
+        # circumvent world-age problems (`ctp` and `∇f!` have a future world age)
+        @eval begin
+            test_val, test_a, test_b, test_c = $test_val, $test_a, $test_b, $test_c
+            a, b, c = $a, $b, $c
+            ∇f!, ctp, EPS = $∇f!, $ctp, $EPS
 
-        ∇a, ∇b, ∇c = map(similar, (a, b, c))
-        ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
-        @test_approx_eq_eps ∇a test_a EPS
-        @test_approx_eq_eps ∇b test_b EPS
-        @test_approx_eq_eps ∇c test_c EPS
+            ∇a, ∇b, ∇c = ReverseDiff.gradient!(ctp, (a, b, c))
+            @test_approx_eq_eps ∇a test_a EPS
+            @test_approx_eq_eps ∇b test_b EPS
+            @test_approx_eq_eps ∇c test_c EPS
 
-        ∇a, ∇b, ∇c = map(similar, (a, b, c))
-        ∇f!((∇a, ∇b, ∇c), (a, b, c))
-        @test_approx_eq_eps ∇a test_a EPS
-        @test_approx_eq_eps ∇b test_b EPS
-        @test_approx_eq_eps ∇c test_c EPS
+            ∇a, ∇b, ∇c = map(similar, (a, b, c))
+            ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
+            @test_approx_eq_eps ∇a test_a EPS
+            @test_approx_eq_eps ∇b test_b EPS
+            @test_approx_eq_eps ∇c test_c EPS
 
-        ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
-        ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
-        @test_approx_eq_eps DiffBase.value(∇a) test_val EPS
-        @test_approx_eq_eps DiffBase.value(∇b) test_val EPS
-        @test_approx_eq_eps DiffBase.value(∇c) test_val EPS
-        @test_approx_eq_eps DiffBase.gradient(∇a) test_a EPS
-        @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
-        @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
+            ∇a, ∇b, ∇c = map(similar, (a, b, c))
+            ∇f!((∇a, ∇b, ∇c), (a, b, c))
+            @test_approx_eq_eps ∇a test_a EPS
+            @test_approx_eq_eps ∇b test_b EPS
+            @test_approx_eq_eps ∇c test_c EPS
 
-        ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
-        ∇f!((∇a, ∇b, ∇c), (a, b, c))
-        @test_approx_eq_eps DiffBase.value(∇a) test_val EPS
-        @test_approx_eq_eps DiffBase.value(∇b) test_val EPS
-        @test_approx_eq_eps DiffBase.value(∇c) test_val EPS
-        @test_approx_eq_eps DiffBase.gradient(∇a) test_a EPS
-        @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
-        @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
+            ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
+            ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
+            @test_approx_eq_eps DiffBase.value(∇a) test_val EPS
+            @test_approx_eq_eps DiffBase.value(∇b) test_val EPS
+            @test_approx_eq_eps DiffBase.value(∇c) test_val EPS
+            @test_approx_eq_eps DiffBase.gradient(∇a) test_a EPS
+            @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
+            @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
+
+            ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
+            ∇f!((∇a, ∇b, ∇c), (a, b, c))
+            @test_approx_eq_eps DiffBase.value(∇a) test_val EPS
+            @test_approx_eq_eps DiffBase.value(∇b) test_val EPS
+            @test_approx_eq_eps DiffBase.value(∇c) test_val EPS
+            @test_approx_eq_eps DiffBase.gradient(∇a) test_a EPS
+            @test_approx_eq_eps DiffBase.gradient(∇b) test_b EPS
+            @test_approx_eq_eps DiffBase.gradient(∇c) test_c EPS
+        end
     end
+end
+
+for f in DiffBase.MATRIX_TO_NUMBER_FUNCS
+    testprintln("MATRIX_TO_NUMBER_FUNCS", f)
+    test_unary_gradient(f, rand(5, 5))
+end
+
+for f in DiffBase.VECTOR_TO_NUMBER_FUNCS
+    testprintln("VECTOR_TO_NUMBER_FUNCS", f)
+    test_unary_gradient(f, rand(5))
+end
+
+for f in DiffBase.TERNARY_MATRIX_TO_NUMBER_FUNCS
+    testprintln("TERNARY_MATRIX_TO_NUMBER_FUNCS", f)
+    test_ternary_gradient(f, rand(5, 5), rand(5, 5), rand(5, 5))
 end
 
 ############################################################################################

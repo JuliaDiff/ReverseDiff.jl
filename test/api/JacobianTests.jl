@@ -62,25 +62,31 @@ function test_unary_jacobian(f, x)
         Jf! = ReverseDiff.compile_jacobian(f, rand(size(x)))
         ctp = ReverseDiff.compile(tp)
 
-        @test_approx_eq_eps ReverseDiff.jacobian!(ctp, x) DiffBase.jacobian(test) EPS
+        # circumvent world-age problems (`ctp` and `Jf!` have a future world age)
+        @eval begin
+            test_val, test, x, EPS = $test_val, $test, $x, $EPS
+            ctp, Jf! = $ctp, $Jf!
 
-        out = similar(DiffBase.jacobian(test))
-        ReverseDiff.jacobian!(out, ctp, x)
-        @test_approx_eq_eps out DiffBase.jacobian(test) EPS
+            @test_approx_eq_eps ReverseDiff.jacobian!(ctp, x) DiffBase.jacobian(test) EPS
 
-        out = similar(DiffBase.jacobian(test))
-        Jf!(out, x)
-        @test_approx_eq_eps out DiffBase.jacobian(test) EPS
+            out = similar(DiffBase.jacobian(test))
+            ReverseDiff.jacobian!(out, ctp, x)
+            @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
-        result = DiffBase.JacobianResult(test_val, x)
-        ReverseDiff.jacobian!(result, ctp, x)
-        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-        @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
+            out = similar(DiffBase.jacobian(test))
+            Jf!(out, x)
+            @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
-        result = DiffBase.JacobianResult(test_val, x)
-        Jf!(result, x)
-        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-        @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
+            result = DiffBase.JacobianResult(test_val, x)
+            ReverseDiff.jacobian!(result, ctp, x)
+            @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+            @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
+
+            result = DiffBase.JacobianResult(test_val, x)
+            Jf!(result, x)
+            @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+            @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
+        end
     end
 end
 
@@ -153,26 +159,33 @@ function test_unary_jacobian(f!, y, x)
         Jf! = ReverseDiff.compile_jacobian(f!, y, rand(size(x)))
         ctp = ReverseDiff.compile(tp)
 
-        out = ReverseDiff.jacobian!(ctp, x)
-        @test_approx_eq_eps out DiffBase.jacobian(test) EPS
+        # circumvent world-age problems (`ctp` and `Jf!` have a future world age)
+        @eval begin
+            test, y, x, EPS = $test, $y, $x, $EPS
+            ctp, Jf! = $ctp, $Jf!
 
-        out = similar(DiffBase.jacobian(test))
-        ReverseDiff.jacobian!(out, ctp, x)
-        @test_approx_eq_eps out DiffBase.jacobian(test) EPS
+            out = ReverseDiff.jacobian!(ctp, x)
 
-        out = similar(DiffBase.jacobian(test))
-        Jf!(out, x)
-        @test_approx_eq_eps out DiffBase.jacobian(test) EPS
+            @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
-        result = DiffBase.JacobianResult(y, x)
-        ReverseDiff.jacobian!(result, ctp, x)
-        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-        @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
+            out = similar(DiffBase.jacobian(test))
+            ReverseDiff.jacobian!(out, ctp, x)
+            @test_approx_eq_eps out DiffBase.jacobian(test) EPS
 
-        result = DiffBase.JacobianResult(y, x)
-        Jf!(result, x)
-        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-        @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
+            out = similar(DiffBase.jacobian(test))
+            Jf!(out, x)
+            @test_approx_eq_eps out DiffBase.jacobian(test) EPS
+
+            result = DiffBase.JacobianResult(y, x)
+            ReverseDiff.jacobian!(result, ctp, x)
+            @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+            @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
+
+            result = DiffBase.JacobianResult(y, x)
+            Jf!(result, x)
+            @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
+            @test_approx_eq_eps DiffBase.jacobian(result) DiffBase.jacobian(test) EPS
+        end
     end
 end
 
@@ -251,37 +264,44 @@ function test_binary_jacobian(f, a, b)
         Jf! = ReverseDiff.compile_jacobian(f, (rand(size(a)), rand(size(b))))
         ctp = ReverseDiff.compile(tp)
 
-        Ja, Jb = ReverseDiff.jacobian!(ctp, (a, b))
-        @test_approx_eq_eps Ja test_a EPS
-        @test_approx_eq_eps Jb test_b EPS
+        # circumvent world-age problems (`ctp` and `Jf!` have a future world age)
+        @eval begin
+            test_val, test_a, test_b = $test_val, $test_a, $test_b
+            a, b = $a, $b
+            Jf!, ctp, EPS = $Jf!, $ctp, $EPS
 
-        Ja = similar(a, length(test_val), length(a))
-        Jb = similar(b, length(test_val), length(b))
-        ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
-        @test_approx_eq_eps Ja test_a EPS
-        @test_approx_eq_eps Jb test_b EPS
+            Ja, Jb = ReverseDiff.jacobian!(ctp, (a, b))
+            @test_approx_eq_eps Ja test_a EPS
+            @test_approx_eq_eps Jb test_b EPS
 
-        Ja = similar(a, length(test_val), length(a))
-        Jb = similar(b, length(test_val), length(b))
-        Jf!((Ja, Jb), (a, b))
-        @test_approx_eq_eps Ja test_a EPS
-        @test_approx_eq_eps Jb test_b EPS
+            Ja = similar(a, length(test_val), length(a))
+            Jb = similar(b, length(test_val), length(b))
+            ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
+            @test_approx_eq_eps Ja test_a EPS
+            @test_approx_eq_eps Jb test_b EPS
 
-        Ja = DiffBase.JacobianResult(test_val, a)
-        Jb = DiffBase.JacobianResult(test_val, b)
-        ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
-        @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
-        @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
-        @test_approx_eq_eps DiffBase.gradient(Ja) test_a EPS
-        @test_approx_eq_eps DiffBase.gradient(Jb) test_b EPS
+            Ja = similar(a, length(test_val), length(a))
+            Jb = similar(b, length(test_val), length(b))
+            Jf!((Ja, Jb), (a, b))
+            @test_approx_eq_eps Ja test_a EPS
+            @test_approx_eq_eps Jb test_b EPS
 
-        Ja = DiffBase.JacobianResult(test_val, a)
-        Jb = DiffBase.JacobianResult(test_val, b)
-        Jf!((Ja, Jb), (a, b))
-        @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
-        @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
-        @test_approx_eq_eps DiffBase.gradient(Ja) test_a EPS
-        @test_approx_eq_eps DiffBase.gradient(Jb) test_b EPS
+            Ja = DiffBase.JacobianResult(test_val, a)
+            Jb = DiffBase.JacobianResult(test_val, b)
+            ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
+            @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
+            @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
+            @test_approx_eq_eps DiffBase.gradient(Ja) test_a EPS
+            @test_approx_eq_eps DiffBase.gradient(Jb) test_b EPS
+
+            Ja = DiffBase.JacobianResult(test_val, a)
+            Jb = DiffBase.JacobianResult(test_val, b)
+            Jf!((Ja, Jb), (a, b))
+            @test_approx_eq_eps DiffBase.value(Ja) test_val EPS
+            @test_approx_eq_eps DiffBase.value(Jb) test_val EPS
+            @test_approx_eq_eps DiffBase.gradient(Ja) test_a EPS
+            @test_approx_eq_eps DiffBase.gradient(Jb) test_b EPS
+        end
     end
 end
 
