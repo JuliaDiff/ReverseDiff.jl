@@ -90,11 +90,17 @@ end
 # gradient definitions #
 #----------------------#
 
-# generate `∇model!(output, input)` where the output/input takes the same form as `seeds`
+# generate the gradient function `∇model!(output, input)` from `model`
 const ∇model! = begin
+    # grab a sample batch as our seed data
     batch = Batch(TRAIN_IMAGES, TRAIN_LABELS, 1)
-    seeds = (batch.weights, batch.bias, batch.pixels, batch.labels)
-    ReverseDiff.compile_gradient(model, seeds)
+
+    # `compile_gradient` takes array arguments - it doesn't know anything about `Batch`
+    input = (batch.weights, batch.bias, batch.pixels, batch.labels)
+
+    # generate the gradient function (which is then returned from this `begin` block and
+    # bound to `∇model!`). See the `ReverseDiff.compile_gradient` docs for details.
+    ReverseDiff.compile_gradient(model, input)
 end
 
 # Add convenience method to `∇model!` that translates `Batch` args to `Tuple` args. Since
