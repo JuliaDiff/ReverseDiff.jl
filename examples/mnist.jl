@@ -246,7 +246,7 @@ train_all!(∇batch, batch, TRAIN_IMAGES, TRAIN_LABELS)
 # The functin is used to calculate column-wise matches
 function accuracy(result::Array, label::Array)
     score = 0
-    _, ncol = size(label)
+    ncol = size(label, 2)
     for i in 1:ncol
         if indmax(result[:, i]) == indmax(label[:, i])
             score += 1
