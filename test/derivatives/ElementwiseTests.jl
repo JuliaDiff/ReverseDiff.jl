@@ -127,7 +127,7 @@ function test_map(f, fopt, a, b, tp)
 
     # forward
     a2, b2 = a .- offset, b .- offset
-    ReverseDiff.value!,(at, a2)
+    ReverseDiff.value!(at, a2)
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
     @test ct == map(f, a2, b2)
