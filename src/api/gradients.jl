@@ -44,9 +44,9 @@ function gradient!(result, f, input, cfg::GradientConfig = GradientConfig(input)
     return result
 end
 
-#############################
+###########################
 # Executing GradientTapes #
-#############################
+###########################
 
 """
     ReverseDiff.gradient!(tape::Union{GradientTape,CompiledGradient}, input)

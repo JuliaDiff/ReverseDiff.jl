@@ -56,9 +56,9 @@ function hessian!(result::DiffResult, f, input::AbstractArray,
     return result
 end
 
-############################
+##########################
 # Executing HessianTapes #
-############################
+##########################
 
 """
     ReverseDiff.hessian!(tape::Union{HessianTape,CompiledHessian}, input)
