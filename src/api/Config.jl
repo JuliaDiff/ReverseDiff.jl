@@ -105,7 +105,7 @@ function JacobianConfig{D}(output::AbstractArray{D}, input::Tuple, tp::RawTape =
     return _JacobianConfig(cfg_input, cfg_output, tp)
 end
 
-function JacobianConfig{D,V<:Real}(output::AbstractArray{D}, input::AbstractArray{V}, tp::RawTape = RawTape())
+function JacobianConfig{D}(output::AbstractArray{D}, input::AbstractArray, tp::RawTape = RawTape())
     cfg_input = track(similar(input), D, tp)
     cfg_output = track!(similar(output, TrackedReal{D,D,Void}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
