@@ -50,7 +50,7 @@ function test_forward(f, a, b, tp)
     # reverse
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
-    @test_approx_eq_eps deriv(at) ForwardDiff.derivative(x -> f(x, b), a) EPS
+    test_approx(deriv(at), ForwardDiff.derivative(x -> f(x, b), a))
     ReverseDiff.unseed!(at)
 
     # forward
@@ -72,7 +72,7 @@ function test_forward(f, a, b, tp)
     # reverse
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
-    @test_approx_eq_eps deriv(bt) ForwardDiff.derivative(x -> f(a, x), b) EPS
+    test_approx(deriv(bt), ForwardDiff.derivative(x -> f(a, x), b))
     ReverseDiff.unseed!(bt)
 
     # forward
@@ -94,8 +94,8 @@ function test_forward(f, a, b, tp)
     # reverse
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
-    @test_approx_eq_eps deriv(at) ForwardDiff.derivative(x -> f(x, b), a) EPS
-    @test_approx_eq_eps deriv(bt) ForwardDiff.derivative(x -> f(a, x), b) EPS
+    test_approx(deriv(at), ForwardDiff.derivative(x -> f(x, b), a))
+    test_approx(deriv(bt), ForwardDiff.derivative(x -> f(a, x), b))
 
     # forward
     a2, b2 = rand(), rand()
@@ -138,28 +138,28 @@ end
 DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 
 for f in ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS
-    testprintln("FORWARD_UNARY_SCALAR_FUNCS", f)
+    test_println("FORWARD_UNARY_SCALAR_FUNCS", f)
     is_domain_err_func = in(f, DOMAIN_ERR_FUNCS)
     n = is_domain_err_func ? x + 1 : x
     test_forward(eval(f), n, tp, is_domain_err_func)
 end
 
 for f in ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS
-    testprintln("FORWARD_BINARY_SCALAR_FUNCS", f)
+    test_println("FORWARD_BINARY_SCALAR_FUNCS", f)
     test_forward(eval(f), a, b, tp)
 end
 
 INT_ONLY_FUNCS = (:iseven, :isodd)
 
 for f in ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS
-    testprintln("SKIPPED_UNARY_SCALAR_FUNCS", f)
+    test_println("SKIPPED_UNARY_SCALAR_FUNCS", f)
     n = in(f, DOMAIN_ERR_FUNCS) ? x + 1 : x
     n = in(f, INT_ONLY_FUNCS) ? ceil(Int, n) : n
     test_skip(eval(f), n, tp)
 end
 
 for f in ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS
-    testprintln("SKIPPED_BINARY_SCALAR_FUNCS", f)
+    test_println("SKIPPED_BINARY_SCALAR_FUNCS", f)
     test_skip(eval(f), a, b, tp)
 end
 

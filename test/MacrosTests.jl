@@ -100,17 +100,17 @@ function test_forward(f, a, b, tp)
 end
 
 for f in (ReverseDiff.@forward(f0), f1, f2, f3, f4, ReverseDiff.@forward(-))
-    testprintln("@forward named functions", f)
+    test_println("@forward named functions", f)
     test_forward(f, x, tp)
     test_forward(f, a, b, tp)
 end
 
 ReverseDiff.@forward f5 = (x) -> 1. / (1. + exp(-x))
-testprintln("@forward anonymous functions", f5)
+test_println("@forward anonymous functions", f5)
 test_forward(f5, x, tp)
 
 ReverseDiff.@forward f6 = (a, b) -> sqrt(a^2 + b^2)
-testprintln("@forward anonymous functions", f6)
+test_println("@forward anonymous functions", f6)
 test_forward(f6, a, b, tp)
 
 #########
@@ -173,17 +173,17 @@ function test_skip(g, a, b, tp)
 end
 
 for g in (ReverseDiff.@skip(g0), g1, g2, g3, g4)
-    testprintln("@skip named functions", g)
+    test_println("@skip named functions", g)
     test_skip(g, x, tp)
     test_skip(g, a, b, tp)
 end
 
 ReverseDiff.@skip g5 = (x) -> 1. / (1. + exp(-x))
-testprintln("@skip anonymous functions", g5)
+test_println("@skip anonymous functions", g5)
 test_skip(g5, x, tp)
 
 ReverseDiff.@skip g6 = (a, b) -> sqrt(a^2 + b^2)
-testprintln("@skip anonymous functions", g6)
+test_println("@skip anonymous functions", g6)
 test_skip(g6, a, b, tp)
 
 ############################################################################################
