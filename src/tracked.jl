@@ -97,15 +97,18 @@ istracked{T}(::AbstractArray{T}) = T <: TrackedReal || !(isleaftype(T))
 @inline deriv(t::TrackedArray) = t.deriv
 @inline deriv(t::TrackedReal) =  t.deriv
 
-@inline valtype{V}(t::TrackedReal{V}) = V
+@inline valtype{V}(::TrackedReal{V}) = V
 @inline valtype{V,D,O}(::Type{TrackedReal{V,D,O}}) = V
-@inline valtype{V}(t::TrackedArray{V}) = V
+@inline valtype{V}(::TrackedArray{V}) = V
 @inline valtype{V,D,VA,DA,N}(::Type{TrackedArray{V,D,N,VA,DA}}) = V
 
-@inline derivtype{V,D}(t::TrackedReal{V,D}) = D
+@inline derivtype{V,D}(::TrackedReal{V,D}) = D
 @inline derivtype{V,D,O}(::Type{TrackedReal{V,D,O}}) = D
 @inline derivtype{V,D}(t::TrackedArray{V,D}) = D
 @inline derivtype{V,D,VA,DA,N}(::Type{TrackedArray{V,D,N,VA,DA}}) = D
+
+@inline origintype{V,D,O}(::TrackedReal{V,D,O}) = O
+@inline origintype{V,D,O}(::Type{TrackedReal{V,D,O}}) = O
 
 @inline hasorigin(x::Real) = false
 @inline hasorigin(t::TrackedReal) = t.index !== NULL_INDEX
@@ -216,7 +219,8 @@ capture(t::AbstractArray) = istracked(t) ?  map(capture, t) : copy(t)
 ########################
 
 # recording a instruction for this preserves the line of references back to the origin's deriv
-function Base.convert{V1,D1,O1,V2,D2,O2}(::Type{TrackedReal{V1,D1,O1}}, t::TrackedReal{V2,D2,O2})
+function Base.convert{T1<:TrackedReal,T2<:TrackedReal}(::Type{T1}, t::T2)
+    V1, D1, O1 = valtype(T1), derivtype(T1), origintype(T1)
     tp = tape(t)
     out = TrackedReal{V1,D1,O1}(V1(value(t)), D1(deriv(t)), tp)
     record!(tp, SpecialInstruction, convert, t, out)
@@ -237,8 +241,8 @@ end
     return nothing
 end
 
-Base.convert{R<:Real,V,D,O}(::Type{R}, t::TrackedReal{V,D,O}) = R(value(t))
-Base.convert{V,D,O,R<:Real}(::Type{TrackedReal{V,D,O}}, x::R) = TrackedReal{V,D,O}(V(value(x)))
+Base.convert{R<:Real,T<:TrackedReal}(::Type{R}, t::T) = R(value(t))
+Base.convert{T<:TrackedReal,R<:Real}(::Type{T}, x::R) = TrackedReal{valtype(T),derivtype(T),origintype(T)}(valtype(T)(value(x)))
 
 Base.convert{T<:TrackedReal}(::Type{T}, t::T) = t
 Base.convert{T<:TrackedArray}(::Type{T}, t::T) = t
@@ -323,10 +327,11 @@ Base.ones{V,D}(t::TrackedArray{V,D}) = ones(TrackedReal{V,D,Void}, size(t))
 
 Base.zeros{V,D}(t::TrackedArray{V,D}) = zeros(TrackedReal{V,D,Void}, size(t))
 
-
 reshape_body = :(TrackedArray(reshape(value(t), dims), reshape(deriv(t), dims), tape(t)))
 @eval Base.reshape{N}(t::TrackedArray, dims::Type{Val{N}}) = $reshape_body
 @eval Base.reshape{N}(t::TrackedArray, dims::Tuple{Vararg{Int,N}}) = $reshape_body
+@eval Base.reshape(t::TrackedArray, dims::Int64...) = $reshape_body
+@eval Base.reshape(t::TrackedArray, dims::AbstractUnitRange...) = $reshape_body
 @eval Base.reshape(t::TrackedArray, dims::Union{AbstractUnitRange,Int64}...) = $reshape_body
 
 ####################
