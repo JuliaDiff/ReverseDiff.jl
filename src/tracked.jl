@@ -142,7 +142,7 @@ end
 @inline value!(t::TrackedReal, v::Real) = (t.value = v; nothing)
 @inline value!(t::TrackedArray, v::AbstractArray) = (copy!(value(t), v); nothing)
 
-function value!{N}(t::NTuple{N}, v::NTuple{N})
+function value!{N}(t::NTuple{N,Any}, v::NTuple{N,Any})
     for i in eachindex(t)
         value!(t[i], v[i])
     end
@@ -152,7 +152,7 @@ end
 @inline deriv!(t::TrackedReal, v::Real) = (t.deriv = v; nothing)
 @inline deriv!(t::TrackedArray, v::AbstractArray) = (copy!(deriv(t), v); nothing)
 
-function deriv!{N}(t::NTuple{N}, v::NTuple{N})
+function deriv!{N}(t::NTuple{N,Any}, v::NTuple{N,Any})
     for i in eachindex(t)
         deriv!(t[i], v[i])
     end
@@ -267,7 +267,7 @@ Base.getindex(t::TrackedArray, i::Int) = TrackedReal(value(t)[i], deriv(t)[i], t
 colon2range(s, i) = i
 colon2range(s, ::Colon) = s
 
-function index_iterable{N,M}(shape::NTuple{N}, i::NTuple{M})
+function index_iterable{N,M}(shape::NTuple{N,Any}, i::NTuple{M,Any})
     if N < M
         return index_iterable(shape, ntuple(n -> i[n], Val{N}))
     elseif M < N && isa(last(i), Colon)
