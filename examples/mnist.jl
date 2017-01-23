@@ -34,7 +34,7 @@ immutable Batch{W,B,P,L}
 end
 
 function Batch(images, labels, i)
-    weights = zeros(CLASS_COUNT, IMAGE_SIZE)
+    weights = zeros(Float64, CLASS_COUNT, IMAGE_SIZE)
     bias = zeros(CLASS_COUNT)
     range = i:(i + BATCH_SIZE - 1)
     return Batch(weights, bias, images[:, range], labels[:, range])
@@ -45,7 +45,7 @@ function load_batch!(batch, images, labels, i)
     for batch_col in 1:BATCH_SIZE
         data_col = batch_col + offset
         for k in 1:size(images, 1)
-            batch.pixels[k, batch_col] = images[k, data_col]
+            batch.pixels[k, batch_col] = images[k, data_col] / 255
         end
         for k in 1:size(labels, 1)
             batch.labels[k, batch_col] = labels[k, data_col]
@@ -118,26 +118,40 @@ function softmax_cross_entropy(y′, y)
     # since the outputing softmax is a ratio, rebase_x produces the same result as original x.
     max_y = max(0, maximum(y))
     rebase_y = y - max_y
-    logsumexp = log(sum(exp(rebase_y), 1))
-    softmax = exp(rebase_y - repmat(logsumexp, size(rebase_y, 1), 1))
+    sumexp = sum(exp(rebase_y), 1)
 
-    # # The following way is safer: it deals with the extreme cases
-    # # with dim_logsumexp(), but don't know how to check NaNs with tape.
-    # y = exp(rebase_x - repmat(dim_logsumexp(rebase_x, 1), size(rebase_x, 1), 1))
-
-    # constrain on the extreme values of y
-    softmax = min(softmax, 1 - eps(eltype(softmax)))
-    softmax = max(softmax, eps(eltype(softmax)))
-
-    # A more general definition of cross entropy
-    # entropy = mean(sum(y′ .* (minus_log.(y)), 1))
-    # The special case for binary y
-    # Explanation here: https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_error_function_and_logistic_regression
-    entropy = mean(sum(y′ .* minus_log.(softmax) + (1 - y′) .* minus_log.(1 - softmax), 1) ./ CLASS_COUNT)
-    # Note: it is confirmed that the NaNs were because of the log() function.
-    # There must be some y <= 0 that result in NaNs for large learning rates.
+    #sumexp = min(sumexp, 1 - eps(eltype(sumexp)))
+    #sumexp = max(sumexp, eps(eltype(sumexp)))
+    # softmax = exp(rebase_y - repmat(logsumexp, size(rebase_y, 1), 1))
+    entropy = mean(-sum(y′ .* y - y′ .* (max_y + log.(sumexp)), 1))
     return entropy
 end
+
+# function softmax_cross_entropy(y′, y)
+#     # compte softmax and cross entropy together in a numerical stable way
+#     # since the outputing softmax is a ratio, rebase_x produces the same result as original x.
+#     max_y = max(0, maximum(y))
+#     rebase_y = y - max_y
+#     logsumexp = log(sum(exp(rebase_y), 1))
+#     softmax = exp(rebase_y - repmat(logsumexp, size(rebase_y, 1), 1))
+#
+#     # # The following way is safer: it deals with the extreme cases
+#     # # with dim_logsumexp(), but don't know how to check NaNs with tape.
+#     # y = exp(rebase_x - repmat(dim_logsumexp(rebase_x, 1), size(rebase_x, 1), 1))
+#
+#     # constrain on the extreme values of y
+#     softmax = min(softmax, 1 - eps(eltype(softmax)))
+#     softmax = max(softmax, eps(eltype(softmax)))
+#
+#     # A more general definition of cross entropy
+#     # entropy = mean(sum(y′ .* (minus_log.(y)), 1))
+#     # The special case for binary y
+#     # Explanation here: https://en.wikipedia.org/wiki/Cross_entropy#Cross-entropy_error_function_and_logistic_regression
+#     entropy = mean(sum(y′ .* minus_log.(softmax) + (1 - y′) .* minus_log.(1 - softmax), 1) ./ CLASS_COUNT)
+#     # Note: it is confirmed that the NaNs were because of the log() function.
+#     # There must be some y <= 0 that result in NaNs for large learning rates.
+#     return entropy
+# end
 
 function model(weights, bias, pixels, labels)
     y = (weights * pixels) .+ bias
