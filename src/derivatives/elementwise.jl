@@ -163,6 +163,10 @@ for g in (:map, :broadcast), f in FORWARD_UNARY_SCALAR_FUNCS
 end
 
 for g in (:map, :broadcast), f in FORWARD_BINARY_SCALAR_FUNCS
+    # skip these definitions if `f` is one of the functions
+    # that will get a manually defined broadcast definition
+    # later (see "built-in infix operations" below)
+    g == :broadcast && in(f, (:+, :-, :*, :/, :\, :^)) && continue
     @eval begin
         @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
         @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
