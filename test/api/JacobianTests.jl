@@ -64,7 +64,7 @@ function test_unary_jacobian(f, x)
 
         # circumvent world-age problems (`ctp` and `Jf!` have a future world age)
         @eval begin
-            test_val, test, x,) = $test_val, $test, $x, $EPS
+            test_val, test, x = $test_val, $test, $x
             ctp, Jf! = $ctp, $Jf!
 
             test_approx(ReverseDiff.jacobian!(ctp, x), DiffBase.jacobian(test))
@@ -161,7 +161,7 @@ function test_unary_jacobian(f!, y, x)
 
         # circumvent world-age problems (`ctp` and `Jf!` have a future world age)
         @eval begin
-            test, y, x,) = $test, $y, $x, $EPS
+            test, y, x = $test, $y, $x
             ctp, Jf! = $ctp, $Jf!
 
             out = ReverseDiff.jacobian!(ctp, x)
@@ -268,7 +268,7 @@ function test_binary_jacobian(f, a, b)
         @eval begin
             test_val, test_a, test_b = $test_val, $test_a, $test_b
             a, b = $a, $b
-            Jf!, ctp,) = $Jf!, $ctp, $EPS
+            Jf!, ctp = $Jf!, $ctp
 
             Ja, Jb = ReverseDiff.jacobian!(ctp, (a, b))
             test_approx(Ja, test_a)

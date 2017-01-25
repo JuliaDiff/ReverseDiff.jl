@@ -326,34 +326,34 @@ typealias TrackedType Union{TrackedArray,TrackedReal}
 # dispatch #
 #----------#
 
-if VERSION >= v"0.6.0-dev.1614"
-    for (F, broadcast_f) in ((typeof(+), :broadcast_plus),
-                             (typeof(-), :broadcast_minus),
-                             (typeof(*), :broadcast_mul),
-                             (typeof(/), :broadcast_rdiv),
-                             (typeof(\), :broadcast_ldiv),
-                             (typeof(^), :broadcast_pow))
+for (F, broadcast_f) in ((typeof(+), :broadcast_plus),
+                         (typeof(-), :broadcast_minus),
+                         (typeof(*), :broadcast_mul),
+                         (typeof(/), :broadcast_rdiv),
+                         (typeof(\), :broadcast_ldiv),
+                         (typeof(^), :broadcast_pow))
+    @eval begin
+        @inline Base.broadcast{X,Y,D}(::$F, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+        @inline Base.broadcast{X,Y,D}(::$F, x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+        @inline Base.broadcast{X,Y,D}(::$F, x::TrackedArray{X,D}, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+    end
+    for A in ARRAY_TYPES
         @eval begin
-            @inline Base.broadcast{X,Y,D}(::$F, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast{X,Y,D}(::$F, x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast{X,Y,D}(::$F, x::TrackedArray{X,D}, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
-        end
-        for A in ARRAY_TYPES
-            @eval begin
-                @inline Base.broadcast{X,D}(::$F, x::TrackedArray{X,D}, y::$A) = $(broadcast_f)(x, y, D)
-                @inline Base.broadcast{Y,D}(::$F, x::$A, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-                @inline Base.broadcast{X,D}(::$F, x::TrackedReal{X,D}, y::$A) = $(broadcast_f)(x, y, D)
-                @inline Base.broadcast{Y,D}(::$F, x::$A, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
-            end
-        end
-        for R in REAL_TYPES
-            @eval begin
-                @inline Base.broadcast{X,D}(::$F, x::TrackedArray{X,D}, y::$R) = $(broadcast_f)(x, y, D)
-                @inline Base.broadcast{Y,D}(::$F, x::$R, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-            end
+            @inline Base.broadcast{X,D}(::$F, x::TrackedArray{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{Y,D}(::$F, x::$A, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{X,D}(::$F, x::TrackedReal{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{Y,D}(::$F, x::$A, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
         end
     end
-else
+    for R in REAL_TYPES
+        @eval begin
+            @inline Base.broadcast{X,D}(::$F, x::TrackedArray{X,D}, y::$R) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{Y,D}(::$F, x::$R, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+        end
+    end
+end
+
+if VERSION < v"0.6.0-dev.1614"
     for (f, broadcast_f) in ((:.+, :broadcast_plus),
                              (:.-, :broadcast_minus),
                              (:.*, :broadcast_mul),

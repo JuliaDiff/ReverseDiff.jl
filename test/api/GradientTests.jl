@@ -64,18 +64,18 @@ function test_unary_gradient(f, x)
 
         # circumvent world-age problems (`ctp` and `∇f!` were generated via `eval`)
         @eval begin
-            test, x,) = $test, $x, $EPS
+            test, x = $test, $x
             ∇f!, ctp = $∇f!, $ctp
 
             test_approx(ReverseDiff.gradient!(ctp, x), DiffBase.gradient(test))
 
             out = similar(x)
             ReverseDiff.gradient!(out, ctp, x)
-            test_approx(out DiffBase.gradient(test))
+            test_approx(out, DiffBase.gradient(test))
 
             out = similar(x)
             ∇f!(out, x)
-            test_approx(out DiffBase.gradient(test))
+            test_approx(out, DiffBase.gradient(test))
 
             result = DiffBase.GradientResult(x)
             ReverseDiff.gradient!(result, ctp, x)
@@ -99,9 +99,9 @@ function test_ternary_gradient(f, a, b, c)
     # without GradientConfig
 
     ∇a, ∇b, ∇c = ReverseDiff.gradient(f, (a, b, c))
-    test_approx(∇a test_a)
-    test_approx(∇b test_b)
-    test_approx(∇c test_c)
+    test_approx(∇a, test_a)
+    test_approx(∇b, test_b)
+    test_approx(∇c, test_c)
 
     ∇a, ∇b, ∇c = map(similar, (a, b, c))
     ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c))
@@ -176,7 +176,7 @@ function test_ternary_gradient(f, a, b, c)
         @eval begin
             test_val, test_a, test_b, test_c = $test_val, $test_a, $test_b, $test_c
             a, b, c = $a, $b, $c
-            ∇f!, ctp,) = $∇f!, $ctp, $EPS
+            ∇f!, ctp = $∇f!, $ctp
 
             ∇a, ∇b, ∇c = ReverseDiff.gradient!(ctp, (a, b, c))
             test_approx(∇a, test_a)

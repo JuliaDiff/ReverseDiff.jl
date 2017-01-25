@@ -69,7 +69,7 @@ function test_unary_hessian(f, x)
 
         # circumvent world-age problems (`ctp` and `Hf!` have a future world age)
         @eval begin
-            test, x,) = $test, $x, $EPS
+            test, x = $test, $x
             ctp, Hf! = $ctp, $Hf!
 
             test_approx(ReverseDiff.hessian!(ctp, x), DiffBase.hessian(test))
