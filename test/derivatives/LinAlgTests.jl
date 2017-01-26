@@ -23,7 +23,7 @@ function test_arr2num(f, x, tp)
     # reverse
     ReverseDiff.seed!(yt)
     ReverseDiff.reverse_pass!(tp)
-    @test_approx_eq_eps deriv(xt) ForwardDiff.gradient(f, x) EPS
+    test_approx(deriv(xt), ForwardDiff.gradient(f, x))
 
     # forward
     x2 = rand(size(x))
@@ -47,7 +47,7 @@ function test_arr2arr(f, x, tp)
     # reverse
     out = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(f, x) EPS
+    test_approx(out, ForwardDiff.jacobian(f, x))
 
     # forward
     x2 = rand(size(x))
@@ -73,7 +73,7 @@ function test_arr2arr(f, a, b, tp)
     # reverse
     out = similar(c, (length(c), length(a)))
     ReverseDiff.seeded_reverse_pass!(out, ct, at, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(x -> f(x, b), a) EPS
+    test_approx(out, ForwardDiff.jacobian(x -> f(x, b), a))
 
     # forward
     a2 = rand(size(a))
@@ -94,7 +94,7 @@ function test_arr2arr(f, a, b, tp)
     # reverse
     out = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out, ct, bt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(x -> f(a, x), b) EPS
+    test_approx(out, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
     b2 = rand(size(b))
@@ -117,8 +117,8 @@ function test_arr2arr(f, a, b, tp)
     out_b = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out_a, ct, at, tp)
     ReverseDiff.seeded_reverse_pass!(out_b, ct, bt, tp)
-    @test_approx_eq_eps out_a ForwardDiff.jacobian(x -> f(x, b), a) EPS
-    @test_approx_eq_eps out_b ForwardDiff.jacobian(x -> f(a, x), b) EPS
+    test_approx(out_a, ForwardDiff.jacobian(x -> f(x, b), a))
+    test_approx(out_b, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
     a2, b2 = rand(size(a)), rand(size(b))
@@ -147,7 +147,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     # reverse
     out = similar(c, (length(c), length(a)))
     ReverseDiff.seeded_reverse_pass!(out, ct, at, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(x -> f(x, b), a) EPS
+    test_approx(out, ForwardDiff.jacobian(x -> f(x, b), a))
 
     # forward
     a2 = rand(size(a))
@@ -169,7 +169,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     # reverse
     out = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out, ct, bt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(x -> f(a, x), b) EPS
+    test_approx(out, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
     b2 = rand(size(b))
@@ -193,8 +193,8 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     out_b = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out_a, ct, at, tp)
     ReverseDiff.seeded_reverse_pass!(out_b, ct, bt, tp)
-    @test_approx_eq_eps out_a ForwardDiff.jacobian(x -> f(x, b), a) EPS
-    @test_approx_eq_eps out_b ForwardDiff.jacobian(x -> f(a, x), b) EPS
+    test_approx(out_a, ForwardDiff.jacobian(x -> f(x, b), a))
+    test_approx(out_b, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
     a2, b2 = rand(size(a)), rand(size(b))
@@ -208,23 +208,23 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     empty!(tp)
 end
 
-for f in (sum, det, y -> dot(vec(y), vec(y)))
-    testprintln("Array -> Number functions", f)
+for f in (sum, det, y -> dot(vec(y), vec(y)), mean)
+    test_println("Array -> Number functions", f)
     test_arr2num(f, x, tp)
 end
 
 for f in (-, inv)
-    testprintln("Array -> Array functions", f)
+    test_println("Array -> Array functions", f)
     test_arr2arr(f, x, tp)
 end
 
 for f in (+, -)
-    testprintln("(Array, Array) -> Array functions", f)
+    test_println("(Array, Array) -> Array functions", f)
     test_arr2arr(f, a, b, tp)
 end
 
 for (f!, f) in ReverseDiff.A_MUL_B_FUNCS
-    testprintln("A_mul_B functions", f)
+    test_println("A_mul_B functions", f)
     test_arr2arr(eval(f), a, b, tp)
     test_arr2arr_inplace(eval(f!), eval(f), x, a, b, tp)
 end

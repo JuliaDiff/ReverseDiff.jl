@@ -73,6 +73,11 @@ object can be passed to any API methods that accept `t`.
 In many cases, compiling `t` can significantly speed up execution time. Note that the longer
 the tape, the more time compilation may take. Very long tapes (i.e. when `length(t)` is on
 the order of 10000 elements) can take a very long time to compile.
+
+Note that this function calls `eval` in the `current_module()` to generate functions
+from `t`. Thus, the returned `Compiled*` type will only be useable once the world-age
+counter has caught up with the world-age of the `eval`'d functions (i.e. once the call
+stack has bubbled up to top level).
 """
 function compile(t::AbstractTape)
     return Compiled(typeof(t), t.func, t.input, t.output,
@@ -93,7 +98,7 @@ The arguments to `ReverseDiff.compile_gradient` are the same as the arguments to
 
 The usage restrictions on the returned function are the same as the usage restrictions
 for calling `gradient!(result, tape, input)` where `tape` is a compiled `GradientTape`;
-see `ReverseDiff.compile` for details.
+see `ReverseDiff.compile` for details (including an important note on world-age).
 """
 function compile_gradient(f, args...)
     tape = compile(GradientTape(f, args...))
@@ -115,7 +120,7 @@ this means `ReverseDiff.compile_jacobian` also supports target functions of the 
 
 The usage restrictions on the returned function are the same as the usage restrictions
 for calling `jacobian!(result, tape, input)` where `tape` is a compiled `JacobianTape`;
-see `ReverseDiff.compile` for details.
+see `ReverseDiff.compile` for details (including an important note on world-age).
 """
 function compile_jacobian(f, args...)
     tape = compile(JacobianTape(f, args...))
@@ -135,7 +140,7 @@ The arguments to `ReverseDiff.compile_hessian` are the same as the arguments to
 
 The usage restrictions on the returned function are the same as the usage restrictions
 for calling `hessian!(result, tape, input)` where `tape` is a compiled `HessianTape`;
-see `ReverseDiff.compile` for details.
+see `ReverseDiff.compile` for details (including an important note on world-age).
 """
 function compile_hessian(f, args...)
     tape = compile(HessianTape(f, args...))

@@ -9,23 +9,21 @@ function annotate_func_expr(typesym, expr)
         lhs = expr.args[1]
         if isa(lhs, Expr) && lhs.head == :call # named function definition site
             name_and_types = lhs.args[1]
-            args_signature = lhs.args[2:end]
-            old_name_and_types = deepcopy(name_and_types)
             if isa(name_and_types, Expr) && name_and_types.head == :curly
-                name = name_and_types.args[1]
-                hidden_name = gensym(name)
+                old_name = name_and_types.args[1]
+                hidden_name = Symbol("#hidden_$(old_name)")
                 name_and_types.args[1] = hidden_name
             elseif isa(name_and_types, Symbol)
-                name = name_and_types
-                hidden_name = gensym(name)
+                old_name = name_and_types
+                hidden_name = Symbol("#hidden_$(old_name)")
                 lhs.args[1] = hidden_name
             else
-                error("potentially malformed function signature: $(signature)")
+                error("potentially malformed function signature for $typesym")
             end
             return quote
                 $expr
-                @inline function $(old_name_and_types)($(args_signature...))
-                    return ReverseDiff.$(typesym)($(hidden_name))($(args_signature...))
+                if !(isdefined($(Expr(:quote, old_name))))
+                    const $(old_name) = ReverseDiff.$(typesym)($(hidden_name))
                 end
             end
         elseif isa(lhs, Symbol) # variable assignment site

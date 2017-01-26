@@ -29,7 +29,7 @@ function test_elementwise(f, fopt, x, tp)
     # reverse
     out = similar(y, (length(x), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(z -> map(f, z), x) EPS
+    test_approx(out, ForwardDiff.jacobian(z -> map(f, z), x))
 
     # forward
     x2 = x .- offset
@@ -52,7 +52,7 @@ function test_elementwise(f, fopt, x, tp)
     # reverse
     out = similar(y, (length(x), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(z -> broadcast(f, z), x) EPS
+    test_approx(out, ForwardDiff.jacobian(z -> broadcast(f, z), x))
 
     # forward
     x2 = x .- offset
@@ -78,7 +78,7 @@ function test_map(f, fopt, a, b, tp)
     # reverse
     out = similar(c, (length(a), length(a)))
     ReverseDiff.seeded_reverse_pass!(out, ct, at, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(x -> map(f, x, b), a) EPS
+    test_approx(out, ForwardDiff.jacobian(x -> map(f, x, b), a))
 
     # forward
     a2 = a .- offset
@@ -99,7 +99,7 @@ function test_map(f, fopt, a, b, tp)
     # reverse
     out = similar(c, (length(a), length(a)))
     ReverseDiff.seeded_reverse_pass!(out, ct, bt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(x -> map(f, a, x), b) EPS
+    test_approx(out, ForwardDiff.jacobian(x -> map(f, a, x), b))
 
     # forward
     b2 = b .- offset
@@ -122,8 +122,8 @@ function test_map(f, fopt, a, b, tp)
     out_b = similar(c, (length(a), length(a)))
     ReverseDiff.seeded_reverse_pass!(out_a, ct, at, tp)
     ReverseDiff.seeded_reverse_pass!(out_b, ct, bt, tp)
-    @test_approx_eq_eps out_a ForwardDiff.jacobian(x -> map(f, x, b), a) EPS
-    @test_approx_eq_eps out_b ForwardDiff.jacobian(x -> map(f, a, x), b) EPS
+    test_approx(out_a, ForwardDiff.jacobian(x -> map(f, x, b), a))
+    test_approx(out_b, ForwardDiff.jacobian(x -> map(f, a, x), b))
 
     # forward
     a2, b2 = a .- offset, b .- offset
@@ -158,7 +158,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     # reverse
     out = similar(c, (length(c), length(a)))
     ReverseDiff.seeded_reverse_pass!(out, ct, at, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(x -> g(x, b), a) EPS
+    test_approx(out, ForwardDiff.jacobian(x -> g(x, b), a))
 
     # forward
     a2 = a .- offset
@@ -179,7 +179,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     # reverse
     out = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out, ct, bt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(x -> g(a, x), b) EPS
+    test_approx(out, ForwardDiff.jacobian(x -> g(a, x), b))
 
     # forward
     b2 = b .- offset
@@ -202,8 +202,8 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     out_b = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out_a, ct, at, tp)
     ReverseDiff.seeded_reverse_pass!(out_b, ct, bt, tp)
-    @test_approx_eq_eps out_a ForwardDiff.jacobian(x -> g(x, b), a) EPS
-    @test_approx_eq_eps out_b ForwardDiff.jacobian(x -> g(a, x), b) EPS
+    test_approx(out_a, ForwardDiff.jacobian(x -> g(x, b), a))
+    test_approx(out_b, ForwardDiff.jacobian(x -> g(a, x), b))
 
     # forward
     a2, b2 = a .- offset, b .- offset
@@ -238,7 +238,7 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     # reverse
     out = similar(y)
     ReverseDiff.seeded_reverse_pass!(out, yt, nt, tp)
-    @test_approx_eq_eps out ForwardDiff.derivative(z -> g(z, x), n) EPS
+    test_approx(out, ForwardDiff.derivative(z -> g(z, x), n))
 
     # forward
     n2 = n + offset
@@ -259,7 +259,7 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     # reverse
     out = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(z -> g(n, z), x) EPS
+    test_approx(out, ForwardDiff.jacobian(z -> g(n, z), x))
 
     # forward
     x2 = x .- offset
@@ -282,8 +282,8 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     out_x = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out_n, yt, nt, tp)
     ReverseDiff.seeded_reverse_pass!(out_x, yt, xt, tp)
-    @test_approx_eq_eps out_n ForwardDiff.derivative(z -> g(z, x), n) EPS
-    @test_approx_eq_eps out_x ForwardDiff.jacobian(z -> g(n, z), x) EPS
+    test_approx(out_n, ForwardDiff.derivative(z -> g(z, x), n))
+    test_approx(out_x, ForwardDiff.jacobian(z -> g(n, z), x))
 
     # forward
     n2, x2 = n + offset , x .- offset
@@ -318,7 +318,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     # reverse
     out = similar(y)
     ReverseDiff.seeded_reverse_pass!(out, yt, nt, tp)
-    @test_approx_eq_eps out ForwardDiff.derivative(z -> g(x, z), n) EPS
+    test_approx(out, ForwardDiff.derivative(z -> g(x, z), n))
 
     # forward
     n2 = n + offset
@@ -339,7 +339,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     # reverse
     out = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    @test_approx_eq_eps out ForwardDiff.jacobian(z -> g(z, n), x) EPS
+    test_approx(out, ForwardDiff.jacobian(z -> g(z, n), x))
 
     # forward
     x2 = x .- offset
@@ -362,8 +362,8 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     out_x = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out_n, yt, nt, tp)
     ReverseDiff.seeded_reverse_pass!(out_x, yt, xt, tp)
-    @test_approx_eq_eps out_n ForwardDiff.derivative(z -> g(x, z), n) EPS
-    @test_approx_eq_eps out_x ForwardDiff.jacobian(z -> g(z, n), x) EPS
+    test_approx(out_n, ForwardDiff.derivative(z -> g(x, z), n))
+    test_approx(out_x, ForwardDiff.jacobian(z -> g(z, n), x))
 
     # forward
     x2, n2 = x .- offset, n + offset
@@ -378,7 +378,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
 end
 
 for f in DiffBase.NUMBER_TO_NUMBER_FUNCS
-    testprintln("DiffBase.NUMBER_TO_NUMBER_FUNCS", f)
+    test_println("DiffBase.NUMBER_TO_NUMBER_FUNCS", f)
     test_elementwise(f, ReverseDiff.@forward(f), x, tp)
     test_elementwise(f, ReverseDiff.@forward(f), a, tp)
 end
@@ -388,14 +388,14 @@ DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 for fsym in ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS
     f = eval(fsym)
     is_domain_err_func = in(fsym, DOMAIN_ERR_FUNCS)
-    testprintln("FORWARD_UNARY_SCALAR_FUNCS", f)
+    test_println("FORWARD_UNARY_SCALAR_FUNCS", f)
     test_elementwise(f, f, is_domain_err_func ? x .+ 1 : x, tp)
     test_elementwise(f, f, is_domain_err_func ? a .+ 1 : a, tp)
 end
 
 for fsym in ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS
     f = eval(fsym)
-    testprintln("FORWARD_BINARY_SCALAR_FUNCS", f)
+    test_println("FORWARD_BINARY_SCALAR_FUNCS", f)
     test_map(f, f, x, y, tp)
     test_map(f, f, a, b, tp)
     test_broadcast(f, f, x, y, tp)
@@ -408,8 +408,8 @@ for fsym in ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS
     test_broadcast(f, f, a, n, tp)
 end
 
-for f in (.+, .-, .*, ./, .\, .^)
-    testprintln("built-in broadcast functions", f)
+for f in DiffBase.BINARY_BROADCAST_OPS
+    test_println("built-in broadcast operators", f)
     test_broadcast(f, f, x, y, tp, true)
     test_broadcast(f, f, a, b, tp, true)
     test_broadcast(f, f, x, a, tp, true)

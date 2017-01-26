@@ -15,51 +15,51 @@ function test_unary_hessian(f, x)
 
     # without HessianConfig
 
-    @test_approx_eq_eps ReverseDiff.hessian(f, x) DiffBase.hessian(test) EPS
+    test_approx(ReverseDiff.hessian(f, x), DiffBase.hessian(test))
 
     out = similar(DiffBase.hessian(test))
     ReverseDiff.hessian!(out, f, x)
-    @test_approx_eq_eps out DiffBase.hessian(test) EPS
+    test_approx(out, DiffBase.hessian(test))
 
     result = DiffBase.HessianResult(x)
     ReverseDiff.hessian!(result, f, x)
-    @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-    @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
-    @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
+    test_approx(DiffBase.value(result), DiffBase.value(test))
+    test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
+    test_approx(DiffBase.hessian(result), DiffBase.hessian(test))
 
     # with HessianConfig
 
     cfg = ReverseDiff.HessianConfig(x)
 
-    @test_approx_eq_eps ReverseDiff.hessian(f, x, cfg) DiffBase.hessian(test) EPS
+    test_approx(ReverseDiff.hessian(f, x, cfg), DiffBase.hessian(test))
 
     out = similar(DiffBase.hessian(test))
     ReverseDiff.hessian!(out, f, x, cfg)
-    @test_approx_eq_eps out DiffBase.hessian(test) EPS
+    test_approx(out, DiffBase.hessian(test))
 
     result = DiffBase.HessianResult(x)
     cfg = ReverseDiff.HessianConfig(result, x)
     ReverseDiff.hessian!(result, f, x, cfg)
-    @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-    @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
-    @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
+    test_approx(DiffBase.value(result), DiffBase.value(test))
+    test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
+    test_approx(DiffBase.hessian(result), DiffBase.hessian(test))
 
     # with HessianTape
 
     seedx = rand(size(x))
     tp = ReverseDiff.HessianTape(f, seedx)
 
-    @test_approx_eq_eps ReverseDiff.hessian!(tp, x) DiffBase.hessian(test) EPS
+    test_approx(ReverseDiff.hessian!(tp, x), DiffBase.hessian(test))
 
     out = similar(DiffBase.hessian(test))
     ReverseDiff.hessian!(out, tp, x)
-    @test_approx_eq_eps out DiffBase.hessian(test) EPS
+    test_approx(out, DiffBase.hessian(test))
 
     result = DiffBase.HessianResult(x)
     ReverseDiff.hessian!(result, tp, x)
-    @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-    @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
-    @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
+    test_approx(DiffBase.value(result), DiffBase.value(test))
+    test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
+    test_approx(DiffBase.hessian(result), DiffBase.hessian(test))
 
     # with compiled HessianTape
 
@@ -67,37 +67,43 @@ function test_unary_hessian(f, x)
         Hf! = ReverseDiff.compile_hessian(f, seedx)
         ctp = ReverseDiff.compile(tp)
 
-        @test_approx_eq_eps ReverseDiff.hessian!(ctp, x) DiffBase.hessian(test) EPS
+        # circumvent world-age problems (`ctp` and `Hf!` have a future world age)
+        @eval begin
+            test, x = $test, $x
+            ctp, Hf! = $ctp, $Hf!
 
-        out = similar(DiffBase.hessian(test))
-        ReverseDiff.hessian!(out, ctp, x)
-        @test_approx_eq_eps out DiffBase.hessian(test) EPS
+            test_approx(ReverseDiff.hessian!(ctp, x), DiffBase.hessian(test))
 
-        out = similar(DiffBase.hessian(test))
-        Hf!(out, x)
-        @test_approx_eq_eps out DiffBase.hessian(test) EPS
+            out = similar(DiffBase.hessian(test))
+            ReverseDiff.hessian!(out, ctp, x)
+            test_approx(out, DiffBase.hessian(test))
 
-        result = DiffBase.HessianResult(x)
-        ReverseDiff.hessian!(result, ctp, x)
-        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-        @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
-        @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
+            out = similar(DiffBase.hessian(test))
+            Hf!(out, x)
+            test_approx(out, DiffBase.hessian(test))
 
-        result = DiffBase.HessianResult(x)
-        Hf!(result, x)
-        @test_approx_eq_eps DiffBase.value(result) DiffBase.value(test) EPS
-        @test_approx_eq_eps DiffBase.gradient(result) DiffBase.gradient(test) EPS
-        @test_approx_eq_eps DiffBase.hessian(result) DiffBase.hessian(test) EPS
+            result = DiffBase.HessianResult(x)
+            ReverseDiff.hessian!(result, ctp, x)
+            test_approx(DiffBase.value(result), DiffBase.value(test))
+            test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
+            test_approx(DiffBase.hessian(result), DiffBase.hessian(test))
+
+            result = DiffBase.HessianResult(x)
+            Hf!(result, x)
+            test_approx(DiffBase.value(result), DiffBase.value(test))
+            test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
+            test_approx(DiffBase.hessian(result), DiffBase.hessian(test))
+        end
     end
 end
 
 for f in DiffBase.MATRIX_TO_NUMBER_FUNCS
-    testprintln("MATRIX_TO_NUMBER_FUNCS", f)
+    test_println("MATRIX_TO_NUMBER_FUNCS", f)
     test_unary_hessian(f, rand(5, 5))
 end
 
 for f in DiffBase.VECTOR_TO_NUMBER_FUNCS
-    testprintln("VECTOR_TO_NUMBER_FUNCS", f)
+    test_println("VECTOR_TO_NUMBER_FUNCS", f)
     test_unary_hessian(f, rand(5))
 end
 

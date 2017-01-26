@@ -1,3 +1,8 @@
+function dual_values(duals)
+    values = similar(duals, ForwardDiff.valtype(eltype(duals)))
+    return map!(ForwardDiff.value, values, duals)
+end
+
 ###############################
 # SkipOptimized map/broadcast #
 ###############################
@@ -60,163 +65,6 @@ for g in (:map, :broadcast)
     end
 end
 
-##################################
-# ForwardOptimized map/broadcast #
-##################################
-
-# dispatch #
-#----------#
-
-for g in (:map, :broadcast), f in FORWARD_UNARY_SCALAR_FUNCS
-    @eval @inline Base.$(g)(f::typeof($f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
-end
-
-for g in (:map, :broadcast), f in FORWARD_BINARY_SCALAR_FUNCS
-    @eval begin
-        @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-        @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
-        @inline Base.$(g)(f::typeof($f), x::TrackedReal, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-    end
-    for A in ARRAY_TYPES
-        @eval begin
-            @inline Base.$(g)(f::typeof($f), x::$A, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::$A) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($f), x::$A, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($f), x::TrackedReal, y::$A) = $(g)(ForwardOptimize(f), x, y)
-        end
-    end
-    for R in REAL_TYPES
-        @eval begin
-            @inline Base.$(g)(f::typeof($f), x::$R, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::$R) = $(g)(ForwardOptimize(f), x, y)
-        end
-    end
-end
-
-# record #
-#--------#
-
-for g in (:map, :broadcast)
-    @eval function Base.$(g){F,X,D}(f::ForwardOptimize{F}, x::TrackedArray{X,D})
-        fdual = v -> f.f(Dual(v, one(X)))
-        duals = $(g)(fdual, value(x))
-        tp = tape(x)
-        out = track(dual_values(duals), D, tp)
-        record!(tp, SpecialInstruction, $(g), x, out, (fdual, duals))
-        return out
-    end
-
-    for A in ARRAY_TYPES, T in (:TrackedArray, :TrackedReal)
-        @eval function Base.$(g){F,X,D}(f::ForwardOptimize{F}, x::$(T){X,D}, y::$A)
-            fdual = (vx, vy) -> f.f(Dual(vx, one(X), zero(X)), Dual(vy, zero(vy), one(vy)))
-            duals = $(g)(fdual, value(x), value(y))
-            tp = tape(x)
-            out = track(dual_values(duals), D, tp)
-            record!(tp, SpecialInstruction, $(g), (x, y), out, (fdual, duals))
-            return out
-        end
-
-        @eval function Base.$(g){F,Y,D}(f::ForwardOptimize{F}, x::$A, y::$(T){Y,D})
-            fdual = (vx, vy) -> f.f(Dual(vx, one(vx), zero(vx)), Dual(vy, zero(Y), one(Y)))
-            duals = $(g)(fdual, value(x), value(y))
-            tp = tape(y)
-            out = track(dual_values(duals), D, tp)
-            record!(tp, SpecialInstruction, $(g), (x, y), out, (fdual, duals))
-            return out
-        end
-    end
-
-    for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
-        (TX == TY == :TrackedReal) && continue
-        @eval function Base.$(g){F,X,Y,D}(f::ForwardOptimize{F}, x::$(TX){X,D}, y::$(TY){Y,D})
-            fdual = (vx, vy) -> f.f(Dual(vx, one(X), zero(X)), Dual(vy, zero(Y), one(Y)))
-            duals = $(g)(fdual, value(x), value(y))
-            tp = tape(x, y)
-            out = track(dual_values(duals), D, tp)
-            record!(tp, SpecialInstruction, $(g), (x, y), out, (fdual, duals))
-            return out
-        end
-    end
-end
-
-for R in REAL_TYPES
-    @eval begin
-        @inline Base.broadcast{F,X,D}(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$R) = broadcast(ForwardOptimize(t -> f.f(t, y)), x)
-        @inline Base.broadcast{F,Y,D}(f::ForwardOptimize{F}, x::$R, y::TrackedArray{Y,D}) = broadcast(ForwardOptimize(t -> f.f(x, t)), y)
-    end
-end
-
-# forward pass #
-#--------------#
-
-for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
-    @eval begin
-        @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof($g)})
-            input, output = instruction.input, instruction.output
-            fdual, duals = instruction.cache
-            if istracked(input)
-                ($g!)(fdual, duals, value(input))
-            else
-                a, b = input
-                pull_value!(a)
-                pull_value!(b)
-                ($g!)(fdual, duals, value(a), value(b))
-            end
-            output_value = value(output)
-            for i in eachindex(output_value)
-                output_value[i] = ForwardDiff.value(duals[i])
-            end
-            return nothing
-        end
-    end
-end
-
-# reverse pass (map) #
-#--------------------#
-
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(map)})
-    input = instruction.input
-    output = instruction.output
-    _, duals = instruction.cache
-    if istracked(input)
-        map_duals_increment!(input, output, duals, 1)
-    else
-        a, b = input
-        istracked(a) && map_duals_increment!(a, output, duals, 1)
-        istracked(b) && map_duals_increment!(b, output, duals, 2)
-    end
-    unseed!(output)
-    return nothing
-end
-
-# reverse pass (broadcast) #
-#--------------------------#
-
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(broadcast)})
-    input = instruction.input
-    output = instruction.output
-    cache = instruction.cache
-    _, duals = instruction.cache
-    if istracked(input)
-        if size(input) == size(output)
-            map_duals_increment!(input, output, duals, 1)
-        else
-            broadcast_duals_increment!(input, output, duals, 1)
-        end
-    else
-        a, b = input
-        if size(a) == size(b)
-            istracked(a) && map_duals_increment!(a, output, duals, 1)
-            istracked(b) && map_duals_increment!(b, output, duals, 2)
-        else
-            istracked(a) && broadcast_duals_increment!(a, output, duals, 1)
-            istracked(b) && broadcast_duals_increment!(b, output, duals, 2)
-        end
-    end
-    unseed!(output)
-    return nothing
-end
-
 ####################################
 # ForwardOptimized map!/broadcast! #
 ####################################
@@ -258,7 +106,8 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
         fdual = v -> f.f(Dual(v, one(X)))
         duals = $(g)(fdual, value(x))
         copy!(value(out), dual_values(duals))
-        record!(tape(x), SpecialInstruction, $(g), x, out, (fdual, duals))
+        cache = (duals, fdual, index_bound(x, out), nothing)
+        record!(tape(x), SpecialInstruction, $(g), x, out, cache)
         return out
     end
 
@@ -268,7 +117,8 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             fdual = (vx, vy) -> f.f(Dual(vx, one(X), zero(X)), Dual(vy, zero(Y), one(Y)))
             duals = $(g)(fdual, value(x), value(y))
             copy!(value(out), dual_values(duals))
-            record!(tape(x, y), SpecialInstruction, $(g), (x, y), out, (fdual, duals))
+            cache = (duals, fdual, index_bound(x, out), index_bound(y, out))
+            record!(tape(x, y), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
     end
@@ -278,7 +128,8 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             fdual = (vx, vy) -> f.f(Dual(vx, one(X), zero(X)), Dual(vy, zero(vy), one(vy)))
             duals = $(g)(fdual, value(x), value(y))
             copy!(value(out), dual_values(duals))
-            record!(tape(x), SpecialInstruction, $(g), (x, y), out, (fdual, duals))
+            cache = (duals, fdual, index_bound(x, out), index_bound(y, out))
+            record!(tape(x), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
 
@@ -286,7 +137,8 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             fdual = (vx, vy) -> f.f(Dual(vx, one(vx), zero(vx)), Dual(vy, zero(Y), one(Y)))
             duals = $(g)(fdual, value(x), value(y))
             copy!(value(out), dual_values(duals))
-            record!(tape(x), SpecialInstruction, $(g), (x, y), out, (fdual, duals))
+            cache = (duals, fdual, index_bound(x, out), index_bound(y, out))
+            record!(tape(x), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
     end
@@ -299,6 +151,172 @@ for R in REAL_TYPES
     end
 end
 
+##################################
+# ForwardOptimized map/broadcast #
+##################################
+
+# dispatch #
+#----------#
+
+for g in (:map, :broadcast), f in FORWARD_UNARY_SCALAR_FUNCS
+    @eval @inline Base.$(g)(f::typeof($f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
+end
+
+for g in (:map, :broadcast), f in FORWARD_BINARY_SCALAR_FUNCS
+    # skip these definitions if `f` is one of the functions
+    # that will get a manually defined broadcast definition
+    # later (see "built-in infix operations" below)
+    g == :broadcast && in(f, (:+, :-, :*, :/, :\, :^)) && continue
+    @eval begin
+        @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+        @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
+        @inline Base.$(g)(f::typeof($f), x::TrackedReal, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+    end
+    for A in ARRAY_TYPES
+        @eval begin
+            @inline Base.$(g)(f::typeof($f), x::$A, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::$A) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($f), x::$A, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($f), x::TrackedReal, y::$A) = $(g)(ForwardOptimize(f), x, y)
+        end
+    end
+    for R in REAL_TYPES
+        @eval begin
+            @inline Base.$(g)(f::typeof($f), x::$R, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::$R) = $(g)(ForwardOptimize(f), x, y)
+        end
+    end
+end
+
+
+# record #
+#--------#
+
+for g in (:map, :broadcast)
+    @eval function Base.$(g){F,X,D}(f::ForwardOptimize{F}, x::TrackedArray{X,D})
+        fdual = v -> f.f(Dual(v, one(X)))
+        duals = $(g)(fdual, value(x))
+        tp = tape(x)
+        out = track(dual_values(duals), D, tp)
+        cache = (duals, fdual, index_bound(x, out), nothing)
+        record!(tp, SpecialInstruction, $(g), x, out, cache)
+        return out
+    end
+
+    for A in ARRAY_TYPES, T in (:TrackedArray, :TrackedReal)
+        @eval function Base.$(g){F,X,D}(f::ForwardOptimize{F}, x::$(T){X,D}, y::$A)
+            fdual = (vx, vy) -> f.f(Dual(vx, one(X), zero(X)), Dual(vy, zero(vy), one(vy)))
+            duals = $(g)(fdual, value(x), value(y))
+            tp = tape(x)
+            out = track(dual_values(duals), D, tp)
+            cache = (duals, fdual, index_bound(x, out), index_bound(y, out))
+            record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
+            return out
+        end
+
+        @eval function Base.$(g){F,Y,D}(f::ForwardOptimize{F}, x::$A, y::$(T){Y,D})
+            fdual = (vx, vy) -> f.f(Dual(vx, one(vx), zero(vx)), Dual(vy, zero(Y), one(Y)))
+            duals = $(g)(fdual, value(x), value(y))
+            tp = tape(y)
+            out = track(dual_values(duals), D, tp)
+            cache = (duals, fdual, index_bound(x, out), index_bound(y, out))
+            record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
+            return out
+        end
+    end
+
+    for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
+        TX == :TrackedReal && TY == :TrackedReal && continue
+        @eval function Base.$(g){F,X,Y,D}(f::ForwardOptimize{F}, x::$(TX){X,D}, y::$(TY){Y,D})
+            fdual = (vx, vy) -> f.f(Dual(vx, one(X), zero(X)), Dual(vy, zero(Y), one(Y)))
+            duals = $(g)(fdual, value(x), value(y))
+            tp = tape(x, y)
+            out = track(dual_values(duals), D, tp)
+            cache = (duals, fdual, index_bound(x, out), index_bound(y, out))
+            record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
+            return out
+        end
+    end
+end
+
+for R in REAL_TYPES
+    @eval begin
+        @inline Base.broadcast{F,X,D}(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$R) = broadcast(ForwardOptimize(t -> f.f(t, y)), x)
+        @inline Base.broadcast{F,Y,D}(f::ForwardOptimize{F}, x::$R, y::TrackedArray{Y,D}) = broadcast(ForwardOptimize(t -> f.f(x, t)), y)
+    end
+end
+
+################
+# forward pass #
+################
+
+for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
+    @eval begin
+        @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof($g)})
+            input, output = instruction.input, instruction.output
+            duals, fdual, _, _ = instruction.cache
+            if istracked(input)
+                ($g!)(fdual, duals, value(input))
+            else
+                a, b = input
+                pull_value!(a)
+                pull_value!(b)
+                ($g!)(fdual, duals, value(a), value(b))
+            end
+            output_value = value(output)
+            for i in eachindex(output_value)
+                output_value[i] = ForwardDiff.value(duals[i])
+            end
+            return nothing
+        end
+    end
+end
+
+################
+# reverse pass #
+################
+
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(map)})
+    input = instruction.input
+    output = instruction.output
+    output_deriv = deriv(output)
+    duals = first(instruction.cache)
+    if istracked(input)
+        duals_increment_deriv!(input, output_deriv, duals, 1)
+    else
+        a, b = input
+        istracked(a) && duals_increment_deriv!(a, output_deriv, duals, 1)
+        istracked(b) && duals_increment_deriv!(b, output_deriv, duals, 2)
+    end
+    unseed!(output)
+    return nothing
+end
+
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(broadcast)})
+    input = instruction.input
+    output = instruction.output
+    output_deriv = deriv(output)
+    duals, _, a_bound, b_bound = instruction.cache
+    if istracked(input)
+        if size(input) == size(output_deriv)
+            duals_increment_deriv!(input, output_deriv, duals, 1)
+        else
+            duals_increment_deriv!(input, output_deriv, duals, 1, a_bound)
+        end
+    else
+        a, b = input
+        if size(a) == size(b)
+            istracked(a) && duals_increment_deriv!(a, output_deriv, duals, 1)
+            istracked(b) && duals_increment_deriv!(b, output_deriv, duals, 2)
+        else
+            istracked(a) && duals_increment_deriv!(a, output_deriv, duals, 1, a_bound)
+            istracked(b) && duals_increment_deriv!(b, output_deriv, duals, 2, b_bound)
+        end
+    end
+    unseed!(output)
+    return nothing
+end
+
 #############################
 # built-in infix operations #
 #############################
@@ -308,29 +326,58 @@ typealias TrackedType Union{TrackedArray,TrackedReal}
 # dispatch #
 #----------#
 
-for (f, broadcast_f) in ((:.+, :broadcast_plus),
-                         (:.-, :broadcast_minus),
-                         (:.*, :broadcast_mul),
-                         (:./, :broadcast_rdiv),
-                         (:.\, :broadcast_ldiv),
-                         (:.^, :broadcast_pow))
+for (F, broadcast_f) in ((typeof(+), :broadcast_plus),
+                         (typeof(-), :broadcast_minus),
+                         (typeof(*), :broadcast_mul),
+                         (typeof(/), :broadcast_rdiv),
+                         (typeof(\), :broadcast_ldiv),
+                         (typeof(^), :broadcast_pow))
     @eval begin
-        @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-        @inline Base.$(f){X,Y,D}(x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-        @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+        @inline Base.broadcast{X,Y,D}(::$F, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+        @inline Base.broadcast{X,Y,D}(::$F, x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+        @inline Base.broadcast{X,Y,D}(::$F, x::TrackedArray{X,D}, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
     end
     for A in ARRAY_TYPES
         @eval begin
-            @inline Base.$(f){X,D}(x::TrackedArray{X,D}, y::$A) = $(broadcast_f)(x, y, D)
-            @inline Base.$(f){Y,D}(x::$A, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
-            @inline Base.$(f){X,D}(x::TrackedReal{X,D}, y::$A) = $(broadcast_f)(x, y, D)
-            @inline Base.$(f){Y,D}(x::$A, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{X,D}(::$F, x::TrackedArray{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{Y,D}(::$F, x::$A, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{X,D}(::$F, x::TrackedReal{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{Y,D}(::$F, x::$A, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
         end
     end
     for R in REAL_TYPES
         @eval begin
-            @inline Base.$(f){X,D}(x::TrackedArray{X,D}, y::$R) = $(broadcast_f)(x, y, D)
-            @inline Base.$(f){Y,D}(x::$R, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{X,D}(::$F, x::TrackedArray{X,D}, y::$R) = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast{Y,D}(::$F, x::$R, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+        end
+    end
+end
+
+if VERSION < v"0.6.0-dev.1614"
+    for (f, broadcast_f) in ((:.+, :broadcast_plus),
+                             (:.-, :broadcast_minus),
+                             (:.*, :broadcast_mul),
+                             (:./, :broadcast_rdiv),
+                             (:.\, :broadcast_ldiv),
+                             (:.^, :broadcast_pow))
+        @eval begin
+            @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.$(f){X,Y,D}(x::TrackedReal{X,D}, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            @inline Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+        end
+        for A in ARRAY_TYPES
+            @eval begin
+                @inline Base.$(f){X,D}(x::TrackedArray{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+                @inline Base.$(f){Y,D}(x::$A, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+                @inline Base.$(f){X,D}(x::TrackedReal{X,D}, y::$A) = $(broadcast_f)(x, y, D)
+                @inline Base.$(f){Y,D}(x::$A, y::TrackedReal{Y,D}) = $(broadcast_f)(x, y, D)
+            end
+        end
+        for R in REAL_TYPES
+            @eval begin
+                @inline Base.$(f){X,D}(x::TrackedArray{X,D}, y::$R) = $(broadcast_f)(x, y, D)
+                @inline Base.$(f){Y,D}(x::$R, y::TrackedArray{Y,D}) = $(broadcast_f)(x, y, D)
+            end
         end
     end
 end
@@ -341,7 +388,8 @@ end
 function broadcast_plus{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) .+ value(y), D, tp)
-    record!(tp, SpecialInstruction, Base.:(.+), (x, y), out)
+    cache = (index_bound(x, out), index_bound(y, out))
+    record!(tp, SpecialInstruction, Base.:(.+), (x, y), out, cache)
     return out
 end
 
@@ -357,8 +405,10 @@ end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.+)})
     a, b = instruction.input
     output = instruction.output
-    istracked(a) && broadcast_deriv_increment!(a, output)
-    istracked(b) && broadcast_deriv_increment!(b, output)
+    output_deriv = deriv(output)
+    a_bound, b_bound = instruction.cache
+    istracked(a) && broadcast_increment_deriv!(a, output_deriv, a_bound)
+    istracked(b) && broadcast_increment_deriv!(b, output_deriv, b_bound)
     unseed!(output)
     return nothing
 end
@@ -369,7 +419,8 @@ end
 function broadcast_minus{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) .- value(y), D, tp)
-    record!(tp, SpecialInstruction, Base.:(.-), (x, y), out)
+    cache = (index_bound(x, out), index_bound(y, out))
+    record!(tp, SpecialInstruction, Base.:(.-), (x, y), out, cache)
     return out
 end
 
@@ -385,8 +436,10 @@ end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.-)})
     a, b = instruction.input
     output = instruction.output
-    istracked(a) && broadcast_deriv_increment!(a, output)
-    istracked(b) && broadcast_deriv_decrement!(b, output)
+    output_deriv = deriv(output)
+    a_bound, b_bound = instruction.cache
+    istracked(a) && broadcast_increment_deriv!(a, output_deriv, a_bound)
+    istracked(b) && broadcast_decrement_deriv!(b, output_deriv, b_bound)
     unseed!(output)
     return nothing
 end
@@ -397,7 +450,8 @@ end
 function broadcast_mul{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) .* value(y), D, tp)
-    record!(tp, SpecialInstruction, Base.:(.*), (x, y), out)
+    cache = (index_bound(x, out), index_bound(y, out))
+    record!(tp, SpecialInstruction, Base.:(.*), (x, y), out, cache)
     return out
 end
 
@@ -413,8 +467,10 @@ end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.*)})
     a, b = instruction.input
     output = instruction.output
-    istracked(a) && broadcast_deriv_increment!(a, output, value(b))
-    istracked(b) && broadcast_deriv_increment!(b, output, value(a))
+    output_deriv = deriv(output)
+    a_bound, b_bound = instruction.cache
+    istracked(a) && broadcast_increment_deriv!(a, output_deriv, value(b), a_bound, b_bound)
+    istracked(b) && broadcast_increment_deriv!(b, output_deriv, value(a), b_bound, a_bound)
     unseed!(output)
     return nothing
 end
@@ -438,7 +494,11 @@ rdiv_cache(x, y) = (numer_partials(value(y)), denom_partials(value(x), value(y))
 function broadcast_rdiv{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) ./ value(y), D, tp)
-    record!(tp, SpecialInstruction, Base.:(./), (x, y), out, rdiv_cache(x, y))
+    n_partials, d_partials = rdiv_cache(x, y)
+    cache = (n_partials, d_partials,
+             index_bound(x, out), index_bound(y, out),
+             index_bound(n_partials, out), index_bound(d_partials, out))
+    record!(tp, SpecialInstruction, Base.:(./), (x, y), out, cache)
     return out
 end
 
@@ -458,9 +518,11 @@ end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(./)})
     a, b = instruction.input
     output = instruction.output
-    n_partials, d_partials = instruction.cache
-    istracked(a) && broadcast_deriv_increment!(a, output, n_partials)
-    istracked(b) && broadcast_deriv_increment!(b, output, d_partials)
+    output_deriv = deriv(output)
+    n_partials, d_partials, a_bound, b_bound,
+    n_partials_bound, d_partials_bound = instruction.cache
+    istracked(a) && broadcast_increment_deriv!(a, output_deriv, n_partials, a_bound, n_partials_bound)
+    istracked(b) && broadcast_increment_deriv!(b, output_deriv, d_partials, b_bound, d_partials_bound)
     unseed!(output)
     return nothing
 end
@@ -471,7 +533,11 @@ end
 function broadcast_ldiv{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) .\ value(y), D, tp)
-    record!(tp, SpecialInstruction, Base.:(.\), (x, y), out, rdiv_cache(y, x))
+    n_partials, d_partials = rdiv_cache(y, x)
+    cache = (n_partials, d_partials,
+             index_bound(x, out), index_bound(y, out),
+             index_bound(n_partials, out), index_bound(d_partials, out))
+    record!(tp, SpecialInstruction, Base.:(.\), (x, y), out, cache)
     return out
 end
 
@@ -491,9 +557,11 @@ end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.\)})
     a, b = instruction.input
     output = instruction.output
-    n_partials, d_partials = instruction.cache
-    istracked(a) && broadcast_deriv_increment!(a, output, d_partials)
-    istracked(b) && broadcast_deriv_increment!(b, output, n_partials)
+    output_deriv = deriv(output)
+    n_partials, d_partials, a_bound, b_bound,
+    n_partials_bound, d_partials_bound = instruction.cache
+    istracked(a) && broadcast_increment_deriv!(a, output_deriv, d_partials, a_bound, d_partials_bound)
+    istracked(b) && broadcast_increment_deriv!(b, output_deriv, n_partials, b_bound, n_partials_bound)
     unseed!(output)
     return nothing
 end
@@ -518,7 +586,11 @@ pow_cache(x, y) = (base_partials(value(x), value(y)), exp_partials(value(x), val
 function broadcast_pow{D}(x, y, ::Type{D})
     tp = tape(x, y)
     out = track(value(x) .^ value(y), D, tp)
-    record!(tp, SpecialInstruction, Base.:(.^), (x, y), out, pow_cache(x, y))
+    bs_partials, ex_partials = pow_cache(x, y)
+    cache = (bs_partials, ex_partials,
+             index_bound(x, out), index_bound(y, out),
+             index_bound(bs_partials, out), index_bound(ex_partials, out))
+    record!(tp, SpecialInstruction, Base.:(.^), (x, y), out, cache)
     return out
 end
 
@@ -538,199 +610,11 @@ end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.^)})
     a, b = instruction.input
     output = instruction.output
-    bs_partials, ex_partials = instruction.cache
-    istracked(a) && broadcast_deriv_increment!(a, output, bs_partials)
-    istracked(b) && broadcast_deriv_increment!(b, output, ex_partials)
+    output_deriv = deriv(output)
+    bs_partials, ex_partials, a_bound, b_bound,
+    bs_partials_bound, ex_partials_bound = instruction.cache
+    istracked(a) && broadcast_increment_deriv!(a, output_deriv, bs_partials, a_bound, bs_partials_bound)
+    istracked(b) && broadcast_increment_deriv!(b, output_deriv, ex_partials, b_bound, ex_partials_bound)
     unseed!(output)
-    return nothing
-end
-
-#############
-# utilities #
-#############
-
-#=
-The strategies below should be decently fast, but some might be prone to numerical error
-if the accumulated derivative becomes too large compared to the individual terms being
-added to it. This can be overcome by using the divide-and-conquer strategy from
-Base.mapreducedim, but that strategy is less cache efficient and more complicated to
-implement.
-
-There's also a lot of boilerplate code here, but I'm not sure there's a cleaner way to
-do this that doesn't sacrifice efficiency.
-=#
-
-max_leftover_index{T,N}(x, ::AbstractArray{T,N}) = CartesianIndex{N}(ntuple(i -> size(x, i), Val{N}))
-
-broadcast_deriv_increment!(input, output, partials::Ref) = broadcast_deriv_increment!(input, output, partials[])
-
-dual_values(duals) = map!(ForwardDiff.value, similar(duals, ForwardDiff.valtype(eltype(duals))), duals)
-
-# map_duals_increment!/broadcast_duals_increment! #
-#-------------------------------------------------#
-
-function map_duals_increment!(input::TrackedArray, output, duals, p::Int)
-    input_deriv, output_deriv = deriv(input), deriv(output)
-    for i in eachindex(output_deriv)
-        input_deriv[i] += output_deriv[i] * ForwardDiff.partials(duals[i], p)
-    end
-    return nothing
-end
-
-function map_duals_increment!(input::AbstractArray, output, duals, p::Int)
-    output_deriv = deriv(output)
-    for i in eachindex(output_deriv)
-        increment_deriv!(input[i], output_deriv[i] * ForwardDiff.partials(duals[i], p))
-    end
-    return nothing
-end
-
-function broadcast_duals_increment!(input::TrackedArray, output, duals, p::Int)
-    max_input_index = max_leftover_index(input, output)
-    input_deriv, output_deriv = deriv(input), deriv(output)
-    for i in CartesianRange(size(output))
-        input_deriv[min(max_input_index, i)] += output_deriv[i] * ForwardDiff.partials(duals[i], p)
-    end
-    return nothing
-end
-
-function broadcast_duals_increment!(input::AbstractArray, output, duals, p::Int)
-    max_input_index = max_leftover_index(input, output)
-    output_deriv = deriv(output)
-    for i in CartesianRange(size(output))
-        increment_deriv!(input[min(max_input_index, i)], output_deriv[i] * ForwardDiff.partials(duals[i], p))
-    end
-    return nothing
-end
-
-function broadcast_duals_increment!(input::TrackedReal, output, duals, p::Int)
-    for i in eachindex(duals)
-        increment_deriv!(input, deriv(output[i]) * ForwardDiff.partials(duals[i], p))
-    end
-    return nothing
-end
-
-# broadcast_deriv_increment!/broadcast_deriv_decrement! #
-#-------------------------------------------------------#
-
-#######
-
-function broadcast_deriv_increment!(input::TrackedArray, output)
-    max_input_index = max_leftover_index(input, output)
-    input_deriv, output_deriv = deriv(input), deriv(output)
-    for i in CartesianRange(size(output))
-        input_deriv[min(max_input_index, i)] += output_deriv[i]
-    end
-    return nothing
-end
-
-function broadcast_deriv_increment!(input::AbstractArray, output)
-    max_input_index = max_leftover_index(input, output)
-    output_deriv = deriv(output)
-    for i in CartesianRange(size(output))
-        increment_deriv!(input[min(max_input_index, i)], output_deriv[i])
-    end
-    return nothing
-end
-
-#######
-
-function broadcast_deriv_decrement!(input::TrackedArray, output)
-    max_input_index = max_leftover_index(input, output)
-    input_deriv, output_deriv = deriv(input), deriv(output)
-    for i in CartesianRange(size(output))
-        input_deriv[min(max_input_index, i)] -= output_deriv[i]
-    end
-    return nothing
-end
-
-function broadcast_deriv_decrement!(input::AbstractArray, output)
-    max_input_index = max_leftover_index(input, output)
-    output_deriv = deriv(output)
-    for i in CartesianRange(size(output))
-        decrement_deriv!(input[min(max_input_index, i)], output_deriv[i])
-    end
-    return nothing
-end
-
-#######
-
-function broadcast_deriv_increment!(input::TrackedArray, output, partials::AbstractArray)
-    max_input_index = max_leftover_index(input, output)
-    max_partials_index = max_leftover_index(partials, output)
-    input_deriv, output_deriv = deriv(input), deriv(output)
-    for i in CartesianRange(size(output))
-        input_deriv[min(max_input_index, i)] += output_deriv[i] * partials[min(max_partials_index, i)]
-    end
-    return nothing
-end
-
-function broadcast_deriv_increment!(input::AbstractArray, output, partials::AbstractArray)
-    max_input_index = max_leftover_index(input, output)
-    max_partials_index = max_leftover_index(partials, output)
-    output_deriv = deriv(output)
-    for i in CartesianRange(size(output))
-        increment_deriv!(input[min(max_input_index, i)], output_deriv[i] * partials[min(max_partials_index, i)])
-    end
-    return nothing
-end
-
-#######
-
-function broadcast_deriv_increment!(input::TrackedArray, output, partials::Real)
-    max_input_index = max_leftover_index(input, output)
-    input_deriv, output_deriv = deriv(input), deriv(output)
-    for i in CartesianRange(size(output))
-        input_deriv[min(max_input_index, i)] += output_deriv[i] * partials
-    end
-    return nothing
-end
-
-function broadcast_deriv_increment!(input::AbstractArray, output, partials::Real)
-    max_input_index =  max_leftover_index(input, output)
-    output_deriv = deriv(output)
-    for i in CartesianRange(size(output))
-        increment_deriv!(input[min(max_input_index, i)], output_deriv[i] * partials)
-    end
-    return nothing
-end
-
-#######
-
-function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray, partials::AbstractArray)
-    output_deriv = deriv(output)
-    for i in eachindex(output_deriv)
-        increment_deriv!(input, output_deriv[i] * partials[i])
-    end
-    return nothing
-end
-
-#######
-
-function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray, partials::Real)
-    output_deriv = deriv(output)
-    for i in eachindex(output_deriv)
-        increment_deriv!(input, output_deriv[i] * partials)
-    end
-    return nothing
-end
-
-#######
-
-function broadcast_deriv_increment!(input::TrackedReal, output::TrackedArray)
-    output_deriv = deriv(output)
-    for i in eachindex(output_deriv)
-        increment_deriv!(input, output_deriv[i])
-    end
-    return nothing
-end
-
-#######
-
-function broadcast_deriv_decrement!(input::TrackedReal, output::TrackedArray)
-    output_deriv = deriv(output)
-    for i in eachindex(output_deriv)
-        decrement_deriv!(input, output_deriv[i])
-    end
     return nothing
 end
