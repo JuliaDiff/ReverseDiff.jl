@@ -581,7 +581,11 @@ exp_partials(b, e) = broadcast(exp_partials_kernel, b, e)
 exp_partials!(out::Ref, b, e) = (out[] = exp_partials_kernel(b, e); nothing)
 exp_partials!(out::AbstractArray, b, e) = (broadcast!(exp_partials_kernel, out, b, e); nothing)
 
-pow_cache(x, y) = (base_partials(value(x), value(y)), exp_partials(value(x), value(y)))
+function pow_cache(x, y)
+    pow_x = istracked(x) ? base_partials(value(x), value(y)) : value(x)
+    pow_y = istracked(y) ? exp_partials(value(x), value(y)) : value(y)
+    return (pow_x, pow_y)
+end
 
 function broadcast_pow{D}(x, y, ::Type{D})
     tp = tape(x, y)
