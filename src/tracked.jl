@@ -68,7 +68,7 @@ immutable TrackedArray{V,D,N,VA,DA} <: AbstractArray{TrackedReal{V,D,TrackedArra
     deriv::DA
     tape::RawTape
     function TrackedArray(value::AbstractArray{V,N}, deriv::AbstractArray{D,N}, tape::RawTape)
-        @assert Base.linearindexing(value) === Base.LinearFast()
+        @assert @compat Base.IndexStyle(value) === Base.IndexLinear()
         @assert size(value) === size(deriv)
         return new(value, deriv, tape)
     end
@@ -317,7 +317,7 @@ end
 
 Base.setindex!(t::TrackedArray, args...) = error("TrackedArrays do not support setindex!")
 
-Base.linearindexing(::TrackedArray) = Base.LinearFast()
+@compat Base.IndexStyle(::TrackedArray) = Base.IndexLinear()
 
 Base.size(t::TrackedArray) = size(value(t))
 
