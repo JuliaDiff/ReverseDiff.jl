@@ -4,6 +4,8 @@ module ReverseDiff
 
 using Base: RefValue
 
+using Compat
+
 using DiffBase
 using DiffBase: DiffResult
 

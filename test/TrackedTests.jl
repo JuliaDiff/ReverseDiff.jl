@@ -2,6 +2,7 @@ module TrackedTests
 
 using ReverseDiff, Base.Test
 using ReverseDiff: TrackedReal, TrackedArray
+using Compat
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
 
@@ -703,7 +704,7 @@ instr = tp[1]
 @test instr.cache === nothing
 empty!(tp)
 
-@test Base.linearindexing(ta) === Base.LinearFast()
+@test IndexStyle(ta) === IndexLinear()
 
 @test Base.size(ta) === size(varr)
 
