@@ -92,7 +92,7 @@ end
 function hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)
     seeded_reverse_pass!(DiffResult(DiffBase.gradient(result), DiffBase.hessian(result)), tape)
-    DiffBase.value!(result, tape.func(input))
+    DiffBase.value!(result, func_hook(tape)(input))
     return result
 end
 

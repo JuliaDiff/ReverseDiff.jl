@@ -25,9 +25,11 @@ for T in (:GradientTape, :JacobianTape, :HessianTape)
 
         Base.length(t::$T) = length(t.tape)
 
-        input_hook(t::$T) = t.input
+        @inline func_hook(t::$T) = t.func
 
-        output_hook(t::$T) = t.output
+        @inline input_hook(t::$T) = t.input
+
+        @inline output_hook(t::$T) = t.output
 
         forward_pass!(t::$T) = forward_pass!(t.tape)
 
@@ -54,7 +56,9 @@ immutable CompiledTape{S,T<:AbstractTape} <: AbstractTape
     tape::T
 end
 
-(::Type{CompiledTape{S}}{S,T<:AbstractTape}(t::T) = CompiledTape{S,T}(t)
+(::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T) = CompiledTape{S,T}(t)
+
+Base.show{S}(io::IO, t::CompiledTape{S}) = print(io, typeof(t).name, "{$S}($(t.tape.func))")
 
 typealias CompiledGradient{S,T<:GradientTape} CompiledTape{S,T}
 typealias CompiledJacobian{S,T<:JacobianTape} CompiledTape{S,T}
@@ -62,9 +66,31 @@ typealias CompiledHessian{S,T<:HessianTape}   CompiledTape{S,T}
 
 Base.length(ct::CompiledTape) = length(ct.tape)
 
-input_hook(ct::CompiledTape) = input_hook(ct.tape)
+@inline func_hook(ct::CompiledTape) = func_hook(ct.tape)
 
-output_hook(ct::CompiledTape) = output_hook(ct.tape)
+@inline input_hook(ct::CompiledTape) = input_hook(ct.tape)
+
+@inline output_hook(ct::CompiledTape) = output_hook(ct.tape)
+
+function generate_forward_pass_method{T}(::Type{T}, tape::RawTape)
+    body = Expr(:block)
+    push!(body.args, :(tape = compiled_tape.tape.tape))
+    for i in 1:length(tape)
+        push!(body.args, :(ReverseDiff.forward_exec!(tape[$i]::$(typeof(tape[i])))))
+    end
+    push!(body.args, :(return nothing))
+    return :(ReverseDiff.forward_pass!(compiled_tape::$T) = $body)
+end
+
+function generate_reverse_pass_method{T}(::Type{T}, tape::RawTape)
+    body = Expr(:block)
+    push!(body.args, :(tape = compiled_tape.tape.tape))
+    for i in length(tape):-1:1
+        push!(body.args, :(ReverseDiff.reverse_exec!(tape[$i]::$(typeof(tape[i])))))
+    end
+    push!(body.args, :(return nothing))
+    return :(ReverseDiff.reverse_pass!(compiled_tape::$T) = $body)
+end
 
 """
     ReverseDiff.compile(t::AbstractTape)
@@ -88,8 +114,8 @@ function compile(t::AbstractTape)
 end
 
 function compile(ct::CompiledTape)
-    eval(ReverseDiff, generate_forward_pass_method(typeof(ct), ct.tape))
-    eval(ReverseDiff, generate_reverse_pass_method(typeof(ct), ct.tape))
+    eval(ReverseDiff, generate_forward_pass_method(typeof(ct), ct.tape.tape))
+    eval(ReverseDiff, generate_reverse_pass_method(typeof(ct), ct.tape.tape))
     return ct
 end
 
