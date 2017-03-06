@@ -20,7 +20,7 @@ call.
 """
 function gradient(f, input, cfg::GradientConfig = GradientConfig(input))
     tape = GradientTape(f, input, cfg)
-    result = construct_result(tape.input)
+    result = construct_result(input_hook(tape))
     seeded_reverse_pass!(result, tape)
     empty!(cfg.tape)
     return result
@@ -59,7 +59,7 @@ If `input` is a tuple of `AbstractArray`s, assume `tape` represents a function o
 of `f` w.r.t. `input[i].`
 """
 function gradient!(tape::Union{GradientTape,CompiledGradient}, input)
-    result = construct_result(tape.input)
+    result = construct_result(input_hook(tape))
     gradient!(result, tape, input)
     return result
 end

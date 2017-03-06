@@ -77,22 +77,22 @@ end
 # pass compilation #
 ####################
 
-function generate_forward_code(tape::RawTape)
-    expr = Expr(:block)
-    for instruction in tape
-        push!(expr.args, :(ReverseDiff.forward_exec!($instruction)))
+function generate_forward_pass_method{T}(::Type{T}, tape::RawTape)
+    body = Expr(:block)
+    for i in 1:length(tape)
+        push!(body.args, :(ReverseDiff.forward_exec!(tape[$i]::$(typeof(tape[i])))))
     end
-    push!(expr.args, :(return nothing))
-    return expr
+    push!(body.args, :(return nothing))
+    return :(ReverseDiff.forward_pass!(tape::$T) = $body)
 end
 
-function generate_reverse_code(tape::RawTape)
-    expr = Expr(:block)
+function generate_reverse_pass_method{T}(::Type{T}, tape::RawTape)
+    body = Expr(:block)
     for i in length(tape):-1:1
-        push!(expr.args, :(ReverseDiff.reverse_exec!($(tape[i]))))
+        push!(body.args, :(ReverseDiff.reverse_exec!(tape[$i]::$(typeof(tape[i])))))
     end
-    push!(expr.args, :(return nothing))
-    return expr
+    push!(body.args, :(return nothing))
+    return :(ReverseDiff.reverse_pass!(tape::$T) = $body)
 end
 
 ###################

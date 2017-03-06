@@ -8,9 +8,13 @@ using ReverseDiff: JacobianTape, JacobianConfig, jacobian, jacobian!, compile_ja
 f(a, b) = (a + b) * (a * b)'
 g!(out, a, b) = A_mul_Bc!(out, a + b, a * b)
 
-# generate a jacobian function for `f` using inputs of shape 10x10 with Float64 elements
-const Jf! = compile_jacobian(f, (rand(10, 10), rand(10, 10)))
-const Jg! = compile_jacobian(g!, rand(10, 10), (rand(10, 10), rand(10, 10)))
+# pre-record JacobianTapes for `f` and `g` using inputs of shape 10x10 with Float64 elements
+const f_tape = JacobianTape(f, (rand(10, 10), rand(10, 10)))
+const g_tape = JacobianTape(g!, rand(10, 10), (rand(10, 10), rand(10, 10)))
+
+# compile `f_tape` and `g_tape` into more optimized representations
+const compiled_f_tape = compile(f_tape)
+const compiled_g_tape = compile(g_tape)
 
 # some inputs and work buffers to play around with
 a, b = rand(10, 10), rand(10, 10)
@@ -24,13 +28,16 @@ gcfg = JacobianConfig(output, inputs)
 # taking Jacobians #
 ####################
 
-# with a pre-recorded/comiled tape (generated in the setup above) #
+# with pre-recorded/compiled tapes (generated in the setup above) #
 #-----------------------------------------------------------------#
-# this should be the fastest method, and non-allocating
 
-Jf!(results, inputs)
+# these should be the fastest methods, and non-allocating
+jacobian!(results, compiled_f_tape, inputs)
+jacobian!(results, compiled_g_tape, inputs)
 
-Jg!(results, inputs)
+# these should be the second fastest methods, and also non-allocating
+jacobian!(results, f_tape, inputs)
+jacobian!(results, g_tape, inputs)
 
 # with a pre-allocated JacobianConfig #
 #-------------------------------------#

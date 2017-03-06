@@ -1,4 +1,4 @@
-using ReverseDiff: GradientTape, GradientConfig, gradient, gradient!, compile_gradient
+using ReverseDiff: GradientTape, GradientConfig, gradient, gradient!, compile
 
 #########
 # setup #
@@ -7,8 +7,11 @@ using ReverseDiff: GradientTape, GradientConfig, gradient, gradient!, compile_gr
 # some objective function to work with
 f(a, b) = sum(a' * b + a * b')
 
-# generate a gradient function for `f` using inputs of shape 100x100 with Float64 elements
-const ∇f! = compile_gradient(f, (rand(100, 100), rand(100, 100)))
+# pre-record a GradientTape for `f` using inputs of shape 100x100 with Float64 elements
+const f_tape = GradientTape(f, (rand(100, 100), rand(100, 100)))
+
+# compile `f_tape` into a more optimized representation
+const compiled_f_tape = compile(f_tape)
 
 # some inputs and work buffers to play around with
 a, b = rand(100, 100), rand(100, 100)
@@ -20,16 +23,19 @@ cfg = GradientConfig(inputs)
 # taking gradients #
 ####################
 
-# with a pre-recorded/comiled tape (generated in the setup above) #
+# with pre-recorded/compiled tapes (generated in the setup above) #
 #-----------------------------------------------------------------#
-# this should be the fastest method, and non-allocating
 
-∇f!(results, inputs)
+# this should be the fastest method, and non-allocating
+gradient!(results, compiled_f_tape, inputs)
+
+# this should be the second fastest method, and also non-allocating
+gradient!(results, f_tape, inputs)
 
 # with a pre-allocated GradientConfig #
 #-------------------------------------#
-# this is more flexible than a pre-recorded tape, but can be wasteful since the tape
-# will be re-recorded for every call.
+# these methods are more flexible than a pre-recorded tape, but can be
+# wasteful since the tape will be re-recorded for every call.
 
 gradient!(results, f, inputs, cfg)
 

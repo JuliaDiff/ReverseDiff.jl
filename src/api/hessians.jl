@@ -67,7 +67,7 @@ Assuming `tape` represents a function of the form `f(::AbstractArray{<:Real})::R
 return the Hessian `H(f)(input)`.
 """
 function hessian!(tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
-    result = construct_result(tape.output, tape.input)
+    result = construct_result(output_hook(tape), input_hook(tape))
     hessian!(result, tape, input)
     return result
 end
