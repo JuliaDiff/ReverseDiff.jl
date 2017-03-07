@@ -9,7 +9,7 @@ tic()
 
 ############################################################################################
 x, a, b = rand(3, 3), rand(3, 3), rand(3, 3)
-tp = RawTape()
+tp = InstructionTape()
 
 function test_arr2num(f, x, tp)
     xt = track(copy(x), tp)

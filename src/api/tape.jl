@@ -2,7 +2,7 @@
 # AbstractTape #
 ################
 
-abstract AbstractTape
+@compat abstract type AbstractTape end
 
 Base.show(io::IO, t::AbstractTape) = print(io, typeof(t).name, "(", t.func, ")")
 
@@ -15,13 +15,13 @@ for T in (:GradientTape, :JacobianTape, :HessianTape)
             func::F
             input::I
             output::O
-            tape::RawTape
+            tape::InstructionTape
             # disable default outer constructor
-            $(T)(func, input, output, tape) = new(func, input, output, tape)
+            (::Type{$(T){F,I,O}}){F,I,O}(func, input, output, tape) = new{F,I,O}(func, input, output, tape)
         end
 
         # "private" convienence constructor
-        $(_T){F,I,O}(func::F, input::I, output::O, tape::RawTape) = $(T){F,I,O}(func, input, output, tape)
+        $(_T){F,I,O}(func::F, input::I, output::O, tape::InstructionTape) = $(T){F,I,O}(func, input, output, tape)
 
         Base.length(t::$T) = length(t.tape)
 
@@ -62,9 +62,9 @@ end
 
 Base.show{S}(io::IO, t::CompiledTape{S}) = print(io, typeof(t).name, "{$S}($(t.tape.func))")
 
-typealias CompiledGradient{S,T<:GradientTape} CompiledTape{S,T}
-typealias CompiledJacobian{S,T<:JacobianTape} CompiledTape{S,T}
-typealias CompiledHessian{S,T<:HessianTape}   CompiledTape{S,T}
+@compat const CompiledGradient{S,T<:GradientTape} = CompiledTape{S,T}
+@compat const CompiledJacobian{S,T<:JacobianTape} = CompiledTape{S,T}
+@compat const CompiledHessian{S,T<:HessianTape}   = CompiledTape{S,T}
 
 Base.length(ct::CompiledTape) = length(ct.tape)
 
@@ -74,7 +74,7 @@ Base.length(ct::CompiledTape) = length(ct.tape)
 
 @inline output_hook(ct::CompiledTape) = output_hook(ct.tape)
 
-function generate_forward_pass_method{T}(::Type{T}, tape::RawTape)
+function generate_forward_pass_method{T}(::Type{T}, tape::InstructionTape)
     body = Expr(:block)
     push!(body.args, :(tape = compiled_tape.tape.tape))
     for i in 1:length(tape)
@@ -84,7 +84,7 @@ function generate_forward_pass_method{T}(::Type{T}, tape::RawTape)
     return :(ReverseDiff.forward_pass!(compiled_tape::$T) = $body)
 end
 
-function generate_reverse_pass_method{T}(::Type{T}, tape::RawTape)
+function generate_reverse_pass_method{T}(::Type{T}, tape::InstructionTape)
     body = Expr(:block)
     push!(body.args, :(tape = compiled_tape.tape.tape))
     for i in length(tape):-1:1
