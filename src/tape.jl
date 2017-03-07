@@ -2,36 +2,11 @@
 # AbstractInstruction #
 #######################
 
-abstract AbstractInstruction
+@compat abstract type AbstractInstruction end
 
-typealias RawTape Vector{AbstractInstruction}
+@compat const InstructionTape = Vector{AbstractInstruction}
 
-# Define some AbstractInstruction types. They all have the same structure,
-# but are defined this way to make dispatch more readable (and possibly
-# faster) than dispatching on a type parameter.
-for InstructionType in (:ScalarInstruction, :SpecialInstruction)
-    _InstructionType = Symbol(string("_", InstructionType))
-    @eval begin
-        immutable $(InstructionType){F,I,O,C} <: AbstractInstruction
-            func::F
-            input::I
-            output::O
-            cache::C
-            # disable default outer constructor
-            $(InstructionType)(func, input, output, cache) = new(func, input, output, cache)
-        end
-
-        @inline function $(_InstructionType){F,I,O,C}(func::F, input::I, output::O, cache::C)
-            return $(InstructionType){F,I,O,C}(func, input, output, cache)
-        end
-
-        function $(InstructionType)(func, input, output, cache = nothing)
-            return $(_InstructionType)(func, capture(input), capture(output), cache)
-        end
-    end
-end
-
-function record!{InstructionType}(tp::RawTape, ::Type{InstructionType}, args...)
+function record!{InstructionType}(tp::InstructionTape, ::Type{InstructionType}, args...)
     tp !== NULL_TAPE && push!(tp, InstructionType(args...))
     return nothing
 end
@@ -49,11 +24,55 @@ end
 @inline capture(state) = state
 @inline capture(state::Tuple) = map(capture, state)
 
+# ScalarInstruction #
+#-------------------#
+
+@compat immutable ScalarInstruction{F,I,O,C} <: AbstractInstruction
+    func::F
+    input::I
+    output::O
+    cache::C
+    # disable default outer constructor
+    function (::Type{ScalarInstruction{F,I,O,C}}){F,I,O,C}(func, input, output, cache)
+        return new{F,I,O,C}(func, input, output, cache)
+    end
+end
+
+@inline function _ScalarInstruction{F,I,O,C}(func::F, input::I, output::O, cache::C)
+    return ScalarInstruction{F,I,O,C}(func, input, output, cache)
+end
+
+function ScalarInstruction(func, input, output, cache = nothing)
+    return _ScalarInstruction(func, capture(input), capture(output), cache)
+end
+
+# SpecialInstruction #
+#--------------------#
+
+@compat immutable SpecialInstruction{F,I,O,C} <: AbstractInstruction
+    func::F
+    input::I
+    output::O
+    cache::C
+    # disable default outer constructor
+    function (::Type{SpecialInstruction{F,I,O,C}}){F,I,O,C}(func, input, output, cache)
+        return new{F,I,O,C}(func, input, output, cache)
+    end
+end
+
+@inline function _SpecialInstruction{F,I,O,C}(func::F, input::I, output::O, cache::C)
+    return SpecialInstruction{F,I,O,C}(func, input, output, cache)
+end
+
+function SpecialInstruction(func, input, output, cache = nothing)
+    return _SpecialInstruction(func, capture(input), capture(output), cache)
+end
+
 ##########
 # passes #
 ##########
 
-function forward_pass!(tape::RawTape)
+function forward_pass!(tape::InstructionTape)
     for instruction in tape
         forward_exec!(instruction)
     end
@@ -63,7 +82,7 @@ end
 @noinline forward_exec!(instruction::ScalarInstruction) = scalar_forward_exec!(instruction)
 @noinline forward_exec!(instruction::SpecialInstruction) = special_forward_exec!(instruction)
 
-function reverse_pass!(tape::RawTape)
+function reverse_pass!(tape::InstructionTape)
     for i in length(tape):-1:1
         reverse_exec!(tape[i])
     end
@@ -90,10 +109,10 @@ function Base.show(io::IO, instruction::AbstractInstruction, pad = "")
     print(io,   pad, "  cache:  ", compactrepr(instruction.cache))
 end
 
-Base.display(tp::RawTape) = show(STDOUT, tp)
+Base.display(tp::InstructionTape) = show(STDOUT, tp)
 
-function Base.show(io::IO, tp::RawTape)
-    println("$(length(tp))-element RawTape:")
+function Base.show(io::IO, tp::InstructionTape)
+    println("$(length(tp))-element InstructionTape:")
     i = 1
     for instruction in tp
         print(io, "$i => ")

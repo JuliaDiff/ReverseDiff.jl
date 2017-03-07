@@ -5,7 +5,7 @@ using ReverseDiff: SpecialInstruction, ScalarInstruction, NULL_TAPE
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
 
-println("testing RawTape/AbstractInstructions...")
+println("testing InstructionTape/AbstractInstructions...")
 tic()
 
 ############################################################################################
@@ -25,7 +25,7 @@ for Instr in (SpecialInstruction, ScalarInstruction)
     @test instr.output === z
     @test instr.cache === c
 
-    tp = RawTape()
+    tp = InstructionTape()
     ReverseDiff.record!(tp, Instr, +, (x, y, k), z, c)
     @test tp[1] == instr
     @test tp[1].func === +

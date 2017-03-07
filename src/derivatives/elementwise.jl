@@ -321,7 +321,7 @@ end
 # built-in infix operations #
 #############################
 
-typealias TrackedType Union{TrackedArray,TrackedReal}
+@compat const TrackedType = Union{TrackedArray,TrackedReal}
 
 # dispatch #
 #----------#

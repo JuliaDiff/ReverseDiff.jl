@@ -44,7 +44,7 @@ tic()
 v = rand()
 d = rand(Int)
 o = [v]
-tp = RawTape()
+tp = InstructionTape()
 t = TrackedReal(v, d, tp, 1, o)
 
 @test t.value === v
@@ -77,7 +77,7 @@ t = TrackedReal(v, d)
 
 v = rand(3, 2, 1)
 d = rand(Int, 3, 2, 1)
-tp = RawTape()
+tp = InstructionTape()
 
 t = TrackedArray(v, d, tp)
 
@@ -96,7 +96,7 @@ t = TrackedArray(v, d, tp)
 @test !(ReverseDiff.istracked(nothing))
 @test !(ReverseDiff.istracked(rand()))
 @test !(ReverseDiff.istracked([1]))
-@test ReverseDiff.istracked(TrackedArray(rand(1), rand(1), RawTape()))
+@test ReverseDiff.istracked(TrackedArray(rand(1), rand(1), InstructionTape()))
 @test ReverseDiff.istracked(TrackedReal(1, 1))
 @test ReverseDiff.istracked(Any[1])
 @test ReverseDiff.istracked([TrackedReal(1, 1)])
@@ -110,7 +110,7 @@ any_varr = Any[v]
 
 @test ReverseDiff.value(nothing) === nothing
 @test ReverseDiff.value(v) === v
-@test ReverseDiff.value(TrackedArray(varr, darr, RawTape())) === varr
+@test ReverseDiff.value(TrackedArray(varr, darr, InstructionTape())) === varr
 @test ReverseDiff.value(TrackedReal(v, d)) === v
 @test ReverseDiff.value(varr) === varr
 @test ReverseDiff.value(any_varr) !== any_varr
@@ -124,7 +124,7 @@ v, d = rand(), rand()
 varr, darr = [v], [d]
 any_varr = Any[v]
 
-@test ReverseDiff.deriv(TrackedArray(varr, darr, RawTape())) === darr
+@test ReverseDiff.deriv(TrackedArray(varr, darr, InstructionTape())) === darr
 @test ReverseDiff.deriv(TrackedReal(v, d)) === d
 
 # valtype #
@@ -134,10 +134,10 @@ any_varr = Any[v]
 @test ReverseDiff.valtype(TrackedReal(1.0, 0)) === Float64
 @test ReverseDiff.valtype(typeof(TrackedReal(1,0))) === Int
 @test ReverseDiff.valtype(typeof(TrackedReal(1.0, 0))) === Float64
-@test ReverseDiff.valtype(TrackedArray([1], [0], RawTape())) === Int
-@test ReverseDiff.valtype(TrackedArray([1.0], [0], RawTape())) === Float64
-@test ReverseDiff.valtype(typeof(TrackedArray([1], [0], RawTape()))) === Int
-@test ReverseDiff.valtype(typeof(TrackedArray([1.0], [0], RawTape()))) === Float64
+@test ReverseDiff.valtype(TrackedArray([1], [0], InstructionTape())) === Int
+@test ReverseDiff.valtype(TrackedArray([1.0], [0], InstructionTape())) === Float64
+@test ReverseDiff.valtype(typeof(TrackedArray([1], [0], InstructionTape()))) === Int
+@test ReverseDiff.valtype(typeof(TrackedArray([1.0], [0], InstructionTape()))) === Float64
 
 # derivtype #
 #-----------#
@@ -146,22 +146,22 @@ any_varr = Any[v]
 @test ReverseDiff.derivtype(TrackedReal(1, 0.0)) === Float64
 @test ReverseDiff.derivtype(typeof(TrackedReal(1,0))) === Int
 @test ReverseDiff.derivtype(typeof(TrackedReal(1, 0.0))) === Float64
-@test ReverseDiff.derivtype(TrackedArray([1], [0], RawTape())) === Int
-@test ReverseDiff.derivtype(TrackedArray([1], [0.0], RawTape())) === Float64
-@test ReverseDiff.derivtype(typeof(TrackedArray([1], [0], RawTape()))) === Int
-@test ReverseDiff.derivtype(typeof(TrackedArray([1], [0.0], RawTape()))) === Float64
+@test ReverseDiff.derivtype(TrackedArray([1], [0], InstructionTape())) === Int
+@test ReverseDiff.derivtype(TrackedArray([1], [0.0], InstructionTape())) === Float64
+@test ReverseDiff.derivtype(typeof(TrackedArray([1], [0], InstructionTape()))) === Int
+@test ReverseDiff.derivtype(typeof(TrackedArray([1], [0.0], InstructionTape()))) === Float64
 
 # hasorigin #
 #-----------#
 
 @test !(ReverseDiff.hasorigin(rand()))
 @test !(ReverseDiff.hasorigin(TrackedReal(rand(), rand())))
-@test ReverseDiff.hasorigin(TrackedReal(rand(), rand(), RawTape(), 1, [rand()]))
+@test ReverseDiff.hasorigin(TrackedReal(rand(), rand(), InstructionTape(), 1, [rand()]))
 
 # tape/hastape #
 #--------------#
 
-tp = RawTape()
+tp = InstructionTape()
 
 null_tape_items = (nothing, rand(), [1], Any[1], [TrackedReal(1, 1)], TrackedReal(1, 1),
                    TrackedArray(rand(1), rand(1), ReverseDiff.NULL_TAPE))
@@ -199,7 +199,7 @@ varr, darr = rand(3), rand(3)
 varr2, darr2 = rand(3), rand(3)
 
 tr = TrackedReal(v, d)
-ta = TrackedArray(varr, darr, RawTape())
+ta = TrackedArray(varr, darr, InstructionTape())
 
 # value! #
 #--------#
@@ -242,7 +242,7 @@ ReverseDiff.deriv!((ta, tr), (darr, d))
 # pulling values from origin #
 #----------------------------#
 
-ta = TrackedArray(rand(3), rand(3), RawTape())
+ta = TrackedArray(rand(3), rand(3), InstructionTape())
 ta1 = ta[1]
 v_old = ReverseDiff.value(ta)[1]
 v_new = rand()
@@ -284,7 +284,7 @@ ReverseDiff.pull_value!(trs)
 # pulling derivs from origin #
 #----------------------------#
 
-ta = TrackedArray(rand(3), rand(3), RawTape())
+ta = TrackedArray(rand(3), rand(3), InstructionTape())
 ta1 = ta[1]
 d_old = ReverseDiff.deriv(ta)[1]
 d_new = rand()
@@ -326,7 +326,7 @@ ReverseDiff.pull_deriv!(trs)
 # push derivs from origin #
 #-------------------------#
 
-ta = TrackedArray(rand(3), rand(3), RawTape())
+ta = TrackedArray(rand(3), rand(3), InstructionTape())
 ta1 = ta[1]
 d_old = ReverseDiff.deriv(ta)[1]
 d_new = rand()
@@ -370,7 +370,7 @@ ReverseDiff.push_deriv!(trs)
 v, d = rand(), rand()
 varr, darr = rand(3), rand(3)
 varr_copy, darr_copy = copy(varr), copy(darr)
-ta = TrackedArray(varr, darr, RawTape())
+ta = TrackedArray(varr, darr, InstructionTape())
 tr = TrackedReal(v, d)
 trs = Any[tr, ta[1], ta[2]]
 
@@ -457,7 +457,7 @@ x = rand(3)
 v, d = rand(), rand()
 varr, darr = rand(3), rand(3)
 varr_copy, darr_copy = copy(varr), copy(darr)
-ta = TrackedArray(varr, darr, RawTape())
+ta = TrackedArray(varr, darr, InstructionTape())
 tr = TrackedReal(v, d)
 trs = Any[tr, ta[1], ta[2]]
 
@@ -512,7 +512,7 @@ x = rand(3)
 v, d = rand(), rand()
 varr, darr = rand(3), rand(3)
 varr_copy, darr_copy = copy(varr), copy(darr)
-ta = TrackedArray(varr, darr, RawTape())
+ta = TrackedArray(varr, darr, InstructionTape())
 tr = TrackedReal(v, d)
 trs = Any[tr, ta[1], ta[2]]
 
@@ -566,7 +566,7 @@ ReverseDiff.pull_deriv!(trs)
 
 v, d = rand(), rand()
 varr, darr = rand(3), rand(3)
-ta = TrackedArray(varr, darr, RawTape())
+ta = TrackedArray(varr, darr, InstructionTape())
 tr = TrackedReal(v, d)
 trs = Any[tr, ta[1], ta[2]]
 
@@ -581,7 +581,7 @@ trs = Any[tr, ta[1], ta[2]]
 
 v, d = rand(), rand()
 varr, darr = rand(3), rand(3)
-tp = RawTape()
+tp = InstructionTape()
 ta = TrackedArray(varr, darr, tp)
 tr = TrackedReal(v, d)
 ta1 = ta[1]
@@ -625,7 +625,7 @@ empty!(tp)
 ###########################
 
 varr, darr = rand(3, 3), rand(3, 3)
-tp = RawTape()
+tp = InstructionTape()
 ta = TrackedArray(varr, darr, tp)
 
 @test isa(similar(ta), Matrix{eltype(ta)})
@@ -719,7 +719,7 @@ empty!(tp)
 ####################
 
 v_int, v_float, d = rand(Int), rand(), rand()
-tp = RawTape()
+tp = InstructionTape()
 tr_int = TrackedReal(v_int, d, tp)
 tr_float = TrackedReal(v_float, d, tp)
 
@@ -763,7 +763,7 @@ tr_rand = rand(MersenneTwister(1), TrackedReal{Int,Float64,Void})
 
 v, d = rand(), rand()
 varr, darr = rand(3), rand(3)
-tp = RawTape()
+tp = InstructionTape()
 
 @test samefields(ReverseDiff.track(v, tp), TrackedReal(v, zero(v), tp))
 @test samefields(ReverseDiff.track(v, Int, tp), TrackedReal(v, zero(Int), tp))
@@ -785,7 +785,7 @@ ReverseDiff.track!(ta, x)
 
 ta = TrackedArray(varr, darr, tp)
 trs = similar(ta)
-tp2 = RawTape()
+tp2 = InstructionTape()
 @test isa(trs, Vector{eltype(ta)})
 trs = similar(ta, TrackedReal{Float64,Float64,Void})
 track!(trs, ta, tp2)

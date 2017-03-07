@@ -2,7 +2,7 @@
 # AbstractConfig #
 ##################
 
-abstract AbstractConfig
+@compat abstract type AbstractConfig end
 
 Base.show(io::IO, cfg::AbstractConfig) = print(io, typeof(cfg).name)
 
@@ -10,18 +10,18 @@ Base.show(io::IO, cfg::AbstractConfig) = print(io, typeof(cfg).name)
 # GradientConfig #
 ##################
 
-immutable GradientConfig{I} <: AbstractConfig
+@compat immutable GradientConfig{I} <: AbstractConfig
     input::I
-    tape::RawTape
+    tape::InstructionTape
     # disable default outer constructor
-    GradientConfig(input, tape) = new(input, tape)
+    (::Type{GradientConfig{I}}){I}(input, tape) = new{I}(input, tape)
 end
 
 # "private" convienence constructor
-_GradientConfig{I}(input::I, tape::RawTape) = GradientConfig{I}(input, tape)
+_GradientConfig{I}(input::I, tape::InstructionTape) = GradientConfig{I}(input, tape)
 
 """
-    ReverseDiff.GradientConfig(input, tp::RawTape = RawTape())
+    ReverseDiff.GradientConfig(input, tp::InstructionTape = InstructionTape())
 
 Return a `GradientConfig` instance containing the preallocated tape and work buffers used
 by the `ReverseDiff.gradient`/`ReverseDiff.gradient!` methods.
@@ -32,21 +32,21 @@ the target function's output.
 
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 """
-GradientConfig{T}(input::AbstractArray{T}, tp::RawTape = RawTape()) = GradientConfig(input, T, tp)
+GradientConfig{T}(input::AbstractArray{T}, tp::InstructionTape = InstructionTape()) = GradientConfig(input, T, tp)
 
-GradientConfig(input::Tuple, tp::RawTape = RawTape()) = GradientConfig(input, eltype(first(input)), tp)
+GradientConfig(input::Tuple, tp::InstructionTape = InstructionTape()) = GradientConfig(input, eltype(first(input)), tp)
 
 """
-    ReverseDiff.GradientConfig(input, ::Type{D}, tp::RawTape = RawTape())
+    ReverseDiff.GradientConfig(input, ::Type{D}, tp::InstructionTape = InstructionTape())
 
 Like `GradientConfig(input, tp)`, except the provided type `D` is assumed to be the element
 type of the target function's output.
 """
-function GradientConfig{D}(input::Tuple, ::Type{D}, tp::RawTape = RawTape())
+function GradientConfig{D}(input::Tuple, ::Type{D}, tp::InstructionTape = InstructionTape())
     return _GradientConfig(map(x -> track(similar(x), D, tp), input), tp)
 end
 
-function GradientConfig{D}(input::AbstractArray, ::Type{D}, tp::RawTape = RawTape())
+function GradientConfig{D}(input::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape())
     return _GradientConfig(track(similar(input), D, tp), tp)
 end
 
@@ -54,19 +54,19 @@ end
 # JacobianConfig #
 ##################
 
-immutable JacobianConfig{I,O} <: AbstractConfig
+@compat immutable JacobianConfig{I,O} <: AbstractConfig
     input::I
     output::O
-    tape::RawTape
+    tape::InstructionTape
     # disable default outer constructor
-    JacobianConfig(input, output, tape) = new(input, output, tape)
+    (::Type{JacobianConfig{I,O}}){I,O}(input, output, tape) = new{I,O}(input, output, tape)
 end
 
 # "private" convienence constructor
-_JacobianConfig{I,O}(input::I, output::O, tape::RawTape) = JacobianConfig{I,O}(input, output, tape)
+_JacobianConfig{I,O}(input::I, output::O, tape::InstructionTape) = JacobianConfig{I,O}(input, output, tape)
 
 """
-    ReverseDiff.JacobianConfig(input, tp::RawTape = RawTape())
+    ReverseDiff.JacobianConfig(input, tp::InstructionTape = InstructionTape())
 
 Return a `JacobianConfig` instance containing the preallocated tape and work buffers used
 by the `ReverseDiff.jacobian`/`ReverseDiff.jacobian!` methods.
@@ -77,7 +77,7 @@ the target function's output.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 
-    ReverseDiff.JacobianConfig(input, ::Type{D}, tp::RawTape = RawTape())
+    ReverseDiff.JacobianConfig(input, ::Type{D}, tp::InstructionTape = InstructionTape())
 
 Like `JacobianConfig(input, tp)`, except the provided type `D` is assumed to be the element
 type of the target function's output.
@@ -88,7 +88,7 @@ function JacobianConfig(args...)
 end
 
 """
-    ReverseDiff.JacobianConfig(output::AbstractArray, input, tp::RawTape = RawTape())
+    ReverseDiff.JacobianConfig(output::AbstractArray, input, tp::InstructionTape = InstructionTape())
 
 Return a `JacobianConfig` instance containing the preallocated tape and work buffers used
 by the `ReverseDiff.jacobian`/`ReverseDiff.jacobian!` methods. This method assumes the
@@ -99,25 +99,25 @@ stored or modified in any way.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
-function JacobianConfig{D}(output::AbstractArray{D}, input::Tuple, tp::RawTape = RawTape())
+function JacobianConfig{D}(output::AbstractArray{D}, input::Tuple, tp::InstructionTape = InstructionTape())
     cfg_input = map(x -> track(similar(x), D, tp), input)
     cfg_output = track!(similar(output, TrackedReal{D,D,Void}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
 end
 
-# we dispatch on V<:Real here because RawTape is actually also an AbstractArray
-function JacobianConfig{D,V<:Real}(output::AbstractArray{D}, input::AbstractArray{V}, tp::RawTape = RawTape())
+# we dispatch on V<:Real here because InstructionTape is actually also an AbstractArray
+function JacobianConfig{D,V<:Real}(output::AbstractArray{D}, input::AbstractArray{V}, tp::InstructionTape = InstructionTape())
     cfg_input = track(similar(input), D, tp)
     cfg_output = track!(similar(output, TrackedReal{D,D,Void}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
 end
 
 """
-    ReverseDiff.JacobianConfig(result::DiffBase.DiffResult, input, tp::RawTape = RawTape())
+    ReverseDiff.JacobianConfig(result::DiffBase.DiffResult, input, tp::InstructionTape = InstructionTape())
 
 A convenience method for `JacobianConfig(DiffBase.value(result), input, tp)`.
 """
-JacobianConfig(result::DiffResult, input, tp::RawTape) = JacobianConfig(DiffBase.value(result), input, tp)
+JacobianConfig(result::DiffResult, input, tp::InstructionTape) = JacobianConfig(DiffBase.value(result), input, tp)
 
 #################
 # HessianConfig #
@@ -129,7 +129,7 @@ immutable HessianConfig{G<:GradientConfig,J<:JacobianConfig} <: AbstractConfig
 end
 
 """
-    ReverseDiff.HessianConfig(input::AbstractArray, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+    ReverseDiff.HessianConfig(input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
 
 Return a `HessianConfig` instance containing the preallocated tape and work buffers used
 by the `ReverseDiff.hessian`/`ReverseDiff.hessian!` methods. `gtp` is the tape used for
@@ -139,24 +139,24 @@ Note that `input` is only used for type and shape information; it is not stored 
 in any way. It is assumed that the element type of `input` is same as the element type of
 the target function's output.
 """
-function HessianConfig(input::AbstractArray, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+function HessianConfig(input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
     return HessianConfig(input, eltype(input), gtp, jtp)
 end
 
 """
-    ReverseDiff.HessianConfig(input::AbstractArray, ::Type{D}, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+    ReverseDiff.HessianConfig(input::AbstractArray, ::Type{D}, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
 
 Like `HessianConfig(input, tp)`, except the provided type `D` is assumed to be the element
 type of the target function's output.
 """
-function HessianConfig{D}(input::AbstractArray, ::Type{D}, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+function HessianConfig{D}(input::AbstractArray, ::Type{D}, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
     jcfg = JacobianConfig(input, D, jtp)
     gcfg = GradientConfig(jcfg.input, gtp)
     return HessianConfig(gcfg, jcfg)
 end
 
 """
-    ReverseDiff.HessianConfig(result::DiffBase.DiffResult, input::AbstractArray, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+    ReverseDiff.HessianConfig(result::DiffBase.DiffResult, input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
 
 Like `HessianConfig(input, tp)`, but utilize `result` along with `input` to construct work
 buffers.
@@ -164,7 +164,7 @@ buffers.
 Note that `result` and `input` are only used for type and shape information; they are not
 stored or modified in any way.
 """
-function HessianConfig(result::DiffResult, input::AbstractArray, gtp::RawTape = RawTape(), jtp::RawTape = RawTape())
+function HessianConfig(result::DiffResult, input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
     jcfg = JacobianConfig(DiffBase.gradient(result), input, jtp)
     gcfg = GradientConfig(jcfg.input, gtp)
     return HessianConfig(gcfg, jcfg)
