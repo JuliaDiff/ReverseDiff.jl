@@ -22,127 +22,129 @@ for T in (:GradientTape, :JacobianTape, :HessianTape)
 
         # "private" convienence constructor
         $(_T){F,I,O}(func::F, input::I, output::O, tape::RawTape) = $(T){F,I,O}(func, input, output, tape)
+
+        Base.length(t::$T) = length(t.tape)
+
+        @inline func_hook(t::$T) = t.func
+
+        @inline input_hook(t::$T) = t.input
+
+        @inline output_hook(t::$T) = t.output
+
+        forward_pass!(t::$T) = forward_pass!(t.tape)
+
+        reverse_pass!(t::$T) = reverse_pass!(t.tape)
     end
 end
 
-Base.length(t::AbstractTape) = length(t.tape)
-
-forward_pass!(t::AbstractTape) = forward_pass!(t.tape)
-
-reverse_pass!(t::AbstractTape) = reverse_pass!(t.tape)
-
 function seeded_forward_pass!(t::AbstractTape, input)
-    value!(t.input, input)
+    value!(input_hook(t), input)
     forward_pass!(t)
     return nothing
 end
 
 function seeded_reverse_pass!(result, t::AbstractTape)
-    seeded_reverse_pass!(result, t.output, t.input, t)
+    seeded_reverse_pass!(result, output_hook(t), input_hook(t), t)
     return result
 end
 
-############
-# Compiled #
-############
+################
+# CompiledTape #
+################
 
-immutable Compiled{T<:AbstractTape,F,I,O,FP,RP} <: AbstractTape
-    record_type::Type{T}
-    func::F
-    input::I
-    output::O
-    forward_pass!::FP
-    reverse_pass!::RP
+immutable CompiledTape{S,T<:AbstractTape} <: AbstractTape
+    tape::T
 end
 
-typealias CompiledGradient{T<:GradientTape,F,I,O,FP,RP} Compiled{T,F,I,O,FP,RP}
-typealias CompiledJacobian{T<:JacobianTape,F,I,O,FP,RP} Compiled{T,F,I,O,FP,RP}
-typealias CompiledHessian{T<:HessianTape,F,I,O,FP,RP}   Compiled{T,F,I,O,FP,RP}
+(::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T) = CompiledTape{S,T}(t)
 
-forward_pass!(ct::Compiled) = ct.forward_pass!()
+Base.show{S}(io::IO, t::CompiledTape{S}) = print(io, typeof(t).name, "{$S}($(t.tape.func))")
 
-reverse_pass!(ct::Compiled) = ct.reverse_pass!()
+typealias CompiledGradient{S,T<:GradientTape} CompiledTape{S,T}
+typealias CompiledJacobian{S,T<:JacobianTape} CompiledTape{S,T}
+typealias CompiledHessian{S,T<:HessianTape}   CompiledTape{S,T}
+
+Base.length(ct::CompiledTape) = length(ct.tape)
+
+@inline func_hook(ct::CompiledTape) = func_hook(ct.tape)
+
+@inline input_hook(ct::CompiledTape) = input_hook(ct.tape)
+
+@inline output_hook(ct::CompiledTape) = output_hook(ct.tape)
+
+function generate_forward_pass_method{T}(::Type{T}, tape::RawTape)
+    body = Expr(:block)
+    push!(body.args, :(tape = compiled_tape.tape.tape))
+    for i in 1:length(tape)
+        push!(body.args, :(ReverseDiff.forward_exec!(tape[$i]::$(typeof(tape[i])))))
+    end
+    push!(body.args, :(return nothing))
+    return :(ReverseDiff.forward_pass!(compiled_tape::$T) = $body)
+end
+
+function generate_reverse_pass_method{T}(::Type{T}, tape::RawTape)
+    body = Expr(:block)
+    push!(body.args, :(tape = compiled_tape.tape.tape))
+    for i in length(tape):-1:1
+        push!(body.args, :(ReverseDiff.reverse_exec!(tape[$i]::$(typeof(tape[i])))))
+    end
+    push!(body.args, :(return nothing))
+    return :(ReverseDiff.reverse_pass!(compiled_tape::$T) = $body)
+end
 
 """
     ReverseDiff.compile(t::AbstractTape)
 
-Return a fully compiled representation of `t`. The type of this representation will be
-`CompiledGradient`/`CompiledJacobian`/`CompiledHessian`, depending on the type of `t`. This
-object can be passed to any API methods that accept `t`.
+Return a fully compiled representation of `t` of type `CompiledTape`. This object can be
+passed to any API methods that accept `t` (e.g. `gradient!(result, t, input)`).
 
 In many cases, compiling `t` can significantly speed up execution time. Note that the longer
 the tape, the more time compilation may take. Very long tapes (i.e. when `length(t)` is on
 the order of 10000 elements) can take a very long time to compile.
 
 Note that this function calls `eval` in the `current_module()` to generate functions
-from `t`. Thus, the returned `Compiled*` type will only be useable once the world-age
+from `t`. Thus, the returned `CompiledTape` will only be useable once the world-age
 counter has caught up with the world-age of the `eval`'d functions (i.e. once the call
 stack has bubbled up to top level).
 """
 function compile(t::AbstractTape)
-    return Compiled(typeof(t), t.func, t.input, t.output,
-                    eval(current_module(), :(() -> $(generate_forward_code(t.tape)))),
-                    eval(current_module(), :(() -> $(generate_reverse_code(t.tape)))))
+    ct = CompiledTape{gensym()}(t)
+    compile(ct)
+    return ct
 end
 
-"""
-    ReverseDiff.compile_gradient(f, args...)
+function compile(ct::CompiledTape)
+    eval(ReverseDiff, generate_forward_pass_method(typeof(ct), ct.tape.tape))
+    eval(ReverseDiff, generate_reverse_pass_method(typeof(ct), ct.tape.tape))
+    return ct
+end
 
-Return a function equivalent to `(result, input) -> gradient!(result, f, input)`.
-`ReverseDiff.compile_gradient` will record and compile a `GradientTape` for `f`, which
-will generally make the returned function far more efficient than naively calling
-`gradient!(result, f, input)`.
-
-The arguments to `ReverseDiff.compile_gradient` are the same as the arguments to
-`GradientTape`; see `ReverseDiff.GradientTape` documentation for details.
-
-The usage restrictions on the returned function are the same as the usage restrictions
-for calling `gradient!(result, tape, input)` where `tape` is a compiled `GradientTape`;
-see `ReverseDiff.compile` for details (including an important note on world-age).
-"""
 function compile_gradient(f, args...)
+    Base.depwarn("`ReverseDiff.compile_gradient(f, args...)` is deprecated" *
+                 ", use `ReverseDiff.compile(ReverseDiff.GradientTape(f, args...))`"*
+                 "instead. Then, you can execute the returned CompiledTape `t` by calling"*
+                 " `ReverseDiff.gradient!(result, t, input)`.",
+                 :compile_gradient)
     tape = compile(GradientTape(f, args...))
     return (result, input) -> gradient!(result, tape, input)
 end
 
-"""
-    ReverseDiff.compile_jacobian(f, args...)
-
-Return a function equivalent to `(result, input) -> jacobian!(result, f, input)`.
-`ReverseDiff.compile_jacobian` will record and compile a `JacobianTape` for `f`, which
-will generally make the returned function far more efficient than naively calling
-`jacobian!(result, f, input)`.
-
-The arguments to `ReverseDiff.compile_jacobian` are the same as the arguments to
-`JacobianTape`; see `ReverseDiff.JacobianTape` documentation for details. Note that
-this means `ReverseDiff.compile_jacobian` also supports target functions of the form
-`f!(output, input)`.
-
-The usage restrictions on the returned function are the same as the usage restrictions
-for calling `jacobian!(result, tape, input)` where `tape` is a compiled `JacobianTape`;
-see `ReverseDiff.compile` for details (including an important note on world-age).
-"""
 function compile_jacobian(f, args...)
+    Base.depwarn("`ReverseDiff.compile_jacobian(f, args...)` is deprecated" *
+                 ", use `ReverseDiff.compile(ReverseDiff.JacobianTape(f, args...))`"*
+                 "instead. Then, you can execute the returned CompiledTape `t` by calling"*
+                 " `ReverseDiff.jacobian!(result, t, input)`.",
+                 :compile_jacobian)
     tape = compile(JacobianTape(f, args...))
     return (result, input) -> jacobian!(result, tape, input)
 end
 
-"""
-    ReverseDiff.compile_hessian(f, args...)
-
-Return a function equivalent to `(result, input) -> hessian!(result, f, input)`.
-`ReverseDiff.compile_hessian` will record and compile a `HessianTape` for `f`, which
-will generally make the returned function far more efficient than naively calling
-`hessian!(result, f, input)`.
-
-The arguments to `ReverseDiff.compile_hessian` are the same as the arguments to
-`HessianTape`; see `ReverseDiff.HessianTape` documentation for details.
-
-The usage restrictions on the returned function are the same as the usage restrictions
-for calling `hessian!(result, tape, input)` where `tape` is a compiled `HessianTape`;
-see `ReverseDiff.compile` for details (including an important note on world-age).
-"""
 function compile_hessian(f, args...)
+    Base.depwarn("`ReverseDiff.compile_hessian(f, args...)` is deprecated" *
+                 ", use `ReverseDiff.compile(ReverseDiff.HessianTape(f, args...))`"*
+                 "instead. Then, you can execute the returned CompiledTape `t` by calling"*
+                 " `ReverseDiff.hessian!(result, t, input)`.",
+                 :compile_hessian)
     tape = compile(HessianTape(f, args...))
     return (result, input) -> hessian!(result, tape, input)
 end

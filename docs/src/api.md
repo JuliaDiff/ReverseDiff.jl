@@ -9,7 +9,6 @@ CurrentModule = ReverseDiff
 ```@docs
 ReverseDiff.gradient
 ReverseDiff.gradient!
-ReverseDiff.compile_gradient
 ```
 
 ## Jacobians of `f(x::AbstractArray{<:Real}...)::AbstractArray{<:Real}`
@@ -17,7 +16,6 @@ ReverseDiff.compile_gradient
 ```@docs
 ReverseDiff.jacobian
 ReverseDiff.jacobian!
-ReverseDiff.compile_jacobian
 ```
 
 ## Hessians of `f(x::AbstractArray{<:Real})::Real`
@@ -25,7 +23,6 @@ ReverseDiff.compile_jacobian
 ```@docs
 ReverseDiff.hessian
 ReverseDiff.hessian!
-ReverseDiff.compile_hessian
 ```
 
 ## The `AbstractTape` API

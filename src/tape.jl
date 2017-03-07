@@ -73,28 +73,6 @@ end
 @noinline reverse_exec!(instruction::ScalarInstruction) = scalar_reverse_exec!(instruction)
 @noinline reverse_exec!(instruction::SpecialInstruction) = special_reverse_exec!(instruction)
 
-####################
-# pass compilation #
-####################
-
-function generate_forward_code(tape::RawTape)
-    expr = Expr(:block)
-    for instruction in tape
-        push!(expr.args, :(ReverseDiff.forward_exec!($instruction)))
-    end
-    push!(expr.args, :(return nothing))
-    return expr
-end
-
-function generate_reverse_code(tape::RawTape)
-    expr = Expr(:block)
-    for i in length(tape):-1:1
-        push!(expr.args, :(ReverseDiff.reverse_exec!($(tape[i]))))
-    end
-    push!(expr.args, :(return nothing))
-    return expr
-end
-
 ###################
 # Pretty Printing #
 ###################

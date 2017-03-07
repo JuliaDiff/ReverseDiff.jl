@@ -67,7 +67,7 @@ Assuming `tape` represents a function of the form `f(::AbstractArray{<:Real})::R
 return the Hessian `H(f)(input)`.
 """
 function hessian!(tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
-    result = construct_result(tape.output, tape.input)
+    result = construct_result(output_hook(tape), input_hook(tape))
     hessian!(result, tape, input)
     return result
 end
@@ -92,7 +92,7 @@ end
 function hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)
     seeded_reverse_pass!(DiffResult(DiffBase.gradient(result), DiffBase.hessian(result)), tape)
-    DiffBase.value!(result, tape.func(input))
+    DiffBase.value!(result, func_hook(tape)(input))
     return result
 end
 

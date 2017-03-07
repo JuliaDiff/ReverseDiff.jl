@@ -30,23 +30,26 @@ function grad_benchmark_driver!(out, f, x)
     gc()
 
     if length(tp.tape) <= 10000
-        ctp = ReverseDiff.compile(tp)
+        @eval begin
+            out, x = $out, $x
+            ctp = ReverseDiff.compile($tp)
 
-        # warmup
-        ReverseDiff.gradient!(out, ctp, x)
-        ReverseDiff.forward_pass!(ctp)
-        ReverseDiff.reverse_pass!(ctp)
+            # warmup
+            ReverseDiff.gradient!(out, ctp, x)
+            ReverseDiff.forward_pass!(ctp)
+            ReverseDiff.reverse_pass!(ctp)
 
-        # actual
-        print("  gradient! (compiled): ")
-        @time ReverseDiff.gradient!(out, ctp, x)
-        gc()
-        print("  forward pass (compiled): ")
-        @time ReverseDiff.forward_pass!(ctp)
-        gc()
-        print("  reverse pass (compiled): ")
-        @time ReverseDiff.reverse_pass!(ctp)
-        gc()
+            # actual
+            print("  gradient! (compiled): ")
+            @time ReverseDiff.gradient!(out, ctp, x)
+            gc()
+            print("  forward pass (compiled): ")
+            @time ReverseDiff.forward_pass!(ctp)
+            gc()
+            print("  reverse pass (compiled): ")
+            @time ReverseDiff.reverse_pass!(ctp)
+            gc()
+        end
     else
         println("skipping compiled GradientTape benchmark because the tape is too long ($(length(tp.tape)) elements)")
     end

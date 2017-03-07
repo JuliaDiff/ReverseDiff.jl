@@ -60,7 +60,7 @@ function jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(output
     tape = JacobianTape(f!, output, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     result = jacobian!(tape, input)
-    extract_result_value!(output, tape.output)
+    extract_result_value!(output, output_hook(tape))
     empty!(tape.tape)
     return result
 end
@@ -75,7 +75,7 @@ function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConf
     tape = JacobianTape(f!, output, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     jacobian!(result, tape, input)
-    extract_result_value!(output, tape.output)
+    extract_result_value!(output, output_hook(tape))
     empty!(tape.tape)
     return result
 end
@@ -102,7 +102,7 @@ execute `tape` with new `input` values. There is no way to re-run `tape`'s tape 
 new `output` values into the tape.
 """
 function jacobian!(tape::Union{JacobianTape,CompiledJacobian}, input)
-    result = construct_result(tape.output, tape.input)
+    result = construct_result(output_hook(tape), input_hook(tape))
     jacobian!(result, tape, input)
     return result
 end
@@ -138,32 +138,32 @@ differentation.
 
 # function jacobian(f, input, cfg::JacobianConfig = JacobianConfig(input))
 #     tape = JacobianTape(f, input, cfg)
-#     result = construct_result(tape.output, tape.input)
-#     seeded_reverse_pass!(result, tape.output, tape.input, tape.tape)
+#     result = construct_result(output_hook(tape), input_hook(tape))
+#     seeded_reverse_pass!(result, output_hook(tape), input_hook(tape), tape.tape)
 #     empty!(tape.tape)
 #     return result
 # end
 #
 # function jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input))
 #     tape = JacobianTape(f, input, cfg)
-#     seeded_reverse_pass!(result, tape.output, tape.input, tape.tape)
+#     seeded_reverse_pass!(result, output_hook(tape), input_hook(tape), tape.tape)
 #     empty!(tape.tape)
 #     return result
 # end
 #
 # function jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
 #     tape = JacobianTape(f!, output, input, cfg)
-#     result = construct_result(tape.output, tape.input)
-#     seeded_reverse_pass!(result, tape.output, tape.input, tape.tape)
-#     extract_result_value!(output, tape.output)
+#     result = construct_result(output_hook(tape), input_hook(tape))
+#     seeded_reverse_pass!(result, output_hook(tape), input_hook(tape), tape.tape)
+#     extract_result_value!(output, output_hook(tape))
 #     empty!(tape.tape)
 #     return result
 # end
 #
 # function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
 #     tape = JacobianTape(f!, output, input, cfg)
-#     seeded_reverse_pass!(result, tape.output, tape.input, tape.tape)
-#     extract_result_value!(output, tape.output)
+#     seeded_reverse_pass!(result, output_hook(tape), input_hook(tape), tape.tape)
+#     extract_result_value!(output, output_hook(tape))
 #     empty!(tape.tape)
 #     return result
 # end
