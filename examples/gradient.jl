@@ -32,6 +32,9 @@ gradient!(results, compiled_f_tape, inputs)
 # this should be the second fastest method, and also non-allocating
 gradient!(results, f_tape, inputs)
 
+# you can also make your own function if you want to abstract away the tape
+∇f!(results, inputs) = gradient!(results, compiled_f_tape, inputs)
+
 # with a pre-allocated GradientConfig #
 #-------------------------------------#
 # these methods are more flexible than a pre-recorded tape, but can be
