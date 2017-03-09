@@ -111,14 +111,17 @@ stack has bubbled up to top level).
 """
 function compile(t::AbstractTape)
     ct = CompiledTape{gensym()}(t)
-    eval(current_module(), :(ReverseDiff.iscompiled($ct))) || compile(ct)
+    compile(ct)
     return ct
 end
 
 function compile(ct::CompiledTape)
-    eval(current_module(), generate_forward_pass_method(typeof(ct), ct.tape.tape))
-    eval(current_module(), generate_reverse_pass_method(typeof(ct), ct.tape.tape))
-    eval(current_module(), :(ReverseDiff.iscompiled(ct::$(typeof(ct))) = true))
+    previously_compiled = eval(current_module(), :(ReverseDiff.iscompiled($ct)))
+    if !(previously_compiled)
+        eval(current_module(), generate_forward_pass_method(typeof(ct), ct.tape.tape))
+        eval(current_module(), generate_reverse_pass_method(typeof(ct), ct.tape.tape))
+        eval(current_module(), :(ReverseDiff.iscompiled(ct::$(typeof(ct))) = true))
+    end
     return ct
 end
 
