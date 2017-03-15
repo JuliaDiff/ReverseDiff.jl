@@ -14,10 +14,10 @@ function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, inpu
 end
 
 function seeded_reverse_pass!(output::TrackedReal, input::TrackedReal, tape)
-    seed!(output)
+    pull_value!(output)
     unseed!(input)
+    seed!(output)
     reverse_pass!(tape)
-    unseed!(output)
     return deriv(input)
 end
 
@@ -25,8 +25,9 @@ end
 #--------------------------------------------------#
 
 function seeded_reverse_pass!(result, output::TrackedReal, input, tape)
-    seed!(output)
+    pull_value!(output)
     unseed!(input)
+    seed!(output)
     reverse_pass!(tape)
     extract_result!(result, output, input)
     return result
@@ -43,9 +44,10 @@ end
 function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, input::TrackedArray, tape)
     result_matrix = reshape(result, length(output), length(input))
     input_deriv = deriv(input)
+    pull_value!(output)
     for i in eachindex(output)
-        seed!(output, i)
         unseed!(input)
+        seed!(output, i)
         reverse_pass!(tape)
         for j in eachindex(input)
             result_matrix[i, j] = input_deriv[j]

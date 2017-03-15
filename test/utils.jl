@@ -10,7 +10,7 @@ srand(1)
 
 test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 
-test_approx(A, B) = @test isapprox(A, B, atol = 1e-5)
+@inline test_approx(A, B) = @test isapprox(A, B, atol = 1e-5)
 
 tracked_is(a, b) = value(a) === value(b) && deriv(a) === deriv(b) && tape(a) === tape(b)
 tracked_is(a::AbstractArray, b::AbstractArray) = all(map(tracked_is, a, b))
