@@ -82,6 +82,9 @@ function TrackedArray{V,D,N}(value::AbstractArray{V,N},
     return TrackedArray{V,D,N,typeof(value),typeof(deriv)}(value, deriv, tape)
 end
 
+function Base.similar{T, N}(a::TrackedArray, ::Type{T}, dims::Base.Dims{N})
+    similar(value(a), T, dims)
+end
 ###########
 # getters #
 ###########
