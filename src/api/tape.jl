@@ -113,11 +113,6 @@ passed to any API methods that accept `t` (e.g. `gradient!(result, t, input)`).
 In many cases, compiling `t` can significantly speed up execution time. Note that the longer
 the tape, the more time compilation may take. Very long tapes (i.e. when `length(t)` is on
 the order of 10000 elements) can take a very long time to compile.
-
-Note that this function calls `eval` in the `current_module()` to generate functions
-from `t`. Thus, the returned `CompiledTape` will only be useable once the world-age
-counter has caught up with the world-age of the `eval`'d functions (i.e. once the call
-stack has bubbled up to top level).
 """
 function compile(t::AbstractTape)
     ct = CompiledTape{gensym()}(t)
