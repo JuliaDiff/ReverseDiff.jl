@@ -61,7 +61,7 @@ end
 (::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T) = CompiledTape{S,T}(
     t, 
     [FunctionWrapper{Void, Tuple{}}(() -> forward_exec!(instruction)) for instruction in t.tape],
-    [FunctionWrapper{Void, Tuple{}}(() -> reverse_exec!(instruction)) for instruction in t.tape]
+    [FunctionWrapper{Void, Tuple{}}(() -> reverse_exec!(t.tape[i])) for i in length(t.tape):-1:1]
     )
 
 Base.show{S}(io::IO, t::CompiledTape{S}) = print(io, typeof(t).name, "{$S}($(t.tape.func))")
