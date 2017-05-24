@@ -11,7 +11,7 @@ notifications:
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
  - julia -e 'Pkg.init(); Pkg.add("FunctionWrappers"); Pkg.checkout("FunctionWrappers")'
- - julia -e 'Pkg.clone(pwd()); Pkg.build("ReverseDiff"); Pkg.test("ReverseDiff"; coverage=true)'
+ - julia -e 'Pkg.clone(pwd()); Pkg.build("ReverseDiff"); Pkg.test("ReverseDiff"; coverage=VERSION >= v"0.6-")'
 
 after_success:
   # push coverage results to Coveralls
