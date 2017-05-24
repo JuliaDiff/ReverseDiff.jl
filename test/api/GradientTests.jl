@@ -61,21 +61,16 @@ function test_unary_gradient(f, x)
     if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
         ctp = ReverseDiff.compile(tp)
 
-        # circumvent world-age problems (`ctp` was generated via `eval`)
-        @eval begin
-            test, x, ctp = $test, $x, $ctp
+        test_approx(ReverseDiff.gradient!(ctp, x), DiffBase.gradient(test))
 
-            test_approx(ReverseDiff.gradient!(ctp, x), DiffBase.gradient(test))
+        out = similar(x)
+        ReverseDiff.gradient!(out, ctp, x)
+        test_approx(out, DiffBase.gradient(test))
 
-            out = similar(x)
-            ReverseDiff.gradient!(out, ctp, x)
-            test_approx(out, DiffBase.gradient(test))
-
-            result = DiffBase.GradientResult(x)
-            ReverseDiff.gradient!(result, ctp, x)
-            test_approx(DiffBase.value(result), DiffBase.value(test))
-            test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
-        end
+        result = DiffBase.GradientResult(x)
+        ReverseDiff.gradient!(result, ctp, x)
+        test_approx(DiffBase.value(result), DiffBase.value(test))
+        test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
     end
 end
 
@@ -160,32 +155,25 @@ function test_ternary_gradient(f, a, b, c)
     if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
         ctp = ReverseDiff.compile(tp)
 
-        # circumvent world-age problems (`ctp` has a future world age)
-        @eval begin
-            test_val, test_a, test_b, test_c = $test_val, $test_a, $test_b, $test_c
-            a, b, c = $a, $b, $c
-            ctp = $ctp
+        ∇a, ∇b, ∇c = ReverseDiff.gradient!(ctp, (a, b, c))
+        test_approx(∇a, test_a)
+        test_approx(∇b, test_b)
+        test_approx(∇c, test_c)
 
-            ∇a, ∇b, ∇c = ReverseDiff.gradient!(ctp, (a, b, c))
-            test_approx(∇a, test_a)
-            test_approx(∇b, test_b)
-            test_approx(∇c, test_c)
+        ∇a, ∇b, ∇c = map(similar, (a, b, c))
+        ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
+        test_approx(∇a, test_a)
+        test_approx(∇b, test_b)
+        test_approx(∇c, test_c)
 
-            ∇a, ∇b, ∇c = map(similar, (a, b, c))
-            ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
-            test_approx(∇a, test_a)
-            test_approx(∇b, test_b)
-            test_approx(∇c, test_c)
-
-            ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
-            ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
-            test_approx(DiffBase.value(∇a), test_val)
-            test_approx(DiffBase.value(∇b), test_val)
-            test_approx(DiffBase.value(∇c), test_val)
-            test_approx(DiffBase.gradient(∇a), test_a)
-            test_approx(DiffBase.gradient(∇b), test_b)
-            test_approx(DiffBase.gradient(∇c), test_c)
-        end
+        ∇a, ∇b, ∇c = map(DiffBase.GradientResult, (a, b, c))
+        ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
+        test_approx(DiffBase.value(∇a), test_val)
+        test_approx(DiffBase.value(∇b), test_val)
+        test_approx(DiffBase.value(∇c), test_val)
+        test_approx(DiffBase.gradient(∇a), test_a)
+        test_approx(DiffBase.gradient(∇b), test_b)
+        test_approx(DiffBase.gradient(∇c), test_c)
     end
 end
 
