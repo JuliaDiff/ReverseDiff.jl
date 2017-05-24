@@ -58,23 +58,52 @@ immutable CompiledTape{S,T<:AbstractTape} <: AbstractTape
     reverse_exec::Vector{FunctionWrapper{Void, Tuple{}}}
 end
 
+"""
+    ForwardExecutor{I <: AbstractInstruction}
+
+The ForwardExecutor type captures a single Instruction in order to allow fast
+evaluation of `forward_exec!(instruction)` via call overloading during the
+forward pass of differentiation. This is useful because an `InstructionTape`
+is stored as a vector of non-concrete AbstractInstruction elements, so calling
+`forward_exec!(instruction)` on each instruction would incur some run-time
+dispatch. Instead, we can create a ForwardExecutor and a FunctionWrapper for
+each instruction and store those in a concretely-typed Vector.
+"""
 immutable ForwardExecutor{I <: AbstractInstruction}
     instruction::I
 end
 
 @inline (e::ForwardExecutor)() = forward_exec!(e.instruction)
 
+"""
+    ReverseExecutor{I <: AbstractInstruction}
+
+The ReverseExecutor type captures a single Instruction in order to allow fast
+evaluation of `reverse_exec!(instruction)` via call overloading during the
+forward pass of differentiation. This is useful because an `InstructionTape`
+is stored as a vector of non-concrete AbstractInstruction elements, so calling
+`reverse_exec!(instruction)` on each instruction would incur some run-time
+dispatch. Instead, we can create a ReverseExecutor and a FunctionWrapper for
+each instruction and store those in a concretely-typed Vector.
+"""
 immutable ReverseExecutor{I <: AbstractInstruction}
     instruction::I
 end
 
 @inline (e::ReverseExecutor)() = reverse_exec!(e.instruction)
 
-(::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T) = CompiledTape{S,T}(
-    t, 
-    [FunctionWrapper{Void, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
-    [FunctionWrapper{Void, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
-    )
+"""
+    (::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T)
+
+Construct a compiled type by wrapping the `forward_exec!` and `reverse_exec!`
+methods on each instruction in the tape.
+"""
+function (::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T)
+    CompiledTape{S,T}(t,
+        [FunctionWrapper{Void, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
+        [FunctionWrapper{Void, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
+        )
+end
 
 Base.show{S}(io::IO, t::CompiledTape{S}) = print(io, typeof(t).name, "{$S}($(t.tape.func))")
 
