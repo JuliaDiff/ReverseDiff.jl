@@ -58,13 +58,13 @@ immutable CompiledTape{S,T<:AbstractTape} <: AbstractTape
     reverse_exec::Vector{FunctionWrapper{Void, Tuple{}}}
 end
 
-struct ForwardExecutor{I <: AbstractInstruction}
+immutable ForwardExecutor{I <: AbstractInstruction}
     instruction::I
 end
 
 @inline (e::ForwardExecutor)() = forward_exec!(e.instruction)
 
-struct ReverseExecutor{I <: AbstractInstruction}
+immutable ReverseExecutor{I <: AbstractInstruction}
     instruction::I
 end
 
