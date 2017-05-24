@@ -48,17 +48,21 @@ function seeded_reverse_pass!(result, t::AbstractTape)
     return result
 end
 
-iscompiled(t::AbstractTape) = false
-
 ################
 # CompiledTape #
 ################
 
 immutable CompiledTape{S,T<:AbstractTape} <: AbstractTape
     tape::T
+    forward_exec::Vector{FunctionWrapper{Void, Tuple{}}}
+    reverse_exec::Vector{FunctionWrapper{Void, Tuple{}}}
 end
 
-(::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T) = CompiledTape{S,T}(t)
+(::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T) = CompiledTape{S,T}(
+    t, 
+    [FunctionWrapper{Void, Tuple{}}(() -> forward_exec!(instruction)) for instruction in t.tape],
+    [FunctionWrapper{Void, Tuple{}}(() -> reverse_exec!(instruction)) for instruction in t.tape]
+    )
 
 Base.show{S}(io::IO, t::CompiledTape{S}) = print(io, typeof(t).name, "{$S}($(t.tape.func))")
 
@@ -74,24 +78,18 @@ Base.length(ct::CompiledTape) = length(ct.tape)
 
 @inline output_hook(ct::CompiledTape) = output_hook(ct.tape)
 
-function generate_forward_pass_method{T}(::Type{T}, tape::InstructionTape)
-    body = Expr(:block)
-    push!(body.args, :(tape = compiled_tape.tape.tape))
-    for i in 1:length(tape)
-        push!(body.args, :(ReverseDiff.forward_exec!(tape[$i]::$(typeof(tape[i])))))
+function forward_pass!(compiled_tape::CompiledTape)
+    for wrapper in compiled_tape.forward_exec
+        wrapper()
     end
-    push!(body.args, :(return nothing))
-    return :(ReverseDiff.forward_pass!(compiled_tape::$T) = $body)
+    nothing
 end
 
-function generate_reverse_pass_method{T}(::Type{T}, tape::InstructionTape)
-    body = Expr(:block)
-    push!(body.args, :(tape = compiled_tape.tape.tape))
-    for i in length(tape):-1:1
-        push!(body.args, :(ReverseDiff.reverse_exec!(tape[$i]::$(typeof(tape[i])))))
+function reverse_pass!(compiled_tape::CompiledTape)
+    for wrapper in compiled_tape.reverse_exec
+        wrapper()
     end
-    push!(body.args, :(return nothing))
-    return :(ReverseDiff.reverse_pass!(compiled_tape::$T) = $body)
+    nothing
 end
 
 """
@@ -111,17 +109,6 @@ stack has bubbled up to top level).
 """
 function compile(t::AbstractTape)
     ct = CompiledTape{gensym()}(t)
-    compile(ct)
-    return ct
-end
-
-function compile(ct::CompiledTape)
-    previously_compiled = eval(current_module(), :(ReverseDiff.iscompiled($ct)))
-    if !(previously_compiled)
-        eval(current_module(), generate_forward_pass_method(typeof(ct), ct.tape.tape))
-        eval(current_module(), generate_reverse_pass_method(typeof(ct), ct.tape.tape))
-        eval(current_module(), :(ReverseDiff.iscompiled(ct::$(typeof(ct))) = true))
-    end
     return ct
 end
 
