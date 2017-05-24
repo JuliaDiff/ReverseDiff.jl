@@ -52,7 +52,7 @@ end
 # CompiledTape #
 ################
 
-immutable CompiledTape{S,T<:AbstractTape} <: AbstractTape
+immutable CompiledTape{T<:AbstractTape} <: AbstractTape
     tape::T
     forward_exec::Vector{FunctionWrapper{Void, Tuple{}}}
     reverse_exec::Vector{FunctionWrapper{Void, Tuple{}}}
@@ -93,23 +93,23 @@ end
 @inline (e::ReverseExecutor)() = reverse_exec!(e.instruction)
 
 """
-    (::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T)
+    (::Type{CompiledTape}){T<:AbstractTape}(t::T)
 
 Construct a compiled type by wrapping the `forward_exec!` and `reverse_exec!`
 methods on each instruction in the tape.
 """
-function (::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T)
-    CompiledTape{S,T}(t,
+function (::Type{CompiledTape}){T<:AbstractTape}(t::T)
+    CompiledTape{T}(t,
         [FunctionWrapper{Void, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
         [FunctionWrapper{Void, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
         )
 end
 
-Base.show{S}(io::IO, t::CompiledTape{S}) = print(io, typeof(t).name, "{$S}($(t.tape.func))")
+Base.show(io::IO, t::CompiledTape) = print(io, typeof(t).name, "($(t.tape.func))")
 
-@compat const CompiledGradient{S,T<:GradientTape} = CompiledTape{S,T}
-@compat const CompiledJacobian{S,T<:JacobianTape} = CompiledTape{S,T}
-@compat const CompiledHessian{S,T<:HessianTape}   = CompiledTape{S,T}
+@compat const CompiledGradient{T<:GradientTape} = CompiledTape{T}
+@compat const CompiledJacobian{T<:JacobianTape} = CompiledTape{T}
+@compat const CompiledHessian{T<:HessianTape}   = CompiledTape{T}
 
 Base.length(ct::CompiledTape) = length(ct.tape)
 
@@ -144,7 +144,7 @@ the tape, the more time compilation may take. Very long tapes (i.e. when `length
 the order of 10000 elements) can take a very long time to compile.
 """
 function compile(t::AbstractTape)
-    ct = CompiledTape{gensym()}(t)
+    ct = CompiledTape(t)
     return ct
 end
 
