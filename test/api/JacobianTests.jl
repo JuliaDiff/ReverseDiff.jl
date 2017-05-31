@@ -61,22 +61,16 @@ function test_unary_jacobian(f, x)
     if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
         ctp = ReverseDiff.compile(tp)
 
-        # circumvent world-age problems (`ctp` and `Jf!` have a future world age)
-        @eval begin
-            test_val, test, x = $test_val, $test, $x
-            ctp = $ctp
+        test_approx(ReverseDiff.jacobian!(ctp, x), DiffBase.jacobian(test))
 
-            test_approx(ReverseDiff.jacobian!(ctp, x), DiffBase.jacobian(test))
+        out = similar(DiffBase.jacobian(test))
+        ReverseDiff.jacobian!(out, ctp, x)
+        test_approx(out, DiffBase.jacobian(test))
 
-            out = similar(DiffBase.jacobian(test))
-            ReverseDiff.jacobian!(out, ctp, x)
-            test_approx(out, DiffBase.jacobian(test))
-
-            result = DiffBase.JacobianResult(test_val, x)
-            ReverseDiff.jacobian!(result, ctp, x)
-            test_approx(DiffBase.value(result), DiffBase.value(test))
-            test_approx(DiffBase.jacobian(result), DiffBase.jacobian(test))
-        end
+        result = DiffBase.JacobianResult(test_val, x)
+        ReverseDiff.jacobian!(result, ctp, x)
+        test_approx(DiffBase.value(result), DiffBase.value(test))
+        test_approx(DiffBase.jacobian(result), DiffBase.jacobian(test))
     end
 end
 
@@ -148,24 +142,18 @@ function test_unary_jacobian(f!, y, x)
     if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
         ctp = ReverseDiff.compile(tp)
 
-        # circumvent world-age problems (`ctp` and `Jf!` have a future world age)
-        @eval begin
-            test, y, x = $test, $y, $x
-            ctp = $ctp
+        out = ReverseDiff.jacobian!(ctp, x)
 
-            out = ReverseDiff.jacobian!(ctp, x)
+        test_approx(out, DiffBase.jacobian(test))
 
-            test_approx(out, DiffBase.jacobian(test))
+        out = similar(DiffBase.jacobian(test))
+        ReverseDiff.jacobian!(out, ctp, x)
+        test_approx(out, DiffBase.jacobian(test))
 
-            out = similar(DiffBase.jacobian(test))
-            ReverseDiff.jacobian!(out, ctp, x)
-            test_approx(out, DiffBase.jacobian(test))
-
-            result = DiffBase.JacobianResult(y, x)
-            ReverseDiff.jacobian!(result, ctp, x)
-            test_approx(DiffBase.value(result), DiffBase.value(test))
-            test_approx(DiffBase.jacobian(result), DiffBase.jacobian(test))
-        end
+        result = DiffBase.JacobianResult(y, x)
+        ReverseDiff.jacobian!(result, ctp, x)
+        test_approx(DiffBase.value(result), DiffBase.value(test))
+        test_approx(DiffBase.jacobian(result), DiffBase.jacobian(test))
     end
 end
 
@@ -243,30 +231,23 @@ function test_binary_jacobian(f, a, b)
     if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
         ctp = ReverseDiff.compile(tp)
 
-        # circumvent world-age problems (`ctp` and `Jf!` have a future world age)
-        @eval begin
-            test_val, test_a, test_b = $test_val, $test_a, $test_b
-            a, b = $a, $b
-            ctp = $ctp
+        Ja, Jb = ReverseDiff.jacobian!(ctp, (a, b))
+        test_approx(Ja, test_a)
+        test_approx(Jb, test_b)
 
-            Ja, Jb = ReverseDiff.jacobian!(ctp, (a, b))
-            test_approx(Ja, test_a)
-            test_approx(Jb, test_b)
+        Ja = similar(a, length(test_val), length(a))
+        Jb = similar(b, length(test_val), length(b))
+        ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
+        test_approx(Ja, test_a)
+        test_approx(Jb, test_b)
 
-            Ja = similar(a, length(test_val), length(a))
-            Jb = similar(b, length(test_val), length(b))
-            ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
-            test_approx(Ja, test_a)
-            test_approx(Jb, test_b)
-
-            Ja = DiffBase.JacobianResult(test_val, a)
-            Jb = DiffBase.JacobianResult(test_val, b)
-            ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
-            test_approx(DiffBase.value(Ja), test_val)
-            test_approx(DiffBase.value(Jb), test_val)
-            test_approx(DiffBase.gradient(Ja), test_a)
-            test_approx(DiffBase.gradient(Jb), test_b)
-        end
+        Ja = DiffBase.JacobianResult(test_val, a)
+        Jb = DiffBase.JacobianResult(test_val, b)
+        ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
+        test_approx(DiffBase.value(Ja), test_val)
+        test_approx(DiffBase.value(Jb), test_val)
+        test_approx(DiffBase.gradient(Ja), test_a)
+        test_approx(DiffBase.gradient(Jb), test_b)
     end
 end
 

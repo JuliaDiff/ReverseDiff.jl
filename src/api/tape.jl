@@ -48,23 +48,68 @@ function seeded_reverse_pass!(result, t::AbstractTape)
     return result
 end
 
-iscompiled(t::AbstractTape) = false
-
 ################
 # CompiledTape #
 ################
 
-immutable CompiledTape{S,T<:AbstractTape} <: AbstractTape
+immutable CompiledTape{T<:AbstractTape} <: AbstractTape
     tape::T
+    forward_exec::Vector{FunctionWrapper{Void, Tuple{}}}
+    reverse_exec::Vector{FunctionWrapper{Void, Tuple{}}}
 end
 
-(::Type{CompiledTape{S}}){S,T<:AbstractTape}(t::T) = CompiledTape{S,T}(t)
+"""
+    ForwardExecutor{I <: AbstractInstruction}
 
-Base.show{S}(io::IO, t::CompiledTape{S}) = print(io, typeof(t).name, "{$S}($(t.tape.func))")
+The ForwardExecutor type captures a single Instruction in order to allow fast
+evaluation of `forward_exec!(instruction)` via call overloading during the
+forward pass of differentiation. This is useful because an `InstructionTape`
+is stored as a vector of non-concrete AbstractInstruction elements, so calling
+`forward_exec!(instruction)` on each instruction would incur some run-time
+dispatch. Instead, we can create a ForwardExecutor and a FunctionWrapper for
+each instruction and store those in a concretely-typed Vector.
+"""
+immutable ForwardExecutor{I <: AbstractInstruction}
+    instruction::I
+end
 
-@compat const CompiledGradient{S,T<:GradientTape} = CompiledTape{S,T}
-@compat const CompiledJacobian{S,T<:JacobianTape} = CompiledTape{S,T}
-@compat const CompiledHessian{S,T<:HessianTape}   = CompiledTape{S,T}
+@inline (e::ForwardExecutor)() = forward_exec!(e.instruction)
+
+"""
+    ReverseExecutor{I <: AbstractInstruction}
+
+The ReverseExecutor type captures a single Instruction in order to allow fast
+evaluation of `reverse_exec!(instruction)` via call overloading during the
+forward pass of differentiation. This is useful because an `InstructionTape`
+is stored as a vector of non-concrete AbstractInstruction elements, so calling
+`reverse_exec!(instruction)` on each instruction would incur some run-time
+dispatch. Instead, we can create a ReverseExecutor and a FunctionWrapper for
+each instruction and store those in a concretely-typed Vector.
+"""
+immutable ReverseExecutor{I <: AbstractInstruction}
+    instruction::I
+end
+
+@inline (e::ReverseExecutor)() = reverse_exec!(e.instruction)
+
+"""
+    (::Type{CompiledTape}){T<:AbstractTape}(t::T)
+
+Construct a compiled type by wrapping the `forward_exec!` and `reverse_exec!`
+methods on each instruction in the tape.
+"""
+function (::Type{CompiledTape}){T<:AbstractTape}(t::T)
+    CompiledTape{T}(t,
+        [FunctionWrapper{Void, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
+        [FunctionWrapper{Void, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
+        )
+end
+
+Base.show(io::IO, t::CompiledTape) = print(io, typeof(t).name, "($(t.tape.func))")
+
+@compat const CompiledGradient{T<:GradientTape} = CompiledTape{T}
+@compat const CompiledJacobian{T<:JacobianTape} = CompiledTape{T}
+@compat const CompiledHessian{T<:HessianTape}   = CompiledTape{T}
 
 Base.length(ct::CompiledTape) = length(ct.tape)
 
@@ -74,24 +119,18 @@ Base.length(ct::CompiledTape) = length(ct.tape)
 
 @inline output_hook(ct::CompiledTape) = output_hook(ct.tape)
 
-function generate_forward_pass_method{T}(::Type{T}, tape::InstructionTape)
-    body = Expr(:block)
-    push!(body.args, :(tape = compiled_tape.tape.tape))
-    for i in 1:length(tape)
-        push!(body.args, :(ReverseDiff.forward_exec!(tape[$i]::$(typeof(tape[i])))))
+function forward_pass!(compiled_tape::CompiledTape)
+    for wrapper in compiled_tape.forward_exec
+        wrapper()
     end
-    push!(body.args, :(return nothing))
-    return :(ReverseDiff.forward_pass!(compiled_tape::$T) = $body)
+    nothing
 end
 
-function generate_reverse_pass_method{T}(::Type{T}, tape::InstructionTape)
-    body = Expr(:block)
-    push!(body.args, :(tape = compiled_tape.tape.tape))
-    for i in length(tape):-1:1
-        push!(body.args, :(ReverseDiff.reverse_exec!(tape[$i]::$(typeof(tape[i])))))
+function reverse_pass!(compiled_tape::CompiledTape)
+    for wrapper in compiled_tape.reverse_exec
+        wrapper()
     end
-    push!(body.args, :(return nothing))
-    return :(ReverseDiff.reverse_pass!(compiled_tape::$T) = $body)
+    nothing
 end
 
 """
@@ -103,25 +142,9 @@ passed to any API methods that accept `t` (e.g. `gradient!(result, t, input)`).
 In many cases, compiling `t` can significantly speed up execution time. Note that the longer
 the tape, the more time compilation may take. Very long tapes (i.e. when `length(t)` is on
 the order of 10000 elements) can take a very long time to compile.
-
-Note that this function calls `eval` in the `current_module()` to generate functions
-from `t`. Thus, the returned `CompiledTape` will only be useable once the world-age
-counter has caught up with the world-age of the `eval`'d functions (i.e. once the call
-stack has bubbled up to top level).
 """
 function compile(t::AbstractTape)
-    ct = CompiledTape{gensym()}(t)
-    compile(ct)
-    return ct
-end
-
-function compile(ct::CompiledTape)
-    previously_compiled = eval(current_module(), :(ReverseDiff.iscompiled($ct)))
-    if !(previously_compiled)
-        eval(current_module(), generate_forward_pass_method(typeof(ct), ct.tape.tape))
-        eval(current_module(), generate_reverse_pass_method(typeof(ct), ct.tape.tape))
-        eval(current_module(), :(ReverseDiff.iscompiled(ct::$(typeof(ct))) = true))
-    end
+    ct = CompiledTape(t)
     return ct
 end
 

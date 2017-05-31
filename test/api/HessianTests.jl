@@ -66,22 +66,17 @@ function test_unary_hessian(f, x)
     if length(tp.tape) <= 10000 # otherwise compile time can be crazy
         ctp = ReverseDiff.compile(tp)
 
-        # circumvent world-age problems (`ctp` has a future world age)
-        @eval begin
-            test, x, ctp = $test, $x, $ctp
+        test_approx(ReverseDiff.hessian!(ctp, x), DiffBase.hessian(test))
 
-            test_approx(ReverseDiff.hessian!(ctp, x), DiffBase.hessian(test))
+        out = similar(DiffBase.hessian(test))
+        ReverseDiff.hessian!(out, ctp, x)
+        test_approx(out, DiffBase.hessian(test))
 
-            out = similar(DiffBase.hessian(test))
-            ReverseDiff.hessian!(out, ctp, x)
-            test_approx(out, DiffBase.hessian(test))
-
-            result = DiffBase.HessianResult(x)
-            ReverseDiff.hessian!(result, ctp, x)
-            test_approx(DiffBase.value(result), DiffBase.value(test))
-            test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
-            test_approx(DiffBase.hessian(result), DiffBase.hessian(test))
-        end
+        result = DiffBase.HessianResult(x)
+        ReverseDiff.hessian!(result, ctp, x)
+        test_approx(DiffBase.value(result), DiffBase.value(test))
+        test_approx(DiffBase.gradient(result), DiffBase.gradient(test))
+        test_approx(DiffBase.hessian(result), DiffBase.hessian(test))
     end
 end
 

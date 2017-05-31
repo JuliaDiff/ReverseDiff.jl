@@ -3,6 +3,7 @@ __precompile__()
 module ReverseDiff
 
 using Base: RefValue
+using FunctionWrappers: FunctionWrapper
 
 using Compat
 
