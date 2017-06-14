@@ -1,4 +1,4 @@
-using ReverseDiff: JacobianTape, JacobianConfig, jacobian, jacobian!, compile_jacobian, compile
+using ReverseDiff: JacobianTape, JacobianConfig, jacobian, jacobian!, compile
 
 #########
 # setup #
