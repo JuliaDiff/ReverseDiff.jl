@@ -214,7 +214,7 @@ unseed!(x::AbstractArray, i) = unseed!(x[i])
 # `forward_pass!`/`reverse_pass!`.
 capture(t::TrackedReal) = ifelse(hastape(t), t, value(t))
 capture(t::TrackedArray) = t
-capture(t::AbstractArray) = istracked(t) ?  map(capture, t) : copy(t)
+capture(t::AbstractArray) = istracked(t) ?  map!(capture, similar(t), t) : copy(t)
 
 ########################
 # Conversion/Promotion #
