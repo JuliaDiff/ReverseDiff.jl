@@ -47,7 +47,7 @@ function hessian!(result::DiffResult, f, input::AbstractArray,
     ∇f! = (y, x) -> begin
         gradient_result = DiffResult(zero(eltype(y)), y)
         gradient!(gradient_result, f, x, cfg.gradient_config)
-        DiffBase.value!(result, value(DiffBase.value(gradient_result)))
+        result = DiffBase.value!(result, value(DiffBase.value(gradient_result)))
         return y
     end
     jacobian!(DiffBase.hessian(result), ∇f!,
@@ -92,7 +92,7 @@ end
 function hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)
     seeded_reverse_pass!(DiffResult(DiffBase.gradient(result), DiffBase.hessian(result)), tape)
-    DiffBase.value!(result, func_hook(tape)(input))
+    result = DiffBase.value!(result, func_hook(tape)(input))
     return result
 end
 
