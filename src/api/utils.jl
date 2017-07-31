@@ -94,7 +94,7 @@ function extract_result!(result::AbstractArray, output::TrackedReal, input::Trac
 end
 
 function extract_result!(result::DiffResult, output::TrackedReal, input::TrackedArray)
-    DiffBase.value!(result, value(output))
+    result = DiffBase.value!(result, value(output))
     copy!(DiffBase.gradient(result), deriv(input))
     return result
 end
@@ -105,7 +105,7 @@ function extract_result!(result::AbstractArray, output::Number)
 end
 
 function extract_result!(result::DiffResult, output::Number)
-    DiffBase.value!(result, output)
+    result = DiffBase.value!(result, output)
     fill_zeros!(DiffBase.gradient(result))
     return result
 end
@@ -118,12 +118,12 @@ function extract_result_value!(result::Tuple, output)
 end
 
 function extract_result_value!(result::DiffResult, output::AbstractArray)
-    DiffBase.value!(value, result, output)
+    result = DiffBase.value!(value, result, output)
     return result
 end
 
 function extract_result_value!(result::DiffResult, output::TrackedArray)
-    DiffBase.value!(result, value(output))
+    result = DiffBase.value!(result, value(output))
     return result
 end
 
