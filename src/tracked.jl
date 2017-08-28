@@ -244,7 +244,6 @@ end
 end
 
 Base.convert{T<:TrackedReal}(::Type{Real}, t::T) = t
-Base.convert{R<:Real,T<:TrackedReal}(::Type{R}, t::T) = R(value(t))
 Base.convert{T<:TrackedReal,R<:Real}(::Type{T}, x::R) = TrackedReal{valtype(T),derivtype(T),origintype(T)}(valtype(T)(value(x)))
 
 Base.convert{T<:TrackedReal}(::Type{T}, t::T) = t
