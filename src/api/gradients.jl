@@ -80,3 +80,26 @@ function gradient!(result, tape::Union{GradientTape,CompiledGradient}, input)
     seeded_reverse_pass!(result, tape)
     return result
 end
+
+
+"""
+    ReverseDiff.makeGradients(f, input :: Vector{<:Real})
+
+Returns `(∇f!, f∇f!, g, yg)`.
+
+`∇f!` takes a value similar to `input`, and returns the gradient at that point.
+This gradient is also written to `g` to allow more efficient use that avoids memory allocation.
+
+`f∇f!` takes a value similar to `input`, and returns both the function value and the gradient at that point.
+This pair (function value, gradient) is also written to `yg` to allow more efficient use that avoids memory allocation.
+"""
+makeGradients(f, x0) = begin
+  const f_tape = GradientTape(f, x0)
+  const compiled_f_tape = compile(f_tape)
+  g = similar(x0)
+  yg = DiffBase.GradientResult(g)
+  cfg = GradientConfig(x0)
+  ∇f!(x)  = gradient!(g, compiled_f_tape, x)
+  f∇f!(x) = gradient!(yg, compiled_f_tape, x)
+  return(∇f!, f∇f!, g, yg)
+end
