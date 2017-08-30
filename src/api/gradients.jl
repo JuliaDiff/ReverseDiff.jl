@@ -83,7 +83,7 @@ end
 
 
 """
-    ReverseDiff.makeGradients(f, input <: Vector{Real})
+    ReverseDiff.makeGradients(f, input :: Vector{<:Real})
 
 Returns `(∇f!, f∇f!, g, yg)`.
 
