@@ -1,6 +1,6 @@
 module ElementwiseTests
 
-using ReverseDiff, ForwardDiff, Base.Test
+using ReverseDiff, ForwardDiff, Base.Test, DiffRules
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
