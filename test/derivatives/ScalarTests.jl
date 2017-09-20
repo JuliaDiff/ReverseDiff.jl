@@ -144,7 +144,7 @@ for (M, f, arity) in DiffRules.diffrules()
         n = is_domain_err_func ? x + 1 : x
         test_forward(eval(:($M.$f)), n, tp, is_domain_err_func)
     elseif arity == 2
-        in(fsym, (:hankelh1, :hankelh1x, :hankelh2, :hankelh2x)) && continue
+        in(f, (:hankelh1, :hankelh1x, :hankelh2, :hankelh2x)) && continue
         test_println("forward-mode binary scalar functions", f)
         test_forward(eval(:($M.$f)), a, b, tp)
     end
