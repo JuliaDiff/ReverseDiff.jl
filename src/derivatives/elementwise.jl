@@ -160,7 +160,7 @@ end
 
 for g in (:map, :broadcast), (M, f, arity) in DiffRules.diffrules()
     if arity == 1
-        @eval @inline Base.$(g)(f::typeof($f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
+        @eval @inline Base.$(g)(f::typeof($M.$f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
     elseif arity == 2
         # skip these definitions if `f` is one of the functions
         # that will get a manually defined broadcast definition

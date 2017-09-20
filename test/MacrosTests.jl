@@ -50,7 +50,7 @@ function test_forward(f, x, tp)
 
     yt = f(xt)
     @test yt == y
-    dual = f(Dual{DUALTAG}(x, one(x)))
+    dual = f(Dual(x, one(x)))
     @test length(tp) == 1
     instruction = first(tp)
     @test typeof(instruction) <: ReverseDiff.ScalarInstruction
@@ -65,7 +65,7 @@ function test_forward(f, a, b, tp)
     bt = ReverseDiff.TrackedReal(b, zero(b), tp)
 
     c = f(a, b)
-    dual = f(Dual{DUALTAG}(a, one(a), zero(a)), Dual{DUALTAG}(b, zero(b), one(b)))
+    dual = f(Dual(a, one(a), zero(a)), Dual(b, zero(b), one(b)))
     @test isempty(tp)
 
     tc = f(at, b)
