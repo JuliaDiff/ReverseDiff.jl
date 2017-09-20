@@ -84,11 +84,11 @@ end
     output = instruction.output
     cache = instruction.cache
     # these annotations are needed to help inference along
-    local dual1::Dual{1,valtype(output)}
-    local dual2::Dual{2,valtype(output)}
+    local dual1::Dual{DUALTAG,valtype(output),1}
+    local dual2::Dual{DUALTAG,valtype(output),2}
     if istracked(input)
         pull_value!(input)
-        dual1 = f(Dual(value(input), one(valtype(input))))
+        dual1 = f(Dual{DUALTAG}(value(input), one(valtype(input))))
         value!(output, ForwardDiff.value(dual1))
         cache[] = ForwardDiff.partials(dual1, 1)
     else
@@ -97,14 +97,14 @@ end
         pull_value!(b)
         if istracked(a) && istracked(b)
             VA, VB = valtype(a), valtype(b)
-            dual2 = f(Dual(value(a), one(VA), zero(VA)), Dual(value(b), zero(VB), one(VB)))
+            dual2 = f(Dual{DUALTAG}(value(a), one(VA), zero(VA)), Dual{DUALTAG}(value(b), zero(VB), one(VB)))
             value!(output, ForwardDiff.value(dual2))
             cache[] = ForwardDiff.partials(dual2)
         else
             if istracked(a)
-                dual1 = f(Dual(value(a), one(valtype(a))), b)
+                dual1 = f(Dual{DUALTAG}(value(a), one(valtype(a))), b)
             else
-                dual1 = f(a, Dual(value(b), one(valtype(b))))
+                dual1 = f(a, Dual{DUALTAG}(value(b), one(valtype(b))))
             end
             value!(output, ForwardDiff.value(dual1))
             partial = ForwardDiff.partials(dual1, 1)

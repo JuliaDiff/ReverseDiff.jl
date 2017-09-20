@@ -377,8 +377,8 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     empty!(tp)
 end
 
-for f in DiffBase.NUMBER_TO_NUMBER_FUNCS
-    test_println("DiffBase.NUMBER_TO_NUMBER_FUNCS", f)
+for f in DiffTests.NUMBER_TO_NUMBER_FUNCS
+    test_println("DiffTests.NUMBER_TO_NUMBER_FUNCS", f)
     test_elementwise(f, ReverseDiff.@forward(f), x, tp)
     test_elementwise(f, ReverseDiff.@forward(f), a, tp)
 end
@@ -408,7 +408,7 @@ for fsym in ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS
     test_broadcast(f, f, a, n, tp)
 end
 
-for f in DiffBase.BINARY_BROADCAST_OPS
+for f in DiffTests.BINARY_BROADCAST_OPS
     test_println("built-in broadcast operators", f)
     test_broadcast(f, f, x, y, tp, true)
     test_broadcast(f, f, a, b, tp, true)

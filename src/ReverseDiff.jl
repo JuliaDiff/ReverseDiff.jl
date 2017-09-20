@@ -7,8 +7,8 @@ using FunctionWrappers: FunctionWrapper
 
 using Compat
 
-using DiffBase
-using DiffBase: DiffResult
+using DiffResults
+using DiffResults: DiffResult
 
 using ForwardDiff
 using ForwardDiff: Dual, Partials
@@ -30,6 +30,8 @@ const SKIPPED_UNARY_SCALAR_FUNCS = (:isinf, :isnan, :isfinite, :iseven, :isodd, 
                                     :isinteger)
 const SKIPPED_BINARY_SCALAR_FUNCS = (:isequal, :isless, :<, :>, :(==), :(!=), :(<=), :(>=))
 
+const DUALTAG = 0x922b3ed9
+
 include("tape.jl")
 include("tracked.jl")
 include("macros.jl")
@@ -46,6 +48,6 @@ include("api/gradients.jl")
 include("api/jacobians.jl")
 include("api/hessians.jl")
 
-export DiffBase
+export DiffResults
 
 end # module

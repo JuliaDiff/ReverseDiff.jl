@@ -113,11 +113,11 @@ function JacobianConfig{D,V<:Real}(output::AbstractArray{D}, input::AbstractArra
 end
 
 """
-    ReverseDiff.JacobianConfig(result::DiffBase.DiffResult, input, tp::InstructionTape = InstructionTape())
+    ReverseDiff.JacobianConfig(result::DiffResults.DiffResult, input, tp::InstructionTape = InstructionTape())
 
-A convenience method for `JacobianConfig(DiffBase.value(result), input, tp)`.
+A convenience method for `JacobianConfig(DiffResults.value(result), input, tp)`.
 """
-JacobianConfig(result::DiffResult, input, tp::InstructionTape) = JacobianConfig(DiffBase.value(result), input, tp)
+JacobianConfig(result::DiffResult, input, tp::InstructionTape) = JacobianConfig(DiffResults.value(result), input, tp)
 
 #################
 # HessianConfig #
@@ -156,7 +156,7 @@ function HessianConfig{D}(input::AbstractArray, ::Type{D}, gtp::InstructionTape 
 end
 
 """
-    ReverseDiff.HessianConfig(result::DiffBase.DiffResult, input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
+    ReverseDiff.HessianConfig(result::DiffResults.DiffResult, input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
 
 Like `HessianConfig(input, tp)`, but utilize `result` along with `input` to construct work
 buffers.
@@ -165,7 +165,7 @@ Note that `result` and `input` are only used for type and shape information; the
 stored or modified in any way.
 """
 function HessianConfig(result::DiffResult, input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
-    jcfg = JacobianConfig(DiffBase.gradient(result), input, jtp)
+    jcfg = JacobianConfig(DiffResults.gradient(result), input, jtp)
     gcfg = GradientConfig(jcfg.input, gtp)
     return HessianConfig(gcfg, jcfg)
 end

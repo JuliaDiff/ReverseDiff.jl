@@ -55,7 +55,7 @@ zt = similar(z, ReverseDiff.TrackedReal{eltype(z),eltype(z),Void})
 
 cfg1 = JacobianConfig(z, (x, y), tp)
 zt = similar(z, ReverseDiff.TrackedReal{eltype(z),eltype(z),Void})
-cfg2 = JacobianConfig(DiffBase.JacobianResult(z), (x, y), tp)
+cfg2 = JacobianConfig(DiffResults.JacobianResult(z), (x, y), tp)
 @test issimilar(cfg1, cfg2)
 
 ##################
@@ -73,7 +73,7 @@ cfg = HessianConfig(x, Int, gtp, jtp)
 @test issimilar(cfg.gradient_config, GradientConfig(track(x, Int), gtp))
 @test issimilar(cfg.jacobian_config, JacobianConfig(x, Int, jtp))
 
-cfg = HessianConfig(DiffBase.HessianResult(y), x, gtp, jtp)
+cfg = HessianConfig(DiffResults.HessianResult(y), x, gtp, jtp)
 @test issimilar(cfg.gradient_config, GradientConfig(track(x, Int), gtp))
 @test issimilar(cfg.jacobian_config, JacobianConfig(y, x, jtp))
 

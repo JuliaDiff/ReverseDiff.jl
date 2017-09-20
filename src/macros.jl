@@ -87,7 +87,7 @@ end
 #-------#
 
 @inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D})
-    dual = self.f(Dual(value(t), one(V)))
+    dual = self.f(Dual{DUALTAG}(value(t), one(V)))
     tp = tape(t)
     out = track(ForwardDiff.value(dual), D, tp)
     cache = RefValue(ForwardDiff.partials(dual, 1))
@@ -99,8 +99,8 @@ end
 #--------#
 
 @inline function (self::ForwardOptimize{F}){F,V1,V2,D}(a::TrackedReal{V1,D}, b::TrackedReal{V2,D})
-    dual_a = Dual(value(a), one(V1), zero(V1))
-    dual_b = Dual(value(b), zero(V2), one(V2))
+    dual_a = Dual{DUALTAG}(value(a), one(V1), zero(V1))
+    dual_b = Dual{DUALTAG}(value(b), zero(V2), one(V2))
     dual_c = self.f(dual_a, dual_b)
     tp = tape(a, b)
     out = track(ForwardDiff.value(dual_c), D, tp)
@@ -110,7 +110,7 @@ end
 end
 
 @inline function (self::ForwardOptimize{F}){F,V,D}(x::Real, t::TrackedReal{V,D})
-    dual = self.f(x, Dual(value(t), one(V)))
+    dual = self.f(x, Dual{DUALTAG}(value(t), one(V)))
     tp = tape(t)
     out = track(ForwardDiff.value(dual), D, tp)
     partial = ForwardDiff.partials(dual, 1)
@@ -120,7 +120,7 @@ end
 end
 
 @inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D}, x::Real)
-    dual = self.f(Dual(value(t), one(V)), x)
+    dual = self.f(Dual{DUALTAG}(value(t), one(V)), x)
     tp = tape(t)
     out = track(ForwardDiff.value(dual), D, tp)
     partial = ForwardDiff.partials(dual, 1)
