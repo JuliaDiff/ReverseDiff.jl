@@ -2,22 +2,16 @@
 # ForwardOptimize #
 ###################
 
-# unary #
-#-------#
-
-for f in FORWARD_UNARY_SCALAR_FUNCS
-    @eval @inline Base.$(f)(t::TrackedReal) = ForwardOptimize($f)(t)
-end
-
-# binary #
-#--------#
-
-for f in FORWARD_BINARY_SCALAR_FUNCS
-    @eval @inline Base.$(f)(a::TrackedReal, b::TrackedReal) = ForwardOptimize($f)(a, b)
-    for R in REAL_TYPES
-        @eval begin
-            @inline Base.$(f)(a::TrackedReal, b::$R) = ForwardOptimize($f)(a, b)
-            @inline Base.$(f)(a::$R, b::TrackedReal) = ForwardOptimize($f)(a, b)
+for (M, f, arity) in DiffRules.diffrules()
+    if arity == 1
+        @eval @inline $M.$(f)(t::TrackedReal) = ForwardOptimize($f)(t)
+    elseif arity == 2
+        @eval @inline $M.$(f)(a::TrackedReal, b::TrackedReal) = ForwardOptimize($f)(a, b)
+        for R in REAL_TYPES
+            @eval begin
+                @inline $M.$(f)(a::TrackedReal, b::$R) = ForwardOptimize($f)(a, b)
+                @inline $M.$(f)(a::$R, b::TrackedReal) = ForwardOptimize($f)(a, b)
+            end
         end
     end
 end

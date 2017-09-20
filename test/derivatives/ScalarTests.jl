@@ -137,16 +137,17 @@ end
 
 DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 
-for f in ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS
-    test_println("FORWARD_UNARY_SCALAR_FUNCS", f)
-    is_domain_err_func = in(f, DOMAIN_ERR_FUNCS)
-    n = is_domain_err_func ? x + 1 : x
-    test_forward(eval(f), n, tp, is_domain_err_func)
-end
-
-for f in ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS
-    test_println("FORWARD_BINARY_SCALAR_FUNCS", f)
-    test_forward(eval(f), a, b, tp)
+for (M, f, arity) in DiffRules.diffrules()
+    if arity == 1
+        test_println("forward-mode unary scalar functions", f)
+        is_domain_err_func = in(f, DOMAIN_ERR_FUNCS)
+        n = is_domain_err_func ? x + 1 : x
+        test_forward(eval(:($M.$f)), n, tp, is_domain_err_func)
+    elseif arity == 2
+        in(fsym, (:hankelh1, :hankelh1x, :hankelh2, :hankelh2x)) && continue
+        test_println("forward-mode binary scalar functions", f)
+        test_forward(eval(:($M.$f)), a, b, tp)
+    end
 end
 
 INT_ONLY_FUNCS = (:iseven, :isodd)

@@ -280,7 +280,7 @@ function index_iterable{N,M}(shape::NTuple{N,Any}, i::NTuple{M,Any})
     elseif M < N && isa(last(i), Colon)
         return index_iterable(shape, ntuple(n -> (n > M ? Colon() : i[n]), Val{N}))
     else
-        return compat_product(map(colon2range, shape[1:M], i)...)
+        return Base.Iterators.product(map(colon2range, shape[1:M], i)...)
     end
 end
 

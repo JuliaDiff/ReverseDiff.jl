@@ -385,27 +385,28 @@ end
 
 DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 
-for fsym in ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS
-    f = eval(fsym)
-    is_domain_err_func = in(fsym, DOMAIN_ERR_FUNCS)
-    test_println("FORWARD_UNARY_SCALAR_FUNCS", f)
-    test_elementwise(f, f, is_domain_err_func ? x .+ 1 : x, tp)
-    test_elementwise(f, f, is_domain_err_func ? a .+ 1 : a, tp)
-end
-
-for fsym in ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS
-    f = eval(fsym)
-    test_println("FORWARD_BINARY_SCALAR_FUNCS", f)
-    test_map(f, f, x, y, tp)
-    test_map(f, f, a, b, tp)
-    test_broadcast(f, f, x, y, tp)
-    test_broadcast(f, f, a, b, tp)
-    test_broadcast(f, f, x, a, tp)
-    test_broadcast(f, f, a, x, tp)
-    test_broadcast(f, f, n, x, tp)
-    test_broadcast(f, f, x, n, tp)
-    test_broadcast(f, f, n, a, tp)
-    test_broadcast(f, f, a, n, tp)
+for (M, fsym, arity) in DiffRules.diffrules()
+    if arity == 1
+        f = eval(:($M.$fsym))
+        is_domain_err_func = in(fsym, DOMAIN_ERR_FUNCS)
+        test_println("forward-mode unary scalar functions", f)
+        test_elementwise(f, f, is_domain_err_func ? x .+ 1 : x, tp)
+        test_elementwise(f, f, is_domain_err_func ? a .+ 1 : a, tp)
+    elseif arity == 2
+        in(fsym, (:hankelh1, :hankelh1x, :hankelh2, :hankelh2x)) && continue
+        f = eval(:($M.$fsym))
+        test_println("forward-mode binary scalar functions", f)
+        test_map(f, f, x, y, tp)
+        test_map(f, f, a, b, tp)
+        test_broadcast(f, f, x, y, tp)
+        test_broadcast(f, f, a, b, tp)
+        test_broadcast(f, f, x, a, tp)
+        test_broadcast(f, f, a, x, tp)
+        test_broadcast(f, f, n, x, tp)
+        test_broadcast(f, f, x, n, tp)
+        test_broadcast(f, f, n, a, tp)
+        test_broadcast(f, f, a, n, tp)
+    end
 end
 
 for f in DiffTests.BINARY_BROADCAST_OPS

@@ -71,8 +71,7 @@ overloads `map`/`broadcast` to dispatch on `@forward`-applied functions. For exa
 `map(@forward(f), x)` will usually be more performant than `map(f, x)`.
 
 ReverseDiff overloads many Base scalar functions to behave as `@forward` functions by
-default. A full list is given by `ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS` and
-`ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS`.
+default. A full list is given by `DiffRules.diffrules()`.
 """
 macro forward(ex)
     return esc(annotate_func_expr(:ForwardOptimize, ex))

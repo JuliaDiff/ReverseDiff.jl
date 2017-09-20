@@ -72,28 +72,28 @@ end
 # dispatch #
 #----------#
 
-for g! in (:map!, :broadcast!), f in FORWARD_UNARY_SCALAR_FUNCS
-    @eval @inline Base.$(g!)(f::typeof($f), out::TrackedArray, t::TrackedArray) = $(g!)(ForwardOptimize(f), out, t)
-end
-
-for g! in (:map!, :broadcast!), f in FORWARD_BINARY_SCALAR_FUNCS
-    @eval begin
-        @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::TrackedArray, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
-        @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::TrackedArray, y::TrackedReal) = $(g!)(ForwardOptimize(f), out, x, y)
-        @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::TrackedReal, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
-    end
-    for A in ARRAY_TYPES
+for g! in (:map!, :broadcast!), (M, f, arity) in DiffRules.diffrules()
+    if arity == 1
+        @eval @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, t::TrackedArray) = $(g!)(ForwardOptimize(f), out, t)
+    elseif arity == 2
         @eval begin
-            @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::$A, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
-            @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::TrackedArray, y::$A) = $(g!)(ForwardOptimize(f), out, x, y)
-            @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::$A, y::TrackedReal) = $(g!)(ForwardOptimize(f), out, x, y)
-            @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::TrackedReal, y::$A) = $(g!)(ForwardOptimize(f), out, x, y)
+            @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
+            @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::TrackedReal) = $(g!)(ForwardOptimize(f), out, x, y)
+            @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedReal, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
         end
-    end
-    for R in REAL_TYPES
-        @eval begin
-            @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::$R, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
-            @inline Base.$(g!)(f::typeof($f), out::TrackedArray, x::TrackedArray, y::$R) = $(g!)(ForwardOptimize(f), out, x, y)
+        for A in ARRAY_TYPES
+            @eval begin
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::$A, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::$A) = $(g!)(ForwardOptimize(f), out, x, y)
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::$A, y::TrackedReal) = $(g!)(ForwardOptimize(f), out, x, y)
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedReal, y::$A) = $(g!)(ForwardOptimize(f), out, x, y)
+            end
+        end
+        for R in REAL_TYPES
+            @eval begin
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::$R, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::$R) = $(g!)(ForwardOptimize(f), out, x, y)
+            end
         end
     end
 end
@@ -158,36 +158,35 @@ end
 # dispatch #
 #----------#
 
-for g in (:map, :broadcast), f in FORWARD_UNARY_SCALAR_FUNCS
-    @eval @inline Base.$(g)(f::typeof($f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
-end
-
-for g in (:map, :broadcast), f in FORWARD_BINARY_SCALAR_FUNCS
-    # skip these definitions if `f` is one of the functions
-    # that will get a manually defined broadcast definition
-    # later (see "built-in infix operations" below)
-    g == :broadcast && in(f, (:+, :-, :*, :/, :\, :^)) && continue
-    @eval begin
-        @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-        @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
-        @inline Base.$(g)(f::typeof($f), x::TrackedReal, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-    end
-    for A in ARRAY_TYPES
+for g in (:map, :broadcast), (M, f, arity) in DiffRules.diffrules()
+    if arity == 1
+        @eval @inline Base.$(g)(f::typeof($f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
+    elseif arity == 2
+        # skip these definitions if `f` is one of the functions
+        # that will get a manually defined broadcast definition
+        # later (see "built-in infix operations" below)
+        g == :broadcast && in(f, (:+, :-, :*, :/, :\, :^)) && continue
         @eval begin
-            @inline Base.$(g)(f::typeof($f), x::$A, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::$A) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($f), x::$A, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($f), x::TrackedReal, y::$A) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($M.$f), x::TrackedReal, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+        end
+        for A in ARRAY_TYPES
+            @eval begin
+                @inline Base.$(g)(f::typeof($M.$f), x::$A, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+                @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::$A) = $(g)(ForwardOptimize(f), x, y)
+                @inline Base.$(g)(f::typeof($M.$f), x::$A, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
+                @inline Base.$(g)(f::typeof($M.$f), x::TrackedReal, y::$A) = $(g)(ForwardOptimize(f), x, y)
+            end
+        end
+        for R in REAL_TYPES
+            @eval begin
+                @inline Base.$(g)(f::typeof($M.$f), x::$R, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+                @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::$R) = $(g)(ForwardOptimize(f), x, y)
+            end
         end
     end
-    for R in REAL_TYPES
-        @eval begin
-            @inline Base.$(g)(f::typeof($f), x::$R, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($f), x::TrackedArray, y::$R) = $(g)(ForwardOptimize(f), x, y)
-        end
-    end
 end
-
 
 # record #
 #--------#
