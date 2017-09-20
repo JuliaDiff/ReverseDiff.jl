@@ -3,7 +3,6 @@ language: julia
 os:
   - linux
 julia:
-  - 0.5
   - 0.6
   - nightly
 matrix:
@@ -14,7 +13,6 @@ notifications:
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
  - julia -e 'Pkg.clone(pwd()); Pkg.build("ReverseDiff"); Pkg.test("ReverseDiff"; coverage=VERSION >= v"0.6-")'
-
 after_success:
   # push coverage results to Coveralls
   - julia -e 'cd(Pkg.dir("ReverseDiff")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
