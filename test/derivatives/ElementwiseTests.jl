@@ -1,6 +1,6 @@
 module ElementwiseTests
 
-using ReverseDiff, ForwardDiff, Base.Test, DiffRules
+using ReverseDiff, ForwardDiff, Base.Test, DiffRules, SpecialFunctions, NaNMath, DiffTests
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -393,7 +393,7 @@ for (M, fsym, arity) in DiffRules.diffrules()
         test_elementwise(f, f, is_domain_err_func ? x .+ 1 : x, tp)
         test_elementwise(f, f, is_domain_err_func ? a .+ 1 : a, tp)
     elseif arity == 2
-        in(fsym, (:hankelh1, :hankelh1x, :hankelh2, :hankelh2x)) && continue
+        in(fsym, SKIPPED_BINARY_SCALAR_TESTS) && continue
         f = eval(:($M.$fsym))
         test_println("forward-mode binary scalar functions", f)
         test_map(f, f, x, y, tp)

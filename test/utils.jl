@@ -4,6 +4,12 @@ using ReverseDiff: InstructionTape, GradientConfig, JacobianConfig, HessianConfi
 
 const COMPILED_TAPE_LIMIT = 5000
 
+# These functions correctly emit NaNs for certain arguments, but ReverseDiff's test
+# machinery is currently too dumb to handle them properly.
+const SKIPPED_BINARY_SCALAR_TESTS = Symbol[:hankelh1, :hankelh1x, :hankelh2, :hankelh2x,
+                                           :pow, :besselj, :besseli, :bessely, :besselk,
+                                           :polygamma]
+
 # make RNG deterministic, and thus make result inaccuracies
 # deterministic so we don't have to retune EPS for arbitrary inputs
 srand(1)

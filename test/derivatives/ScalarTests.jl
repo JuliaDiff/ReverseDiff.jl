@@ -1,6 +1,6 @@
 module ScalarTests
 
-using ReverseDiff, ForwardDiff, Base.Test, DiffRules
+using ReverseDiff, ForwardDiff, Base.Test, DiffRules, SpecialFunctions, NaNMath
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -10,6 +10,7 @@ tic()
 ############################################################################################
 x, a, b = rand(3)
 tp = InstructionTape()
+int_range = 1:10
 
 function test_forward(f, x, tp::InstructionTape, is_domain_err_func::Bool)
     xt = ReverseDiff.TrackedReal(x, zero(x), tp)
@@ -36,8 +37,8 @@ function test_forward(f, x, tp::InstructionTape, is_domain_err_func::Bool)
 end
 
 function test_forward(f, a, b, tp)
-    at = ReverseDiff.TrackedReal(a, zero(a), tp)
-    bt = ReverseDiff.TrackedReal(b, zero(b), tp)
+    at = ReverseDiff.TrackedReal(a, 0.0, tp)
+    bt = ReverseDiff.TrackedReal(b, 0.0, tp)
     c = f(a, b)
 
     ########################################
@@ -54,7 +55,7 @@ function test_forward(f, a, b, tp)
     ReverseDiff.unseed!(at)
 
     # forward
-    a2 = rand()
+    a2 = isa(a, Int) ? rand(int_range) : rand()
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
@@ -76,7 +77,7 @@ function test_forward(f, a, b, tp)
     ReverseDiff.unseed!(bt)
 
     # forward
-    b2 = rand()
+    b2 = isa(b, Int) ? rand(int_range) : rand()
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a, b2)
@@ -98,7 +99,8 @@ function test_forward(f, a, b, tp)
     test_approx(deriv(bt), ForwardDiff.derivative(x -> f(a, x), b))
 
     # forward
-    a2, b2 = rand(), rand()
+    a2 = isa(a, Int) ? rand(int_range) : rand()
+    b2 = isa(b, Int) ? rand(int_range) : rand()
     ReverseDiff.value!(at, a2)
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
@@ -144,7 +146,7 @@ for (M, f, arity) in DiffRules.diffrules()
         n = is_domain_err_func ? x + 1 : x
         test_forward(eval(:($M.$f)), n, tp, is_domain_err_func)
     elseif arity == 2
-        in(f, (:hankelh1, :hankelh1x, :hankelh2, :hankelh2x)) && continue
+        in(f, SKIPPED_BINARY_SCALAR_TESTS) && continue
         test_println("forward-mode binary scalar functions", f)
         test_forward(eval(:($M.$f)), a, b, tp)
     end
