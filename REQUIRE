@@ -4,5 +4,6 @@ DiffRules 0.0.1
 NaNMath 0.2.2
 SpecialFunctions 0.1.0
 ForwardDiff 0.6.0
+StaticArrays 0.5.0
 Compat 0.19.0
 FunctionWrappers 0.1

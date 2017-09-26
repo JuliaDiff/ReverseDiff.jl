@@ -1,6 +1,6 @@
 module MacrosTests
 
-using ReverseDiff, ForwardDiff, Base.Test
+using ReverseDiff, ForwardDiff, Base.Test, StaticArrays
 using ForwardDiff: Dual, Partials, partials
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
@@ -75,7 +75,7 @@ function test_forward(f, a, b, tp)
     @test typeof(instruction) <: ReverseDiff.ScalarInstruction
     @test instruction.input === (at, b)
     @test instruction.output === tc
-    @test instruction.cache[] === Partials((partials(dual, 1), partials(dual, 1)))
+    @test instruction.cache[] === SVector(partials(dual, 1), partials(dual, 1))
     empty!(tp)
 
     tc = f(a, bt)
@@ -85,7 +85,7 @@ function test_forward(f, a, b, tp)
     @test typeof(instruction) <: ReverseDiff.ScalarInstruction
     @test instruction.input === (a, bt)
     @test instruction.output === tc
-    @test instruction.cache[] === Partials((partials(dual, 2), partials(dual, 2)))
+    @test instruction.cache[] === SVector(partials(dual, 2), partials(dual, 2))
     empty!(tp)
 
     tc = f(at, bt)
@@ -95,7 +95,7 @@ function test_forward(f, a, b, tp)
     @test typeof(instruction) <: ReverseDiff.ScalarInstruction
     @test instruction.input === (at, bt)
     @test instruction.output === tc
-    @test instruction.cache[] === partials(dual)
+    @test instruction.cache[] === SVector(partials(dual)...)
     empty!(tp)
 end
 

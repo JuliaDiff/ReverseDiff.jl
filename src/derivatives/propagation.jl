@@ -72,32 +72,35 @@ function decrement_deriv!(t::TrackedReal, x::Real)
     return nothing
 end
 
-##########################
-# duals_increment_deriv! #
-##########################
+###############################
+# diffresult_increment_deriv! #
+###############################
 
-function duals_increment_deriv!(input::AbstractArray, x::AbstractArray,
-                                duals, p::Int)
+@inline getpartial(r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p) where {V,D<:AbstractArray} = DiffResults.derivative(r)[p]
+@inline getpartial(r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p) where {V,D<:Number} = DiffResults.derivative(r)
+
+function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
+                                     results, p::Int)
     for i in eachindex(x)
-        increment_deriv!(input, x[i] * ForwardDiff.partials(duals[i], p), i)
+        increment_deriv!(input, x[i] * getpartial(results[i], p), i)
     end
     return nothing
 end
 
-function duals_increment_deriv!(input::AbstractArray, x::AbstractArray,
-                                duals, p::Int, bound::CartesianIndex)
+function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
+                                     results, p::Int, bound::CartesianIndex)
     for i in CartesianRange(size(x))
-        increment_deriv!(input, x[i] * ForwardDiff.partials(duals[i], p), min(bound, i))
+        increment_deriv!(input, x[i] * getpartial(results[i], p), min(bound, i))
     end
     return nothing
 end
 
-function duals_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                duals, p::Int, ::Void)
+function diffresult_increment_deriv!(input::TrackedReal, x::AbstractArray,
+                                     results, p::Int, ::Void)
     pull_deriv!(input)
     input_deriv = input.deriv
-    for i in eachindex(duals)
-        input_deriv += x[i] * ForwardDiff.partials(duals[i], p)
+    for i in eachindex(results)
+        input_deriv += x[i] * getpartial(results[i], p)
     end
     input.deriv = input_deriv
     push_deriv!(input)

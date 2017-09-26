@@ -78,31 +78,34 @@ end
     output = instruction.output
     cache = instruction.cache
     # these annotations are needed to help inference along
-    local dual1::Dual{DUALTAG,valtype(output),1}
-    local dual2::Dual{DUALTAG,valtype(output),2}
+    VO = valtype(output)
+    local result1::DiffResult{1,VO,Tuple{VO}}
+    local result2::DiffResult{1,VO,Tuple{SVector{2,VO}}}
     if istracked(input)
         pull_value!(input)
-        dual1 = f(Dual{DUALTAG}(value(input), one(valtype(input))))
-        value!(output, ForwardDiff.value(dual1))
-        cache[] = ForwardDiff.partials(dual1, 1)
+        result1 = DiffResult(zero(VO), zero(VO))
+        result1 = ForwardDiff.derivative!(result1, f, value(input))
+        value!(output, DiffResults.value(result1))
+        cache[] = DiffResults.derivative(result1)
     else
         a, b = input
         pull_value!(a)
         pull_value!(b)
         if istracked(a) && istracked(b)
-            VA, VB = valtype(a), valtype(b)
-            dual2 = f(Dual{DUALTAG}(value(a), one(VA), zero(VA)), Dual{DUALTAG}(value(b), zero(VB), one(VB)))
-            value!(output, ForwardDiff.value(dual2))
-            cache[] = ForwardDiff.partials(dual2)
+            result2 = DiffResults.GradientResult(SVector(zero(VO), zero(VO)))
+            result2 = ForwardDiff.gradient!(result2, x -> f(x[1], x[2]), SVector(value(a), value(b)))
+            value!(output, DiffResults.value(result2))
+            cache[] = DiffResults.gradient(result2)
         else
+            result1 = DiffResult(zero(VO), zero(VO))
             if istracked(a)
-                dual1 = f(Dual{DUALTAG}(value(a), one(valtype(a))), b)
+                result1 = ForwardDiff.derivative!(result1, va -> f(va, b), value(a))
             else
-                dual1 = f(a, Dual{DUALTAG}(value(b), one(valtype(b))))
+                result1 = ForwardDiff.derivative!(result1, vb -> f(a, vb), value(b))
             end
-            value!(output, ForwardDiff.value(dual1))
-            partial = ForwardDiff.partials(dual1, 1)
-            cache[] = Partials((partial, partial))
+            value!(output, DiffResults.value(result1))
+            partial = DiffResults.derivative(result1)
+            cache[] = SVector(partial, partial)
         end
     end
     return nothing
