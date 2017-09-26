@@ -182,8 +182,6 @@ end
 # map/broadcast #
 #################
 
-# g == :broadcast && in(f, (:+, :-, :*, :/, :\, :^)) && continue
-
 for g in (:map, :broadcast)
     @eval function Base.$(g){F,X,D}(f::F, x::TrackedArray{X,D})
         result = DiffResults.DiffResult(zero(X), zero(D))
@@ -212,7 +210,7 @@ for g in (:map, :broadcast)
             result = DiffResults.GradientResult(SVector(zero(Y), zero(D)))
             df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
-            tp = tape(x)
+            tp = tape(y)
             out = track(DiffResults.value.(results), D, tp)
             cache = (results, df, index_bound(x, out), index_bound(y, out))
             record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
@@ -226,7 +224,7 @@ for g in (:map, :broadcast)
             result = DiffResults.GradientResult(SVector(zero(D), zero(D)))
             df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
-            tp = tape(x)
+            tp = tape(x, y)
             out = track(DiffResults.value.(results), D, tp)
             cache = (results, df, index_bound(x, out), index_bound(y, out))
             record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
