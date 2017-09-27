@@ -33,7 +33,7 @@ Returns `result`. This method is exactly like `ReverseDiff.gradient(f, input, cf
 it stores the resulting gradient(s) in `result` rather than allocating new memory.
 
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any
-of its elements, if `isa(result, Tuple)`), can also be a `DiffBase.DiffResult`, in which
+of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult`, in which
 case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored
 in it as well.
 """
@@ -71,7 +71,7 @@ Returns `result`. This method is exactly like `ReverseDiff.gradient!(tape, input
 stores the resulting gradient(s) in `result` rather than allocating new memory.
 
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any
-of its elements, if `isa(result, Tuple)`), can also be a `DiffBase.DiffResult`, in which
+of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult`, in which
 case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored
 in it as well.
 """

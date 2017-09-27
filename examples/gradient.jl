@@ -17,7 +17,7 @@ const compiled_f_tape = compile(f_tape)
 a, b = rand(100, 100), rand(100, 100)
 inputs = (a, b)
 results = (similar(a), similar(b))
-all_results = map(DiffBase.GradientResult, results)
+all_results = map(DiffResults.GradientResult, results)
 cfg = GradientConfig(inputs)
 
 ####################
@@ -31,7 +31,7 @@ cfg = GradientConfig(inputs)
 gradient!(results, compiled_f_tape, inputs)
 
 # the same as the above, but in addition to calculating the gradients, the value `f(a, b)`
-# is loaded into the the provided `DiffResult` instances (see DiffBase.jl documentation).
+# is loaded into the the provided `DiffResult` instances (see DiffResults.jl documentation).
 gradient!(all_results, compiled_f_tape, inputs)
 
 # this should be the second fastest method, and also non-allocating

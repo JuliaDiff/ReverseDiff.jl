@@ -1,6 +1,6 @@
 module ElementwiseTests
 
-using ReverseDiff, ForwardDiff, Base.Test
+using ReverseDiff, ForwardDiff, Base.Test, DiffRules, SpecialFunctions, NaNMath, DiffTests
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -377,38 +377,39 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     empty!(tp)
 end
 
-for f in DiffBase.NUMBER_TO_NUMBER_FUNCS
-    test_println("DiffBase.NUMBER_TO_NUMBER_FUNCS", f)
+for f in DiffTests.NUMBER_TO_NUMBER_FUNCS
+    test_println("DiffTests.NUMBER_TO_NUMBER_FUNCS", f)
     test_elementwise(f, ReverseDiff.@forward(f), x, tp)
     test_elementwise(f, ReverseDiff.@forward(f), a, tp)
 end
 
 DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 
-for fsym in ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS
-    f = eval(fsym)
-    is_domain_err_func = in(fsym, DOMAIN_ERR_FUNCS)
-    test_println("FORWARD_UNARY_SCALAR_FUNCS", f)
-    test_elementwise(f, f, is_domain_err_func ? x .+ 1 : x, tp)
-    test_elementwise(f, f, is_domain_err_func ? a .+ 1 : a, tp)
+for (M, fsym, arity) in DiffRules.diffrules()
+    if arity == 1
+        f = eval(:($M.$fsym))
+        is_domain_err_func = in(fsym, DOMAIN_ERR_FUNCS)
+        test_println("forward-mode unary scalar functions", f)
+        test_elementwise(f, f, is_domain_err_func ? x .+ 1 : x, tp)
+        test_elementwise(f, f, is_domain_err_func ? a .+ 1 : a, tp)
+    elseif arity == 2
+        in(fsym, SKIPPED_BINARY_SCALAR_TESTS) && continue
+        f = eval(:($M.$fsym))
+        test_println("forward-mode binary scalar functions", f)
+        test_map(f, f, x, y, tp)
+        test_map(f, f, a, b, tp)
+        test_broadcast(f, f, x, y, tp)
+        test_broadcast(f, f, a, b, tp)
+        test_broadcast(f, f, x, a, tp)
+        test_broadcast(f, f, a, x, tp)
+        test_broadcast(f, f, n, x, tp)
+        test_broadcast(f, f, x, n, tp)
+        test_broadcast(f, f, n, a, tp)
+        test_broadcast(f, f, a, n, tp)
+    end
 end
 
-for fsym in ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS
-    f = eval(fsym)
-    test_println("FORWARD_BINARY_SCALAR_FUNCS", f)
-    test_map(f, f, x, y, tp)
-    test_map(f, f, a, b, tp)
-    test_broadcast(f, f, x, y, tp)
-    test_broadcast(f, f, a, b, tp)
-    test_broadcast(f, f, x, a, tp)
-    test_broadcast(f, f, a, x, tp)
-    test_broadcast(f, f, n, x, tp)
-    test_broadcast(f, f, x, n, tp)
-    test_broadcast(f, f, n, a, tp)
-    test_broadcast(f, f, a, n, tp)
-end
-
-for f in DiffBase.BINARY_BROADCAST_OPS
+for f in DiffTests.BINARY_BROADCAST_OPS
     test_println("built-in broadcast operators", f)
     test_broadcast(f, f, x, y, tp, true)
     test_broadcast(f, f, a, b, tp, true)

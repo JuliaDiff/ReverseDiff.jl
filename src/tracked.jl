@@ -224,7 +224,7 @@ capture(t::AbstractArray) = istracked(t) ?  map!(capture, similar(t), t) : copy(
 function Base.convert{T1<:TrackedReal,T2<:TrackedReal}(::Type{T1}, t::T2)
     V1, D1, O1 = valtype(T1), derivtype(T1), origintype(T1)
     tp = tape(t)
-    out = TrackedReal{V1,D1,O1}(V1(value(t)), D1(deriv(t)), tp)
+    out = TrackedReal{V1,D1,O1}(convert(V1, value(t)), convert(D1, deriv(t)), tp)
     record!(tp, SpecialInstruction, convert, t, out)
     return out
 end
@@ -245,7 +245,7 @@ end
 
 Base.convert{T<:TrackedReal}(::Type{Real}, t::T) = t
 Base.convert{R<:Real,T<:TrackedReal}(::Type{R}, t::T) = R(value(t))
-Base.convert{T<:TrackedReal,R<:Real}(::Type{T}, x::R) = TrackedReal{valtype(T),derivtype(T),origintype(T)}(valtype(T)(value(x)))
+Base.convert{T<:TrackedReal,R<:Real}(::Type{T}, x::R) = TrackedReal{valtype(T),derivtype(T),origintype(T)}(convert(valtype(T), value(x)))
 
 Base.convert{T<:TrackedReal}(::Type{T}, t::T) = t
 Base.convert{T<:TrackedArray}(::Type{T}, t::T) = t
@@ -280,7 +280,7 @@ function index_iterable{N,M}(shape::NTuple{N,Any}, i::NTuple{M,Any})
     elseif M < N && isa(last(i), Colon)
         return index_iterable(shape, ntuple(n -> (n > M ? Colon() : i[n]), Val{N}))
     else
-        return compat_product(map(colon2range, shape[1:M], i)...)
+        return Base.Iterators.product(map(colon2range, shape[1:M], i)...)
     end
 end
 

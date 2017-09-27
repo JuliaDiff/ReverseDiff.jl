@@ -71,8 +71,7 @@ overloads `map`/`broadcast` to dispatch on `@forward`-applied functions. For exa
 `map(@forward(f), x)` will usually be more performant than `map(f, x)`.
 
 ReverseDiff overloads many Base scalar functions to behave as `@forward` functions by
-default. A full list is given by `ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS` and
-`ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS`.
+default. A full list is given by `DiffRules.diffrules()`.
 """
 macro forward(ex)
     return esc(annotate_func_expr(:ForwardOptimize, ex))
@@ -87,10 +86,12 @@ end
 #-------#
 
 @inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D})
-    dual = self.f(Dual(value(t), one(V)))
+    T = promote_type(V, D)
+    result = DiffResult(zero(T), zero(T))
+    result = ForwardDiff.derivative!(result, self.f, value(t))
     tp = tape(t)
-    out = track(ForwardDiff.value(dual), D, tp)
-    cache = RefValue(ForwardDiff.partials(dual, 1))
+    out = track(DiffResults.value(result), D, tp)
+    cache = RefValue(DiffResults.derivative(result))
     record!(tp, ScalarInstruction, self.f, t, out, cache)
     return out
 end
@@ -99,38 +100,42 @@ end
 #--------#
 
 @inline function (self::ForwardOptimize{F}){F,V1,V2,D}(a::TrackedReal{V1,D}, b::TrackedReal{V2,D})
-    dual_a = Dual(value(a), one(V1), zero(V1))
-    dual_b = Dual(value(b), zero(V2), one(V2))
-    dual_c = self.f(dual_a, dual_b)
+    T = promote_type(V1, V2, D)
+    result = DiffResults.GradientResult(SVector(zero(T), zero(T)))
+    result = ForwardDiff.gradient!(result, x -> self.f(x[1], x[2]), SVector(value(a), value(b)))
     tp = tape(a, b)
-    out = track(ForwardDiff.value(dual_c), D, tp)
-    cache = RefValue(ForwardDiff.partials(dual_c))
+    out = track(DiffResults.value(result), D, tp)
+    cache = RefValue(DiffResults.gradient(result))
     record!(tp, ScalarInstruction, self.f, (a, b), out, cache)
     return out
 end
 
 @inline function (self::ForwardOptimize{F}){F,V,D}(x::Real, t::TrackedReal{V,D})
-    dual = self.f(x, Dual(value(t), one(V)))
+    T = promote_type(typeof(x), V, D)
+    result = DiffResult(zero(T), zero(T))
+    result = ForwardDiff.derivative!(result, vt -> self.f(x, vt), value(t))
     tp = tape(t)
-    out = track(ForwardDiff.value(dual), D, tp)
-    partial = ForwardDiff.partials(dual, 1)
-    cache = RefValue(Partials((partial, partial)))
+    out = track(DiffResults.value(result), D, tp)
+    dt = DiffResults.derivative(result)
+    cache = RefValue(SVector(dt, dt))
     record!(tp, ScalarInstruction, self.f, (x, t), out, cache)
     return out
 end
 
 @inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D}, x::Real)
-    dual = self.f(Dual(value(t), one(V)), x)
+    T = promote_type(typeof(x), V, D)
+    result = DiffResult(zero(T), zero(T))
+    result = ForwardDiff.derivative!(result, vt -> self.f(vt, x), value(t))
     tp = tape(t)
-    out = track(ForwardDiff.value(dual), D, tp)
-    partial = ForwardDiff.partials(dual, 1)
-    cache = RefValue(Partials((partial, partial)))
+    out = track(DiffResults.value(result), D, tp)
+    dt = DiffResults.derivative(result)
+    cache = RefValue(SVector(dt, dt))
     record!(tp, ScalarInstruction, self.f, (t, x), out, cache)
     return out
 end
 
-@inline (self::ForwardOptimize{F}){F}(x::Dual, t::TrackedReal) = invoke(self.f, (Dual, Real), x, t)
-@inline (self::ForwardOptimize{F}){F}(t::TrackedReal, x::Dual) = invoke(self.f, (Real, Dual), t, x)
+@inline (self::ForwardOptimize{F}){F}(x::Dual, t::TrackedReal) = invoke(self.f, Tuple{Dual,Real}, x, t)
+@inline (self::ForwardOptimize{F}){F}(t::TrackedReal, x::Dual) = invoke(self.f, Tuple{Real,Dual}, t, x)
 
 #################################
 # Skip Instruction Optimization #

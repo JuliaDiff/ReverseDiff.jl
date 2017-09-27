@@ -33,7 +33,7 @@ end
 Returns `result`. This method is exactly like `ReverseDiff.hessian(f, input, cfg)`, except
 it stores the resulting Hessian in `result` rather than allocating new memory.
 
-If `result` is a `DiffBase.DiffResult`, the primal value `f(input)` and the gradient
+If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
 `∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
 """
 function hessian!(result, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
@@ -47,11 +47,11 @@ function hessian!(result::DiffResult, f, input::AbstractArray,
     ∇f! = (y, x) -> begin
         gradient_result = DiffResult(zero(eltype(y)), y)
         gradient!(gradient_result, f, x, cfg.gradient_config)
-        result = DiffBase.value!(result, value(DiffBase.value(gradient_result)))
+        result = DiffResults.value!(result, value(DiffResults.value(gradient_result)))
         return y
     end
-    jacobian!(DiffBase.hessian(result), ∇f!,
-              DiffBase.gradient(result), input,
+    jacobian!(DiffResults.hessian(result), ∇f!,
+              DiffResults.gradient(result), input,
               cfg.jacobian_config)
     return result
 end
@@ -80,7 +80,7 @@ end
 Returns `result`. This method is exactly like `ReverseDiff.hessian!(tape, input)`, except
 it stores the resulting Hessian in `result` rather than allocating new memory.
 
-If `result` is a `DiffBase.DiffResult`, the primal value `f(input)` and the gradient
+If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
 `∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
 """
 function hessian!(result::AbstractArray, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
@@ -91,8 +91,8 @@ end
 
 function hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)
-    seeded_reverse_pass!(DiffResult(DiffBase.gradient(result), DiffBase.hessian(result)), tape)
-    result = DiffBase.value!(result, func_hook(tape)(input))
+    seeded_reverse_pass!(DiffResult(DiffResults.gradient(result), DiffResults.hessian(result)), tape)
+    result = DiffResults.value!(result, func_hook(tape)(input))
     return result
 end
 
