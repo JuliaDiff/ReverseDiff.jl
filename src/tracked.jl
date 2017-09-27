@@ -251,7 +251,7 @@ Base.convert{T<:TrackedReal}(::Type{T}, t::T) = t
 Base.convert{T<:TrackedArray}(::Type{T}, t::T) = t
 
 for R in REAL_TYPES
-    @eval Base.promote_rule{V,D,O,R<:$R}(::Type{R}, ::Type{TrackedReal{V,D,O}}) = TrackedReal{promote_type(R,V),D,O}
+    @eval Base.promote_rule{V,D,O}(::Type{$R}, ::Type{TrackedReal{V,D,O}}) = TrackedReal{promote_type($R,V),D,O}
 end
 
 Base.promote_rule{R<:Real,V,D,O}(::Type{R}, ::Type{TrackedReal{V,D,O}}) = TrackedReal{promote_type(R,V),D,O}

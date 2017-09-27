@@ -18,7 +18,7 @@ using StaticArrays
 # Not all operations will be valid over all of these types, but that's okay; such cases
 # will simply error when they hit the original operation in the overloaded definition.
 const ARRAY_TYPES = (:AbstractArray, :AbstractVector, :AbstractMatrix, :Array, :Vector, :Matrix)
-const REAL_TYPES = (:Bool, :Integer, :Irrational, :Rational, :BigFloat, :BigInt, :AbstractFloat, :Real, :Dual)
+const REAL_TYPES = (:Bool, :Integer, :(Irrational{:e}), :(Irrational{:π}), :Rational, :BigFloat, :BigInt, :AbstractFloat, :Real, :Dual)
 
 const SKIPPED_UNARY_SCALAR_FUNCS  = Symbol[:isinf, :isnan, :isfinite, :iseven, :isodd, :isreal, :isinteger]
 const SKIPPED_BINARY_SCALAR_FUNCS = Symbol[:isequal, :isless, :<, :>, :(==), :(!=), :(<=), :(>=)]
