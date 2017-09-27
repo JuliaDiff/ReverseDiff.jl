@@ -134,6 +134,9 @@ end
     return out
 end
 
+@inline (self::ForwardOptimize{F}){F}(x::Dual, t::TrackedReal) = invoke(self.f, Tuple{Dual,Real}, x, t)
+@inline (self::ForwardOptimize{F}){F}(t::TrackedReal, x::Dual) = invoke(self.f, Tuple{Real,Dual}, t, x)
+
 #################################
 # Skip Instruction Optimization #
 #################################

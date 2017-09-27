@@ -64,82 +64,53 @@ end
 # ForwardOptimized map!/broadcast! #
 ####################################
 
-for g! in (:map!, :broadcast!)
-    @eval @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, t::TrackedArray) = $(g!)(f.f, out, t)
-end
+# dispatch #
+#----------#
 
-for g! in (:map!, :broadcast!)
-    @eval begin
-        @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::TrackedArray, y::TrackedArray) = $(g!)(f.f, out, x, y)
-        @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::TrackedArray, y::TrackedReal) = $(g!)(f.f, out, x, y)
-        @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::TrackedReal, y::TrackedArray) = $(g!)(f.f, out, x, y)
-    end
-    for A in ARRAY_TYPES
+for g! in (:map!, :broadcast!), (M, f, arity) in DiffRules.diffrules()
+    if arity == 1
+        @eval @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, t::TrackedArray) = $(g!)(ForwardOptimize(f), out, t)
+    elseif arity == 2
         @eval begin
-            @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::$A, y::TrackedArray) = $(g!)(f.f, out, x, y)
-            @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::TrackedArray, y::$A) = $(g!)(f.f, out, x, y)
-            @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::$A, y::TrackedReal) = $(g!)(f.f, out, x, y)
-            @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::TrackedReal, y::$A) = $(g!)(f.f, out, x, y)
+            @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
+            @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::TrackedReal) = $(g!)(ForwardOptimize(f), out, x, y)
+            @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedReal, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
         end
-    end
-    for R in REAL_TYPES
-        @eval begin
-            @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::$R, y::TrackedArray) = $(g!)(f.f, out, x, y)
-            @inline Base.$(g!)(f::ForwardOptimize, out::TrackedArray, x::TrackedArray, y::$R) = $(g!)(f.f, out, x, y)
+        for A in ARRAY_TYPES
+            @eval begin
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::$A, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::$A) = $(g!)(ForwardOptimize(f), out, x, y)
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::$A, y::TrackedReal) = $(g!)(ForwardOptimize(f), out, x, y)
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedReal, y::$A) = $(g!)(ForwardOptimize(f), out, x, y)
+            end
         end
-    end
-end
-
-##################################
-# ForwardOptimized map/broadcast #
-##################################
-
-for g in (:map, :broadcast)
-    @eval @inline Base.$(g)(f::ForwardOptimize, t::TrackedArray) = $(g)(f.f, t)
-end
-
-for g in (:map, :broadcast)
-    @eval begin
-        @inline Base.$(g)(f::ForwardOptimize, x::TrackedArray, y::TrackedArray) = $(g)(f.f, x, y)
-        @inline Base.$(g)(f::ForwardOptimize, x::TrackedArray, y::TrackedReal) = $(g)(f.f, x, y)
-        @inline Base.$(g)(f::ForwardOptimize, x::TrackedReal, y::TrackedArray) = $(g)(f.f, x, y)
-    end
-    for A in ARRAY_TYPES
-        @eval begin
-            @inline Base.$(g)(f::ForwardOptimize, x::$A, y::TrackedArray) = $(g)(f.f, x, y)
-            @inline Base.$(g)(f::ForwardOptimize, x::TrackedArray, y::$A) = $(g)(f.f, x, y)
-            @inline Base.$(g)(f::ForwardOptimize, x::$A, y::TrackedReal) = $(g)(f.f, x, y)
-            @inline Base.$(g)(f::ForwardOptimize, x::TrackedReal, y::$A) = $(g)(f.f, x, y)
-        end
-    end
-    for R in REAL_TYPES
-        @eval begin
-            @inline Base.$(g)(f::ForwardOptimize, x::$R, y::TrackedArray) = $(g)(f.f, x, y)
-            @inline Base.$(g)(f::ForwardOptimize, x::TrackedArray, y::$R) = $(g)(f.f, x, y)
+        for R in REAL_TYPES
+            @eval begin
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::$R, y::TrackedArray) = $(g!)(ForwardOptimize(f), out, x, y)
+                @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::$R) = $(g!)(ForwardOptimize(f), out, x, y)
+            end
         end
     end
 end
 
-###################
-# map!/broadcast! #
-###################
+# record #
+#--------#
 
 for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
-    @eval function Base.$(g!){F,S,X}(f::F, out::TrackedArray{S}, x::TrackedArray{X})
+    @eval function Base.$(g!){F,S,X}(f::ForwardOptimize{F}, out::TrackedArray{S}, x::TrackedArray{X})
         result = DiffResults.DiffResult(zero(S), zero(S))
-        df = v -> ForwardDiff.derivative!(result, f, v)
+        df = v -> ForwardDiff.derivative!(result, f.f, v)
         results = $(g)(df, value(x))
         map!(DiffResult.value, value(out), results)
         cache = (results, df, index_bound(x, out), nothing)
         record!(tape(x), SpecialInstruction, $(g), x, out, cache)
         return out
     end
-
     for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
         (TX == TY == :TrackedReal) && continue
-        @eval function Base.$(g!){F,S,X,Y}(f::F, out::TrackedArray{S}, x::$(TX){X}, y::$(TY){Y})
+        @eval function Base.$(g!){F,S,X,Y}(f::ForwardOptimize{F}, out::TrackedArray{S}, x::$(TX){X}, y::$(TY){Y})
             result = DiffResults.GradientResult(SVector(zero(S), zero(S)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f(s[1], s[2]), SVector(vx, vy))
+            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
             map!(DiffResult.value, value(out), results)
             cache = (results, df, index_bound(x, out), index_bound(y, out))
@@ -147,21 +118,19 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             return out
         end
     end
-
     for A in ARRAY_TYPES, T in (:TrackedArray, :TrackedReal)
-        @eval function Base.$(g!){F,S,X}(f::F, out::TrackedArray{S}, x::$(T){X}, y::$A)
+        @eval function Base.$(g!){F,S,X}(f::ForwardOptimize{F}, out::TrackedArray{S}, x::$(T){X}, y::$A)
             result = DiffResults.GradientResult(SVector(zero(S), zero(S)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f(s[1], s[2]), SVector(vx, vy))
+            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
             map!(DiffResult.value, value(out), results)
             cache = (results, df, index_bound(x, out), index_bound(y, out))
             record!(tape(x, y), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-
-        @eval function Base.$(g!){F,Y}(f::F, out::TrackedArray, x::$A, y::$(T){Y})
+        @eval function Base.$(g!){F,Y}(f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::$(T){Y})
             result = DiffResults.GradientResult(SVector(zero(S), zero(S)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result,  s -> f(s[1], s[2]), SVector(vx, vy))
+            df = (vx, vy) -> ForwardDiff.gradient!(result,  s -> f.f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
             map!(DiffResult.value, value(out), results)
             cache = (results, df, index_bound(x, out), index_bound(y, out))
@@ -173,19 +142,56 @@ end
 
 for R in REAL_TYPES
     @eval begin
-        @inline Base.broadcast!{F}(f::F, out::TrackedArray, x::TrackedArray, y::$R) = broadcast!(t -> f(t, y), out, x)
-        @inline Base.broadcast!{F}(f::F, out::TrackedArray, x::$R, y::TrackedArray) = broadcast!(t -> f(x, t), out, y)
+        @inline Base.broadcast!{F}(f::ForwardOptimize{F}, out::TrackedArray, x::TrackedArray, y::$R) = broadcast!(ForwardOptimize(t -> f.f(t, y)), out, x)
+        @inline Base.broadcast!{F}(f::ForwardOptimize{F}, out::TrackedArray, x::$R, y::TrackedArray) = broadcast!(ForwardOptimize(t -> f.f(x, t)), out, y)
     end
 end
 
-#################
-# map/broadcast #
-#################
+##################################
+# ForwardOptimized map/broadcast #
+##################################
+
+# dispatch #
+#----------#
+
+for g in (:map, :broadcast), (M, f, arity) in DiffRules.diffrules()
+    if arity == 1
+        @eval @inline Base.$(g)(f::typeof($M.$f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
+    elseif arity == 2
+        # skip these definitions if `f` is one of the functions
+        # that will get a manually defined broadcast definition
+        # later (see "built-in infix operations" below)
+        g == :broadcast && in(f, (:+, :-, :*, :/, :\, :^)) && continue
+        @eval begin
+            @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
+            @inline Base.$(g)(f::typeof($M.$f), x::TrackedReal, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+        end
+        for A in ARRAY_TYPES
+            @eval begin
+                @inline Base.$(g)(f::typeof($M.$f), x::$A, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+                @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::$A) = $(g)(ForwardOptimize(f), x, y)
+                @inline Base.$(g)(f::typeof($M.$f), x::$A, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
+                @inline Base.$(g)(f::typeof($M.$f), x::TrackedReal, y::$A) = $(g)(ForwardOptimize(f), x, y)
+            end
+        end
+        for R in REAL_TYPES
+            @eval begin
+                @inline Base.$(g)(f::typeof($M.$f), x::$R, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
+                @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::$R) = $(g)(ForwardOptimize(f), x, y)
+            end
+        end
+    end
+end
+
+# record #
+#--------#
 
 for g in (:map, :broadcast)
-    @eval function Base.$(g){F,X,D}(f::F, x::TrackedArray{X,D})
-        result = DiffResults.DiffResult(zero(X), zero(D))
-        df = v -> ForwardDiff.derivative!(result, f, v)
+    @eval function Base.$(g){F,X,D}(f::ForwardOptimize{F}, x::TrackedArray{X,D})
+        T = promote_type(X, D)
+        result = DiffResults.DiffResult(zero(T), zero(T))
+        df = v -> ForwardDiff.derivative!(result, f.f, v)
         results = $(g)(df, value(x))
         tp = tape(x)
         out = track(DiffResults.value.(results), D, tp)
@@ -193,11 +199,10 @@ for g in (:map, :broadcast)
         record!(tp, SpecialInstruction, $(g), x, out, cache)
         return out
     end
-
     for A in ARRAY_TYPES, T in (:TrackedArray, :TrackedReal)
-        @eval function Base.$(g){F,X,D}(f::F, x::$(T){X,D}, y::$A)
+        @eval function Base.$(g){F,X,D}(f::ForwardOptimize{F}, x::$(T){X,D}, y::$A)
             result = DiffResults.GradientResult(SVector(zero(X), zero(D)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f(s[1], s[2]), SVector(vx, vy))
+            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
             tp = tape(x)
             out = track(DiffResults.value.(results), D, tp)
@@ -205,10 +210,9 @@ for g in (:map, :broadcast)
             record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-
-        @eval function Base.$(g){F,Y,D}(f::F, x::$A, y::$(T){Y,D})
+        @eval function Base.$(g){F,Y,D}(f::ForwardOptimize{F}, x::$A, y::$(T){Y,D})
             result = DiffResults.GradientResult(SVector(zero(Y), zero(D)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f(s[1], s[2]), SVector(vx, vy))
+            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
             tp = tape(y)
             out = track(DiffResults.value.(results), D, tp)
@@ -220,9 +224,9 @@ for g in (:map, :broadcast)
 
     for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
         TX == :TrackedReal && TY == :TrackedReal && continue
-        @eval function Base.$(g){F,X,Y,D}(f::F, x::$(TX){X,D}, y::$(TY){Y,D})
+        @eval function Base.$(g){F,X,Y,D}(f::ForwardOptimize{F}, x::$(TX){X,D}, y::$(TY){Y,D})
             result = DiffResults.GradientResult(SVector(zero(D), zero(D)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f(s[1], s[2]), SVector(vx, vy))
+            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
             tp = tape(x, y)
             out = track(DiffResults.value.(results), D, tp)
@@ -235,8 +239,8 @@ end
 
 for R in REAL_TYPES
     @eval begin
-        @inline Base.broadcast{F,X,D}(f::F, x::TrackedArray{X,D}, y::$R) = broadcast(t -> f(t, y), x)
-        @inline Base.broadcast{F,Y,D}(f::F, x::$R, y::TrackedArray{Y,D}) = broadcast(t -> f(x, t), y)
+        @inline Base.broadcast{F,X,D}(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$R) = broadcast(ForwardOptimize(t -> f.f(t, y)), x)
+        @inline Base.broadcast{F,Y,D}(f::ForwardOptimize{F}, x::$R, y::TrackedArray{Y,D}) = broadcast(ForwardOptimize(t -> f.f(x, t)), y)
     end
 end
 
