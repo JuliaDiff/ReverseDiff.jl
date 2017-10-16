@@ -109,8 +109,6 @@ function Base.show(io::IO, instruction::AbstractInstruction, pad = "")
     print(io,   pad, "  cache:  ", compactrepr(instruction.cache))
 end
 
-Base.display(tp::InstructionTape) = show(STDOUT, tp)
-
 function Base.show(io::IO, tp::InstructionTape)
     println("$(length(tp))-element InstructionTape:")
     i = 1
