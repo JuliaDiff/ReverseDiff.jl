@@ -2,7 +2,7 @@
 # AbstractConfig #
 ##################
 
-@compat abstract type AbstractConfig end
+abstract type AbstractConfig end
 
 Base.show(io::IO, cfg::AbstractConfig) = print(io, typeof(cfg).name)
 
@@ -10,15 +10,15 @@ Base.show(io::IO, cfg::AbstractConfig) = print(io, typeof(cfg).name)
 # GradientConfig #
 ##################
 
-@compat immutable GradientConfig{I} <: AbstractConfig
+struct GradientConfig{I} <: AbstractConfig
     input::I
     tape::InstructionTape
     # disable default outer constructor
-    (::Type{GradientConfig{I}}){I}(input, tape) = new{I}(input, tape)
+    GradientConfig{I}(input, tape) where {I} = new{I}(input, tape)
 end
 
 # "private" convienence constructor
-_GradientConfig{I}(input::I, tape::InstructionTape) = GradientConfig{I}(input, tape)
+_GradientConfig(input::I, tape::InstructionTape) where {I} = GradientConfig{I}(input, tape)
 
 """
     ReverseDiff.GradientConfig(input, tp::InstructionTape = InstructionTape())
@@ -32,7 +32,7 @@ the target function's output.
 
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 """
-GradientConfig{T}(input::AbstractArray{T}, tp::InstructionTape = InstructionTape()) = GradientConfig(input, T, tp)
+GradientConfig(input::AbstractArray{T}, tp::InstructionTape = InstructionTape()) where {T} = GradientConfig(input, T, tp)
 
 GradientConfig(input::Tuple, tp::InstructionTape = InstructionTape()) = GradientConfig(input, eltype(first(input)), tp)
 
@@ -42,11 +42,11 @@ GradientConfig(input::Tuple, tp::InstructionTape = InstructionTape()) = Gradient
 Like `GradientConfig(input, tp)`, except the provided type `D` is assumed to be the element
 type of the target function's output.
 """
-function GradientConfig{D}(input::Tuple, ::Type{D}, tp::InstructionTape = InstructionTape())
+function GradientConfig(input::Tuple, ::Type{D}, tp::InstructionTape = InstructionTape()) where D
     return _GradientConfig(map(x -> track(similar(x), D, tp), input), tp)
 end
 
-function GradientConfig{D}(input::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape())
+function GradientConfig(input::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where D
     return _GradientConfig(track(similar(input), D, tp), tp)
 end
 
@@ -54,16 +54,16 @@ end
 # JacobianConfig #
 ##################
 
-@compat immutable JacobianConfig{I,O} <: AbstractConfig
+struct JacobianConfig{I,O} <: AbstractConfig
     input::I
     output::O
     tape::InstructionTape
     # disable default outer constructor
-    (::Type{JacobianConfig{I,O}}){I,O}(input, output, tape) = new{I,O}(input, output, tape)
+    JacobianConfig{I,O}(input, output, tape) where {I,O} = new{I,O}(input, output, tape)
 end
 
 # "private" convienence constructor
-_JacobianConfig{I,O}(input::I, output::O, tape::InstructionTape) = JacobianConfig{I,O}(input, output, tape)
+_JacobianConfig(input::I, output::O, tape::InstructionTape) where {I,O} = JacobianConfig{I,O}(input, output, tape)
 
 """
     ReverseDiff.JacobianConfig(input, tp::InstructionTape = InstructionTape())
@@ -99,14 +99,14 @@ stored or modified in any way.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
-function JacobianConfig{D}(output::AbstractArray{D}, input::Tuple, tp::InstructionTape = InstructionTape())
+function JacobianConfig(output::AbstractArray{D}, input::Tuple, tp::InstructionTape = InstructionTape()) where D
     cfg_input = map(x -> track(similar(x), D, tp), input)
     cfg_output = track!(similar(output, TrackedReal{D,D,Void}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
 end
 
 # we dispatch on V<:Real here because InstructionTape is actually also an AbstractArray
-function JacobianConfig{D,V<:Real}(output::AbstractArray{D}, input::AbstractArray{V}, tp::InstructionTape = InstructionTape())
+function JacobianConfig(output::AbstractArray{D}, input::AbstractArray{V}, tp::InstructionTape = InstructionTape()) where {D,V<:Real}
     cfg_input = track(similar(input), D, tp)
     cfg_output = track!(similar(output, TrackedReal{D,D,Void}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
@@ -123,7 +123,7 @@ JacobianConfig(result::DiffResult, input, tp::InstructionTape) = JacobianConfig(
 # HessianConfig #
 #################
 
-immutable HessianConfig{G<:GradientConfig,J<:JacobianConfig} <: AbstractConfig
+struct HessianConfig{G<:GradientConfig,J<:JacobianConfig} <: AbstractConfig
     gradient_config::G
     jacobian_config::J
 end
@@ -149,7 +149,7 @@ end
 Like `HessianConfig(input, tp)`, except the provided type `D` is assumed to be the element
 type of the target function's output.
 """
-function HessianConfig{D}(input::AbstractArray, ::Type{D}, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
+function HessianConfig(input::AbstractArray, ::Type{D}, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape()) where D
     jcfg = JacobianConfig(input, D, jtp)
     gcfg = GradientConfig(jcfg.input, gtp)
     return HessianConfig(gcfg, jcfg)

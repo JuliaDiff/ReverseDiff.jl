@@ -2,7 +2,7 @@
 # AbstractTape #
 ################
 
-@compat abstract type AbstractTape end
+abstract type AbstractTape end
 
 Base.show(io::IO, t::AbstractTape) = print(io, typeof(t).name, "(", t.func, ")")
 
@@ -11,17 +11,17 @@ Base.show(io::IO, t::AbstractTape) = print(io, typeof(t).name, "(", t.func, ")")
 for T in (:GradientTape, :JacobianTape, :HessianTape)
     _T = Symbol(string("_", T))
     @eval begin
-        immutable $(T){F,I,O} <: AbstractTape
+        struct $(T){F,I,O} <: AbstractTape
             func::F
             input::I
             output::O
             tape::InstructionTape
             # disable default outer constructor
-            (::Type{$(T){F,I,O}}){F,I,O}(func, input, output, tape) = new{F,I,O}(func, input, output, tape)
+            $(T){F,I,O}(func, input, output, tape) where {F,I,O} = new{F,I,O}(func, input, output, tape)
         end
 
         # "private" convienence constructor
-        $(_T){F,I,O}(func::F, input::I, output::O, tape::InstructionTape) = $(T){F,I,O}(func, input, output, tape)
+        $(_T)(func::F, input::I, output::O, tape::InstructionTape) where {F,I,O} = $(T){F,I,O}(func, input, output, tape)
 
         Base.length(t::$T) = length(t.tape)
 
@@ -52,7 +52,7 @@ end
 # CompiledTape #
 ################
 
-immutable CompiledTape{T<:AbstractTape} <: AbstractTape
+struct CompiledTape{T<:AbstractTape} <: AbstractTape
     tape::T
     forward_exec::Vector{FunctionWrapper{Void, Tuple{}}}
     reverse_exec::Vector{FunctionWrapper{Void, Tuple{}}}
@@ -69,7 +69,7 @@ is stored as a vector of non-concrete AbstractInstruction elements, so calling
 dispatch. Instead, we can create a ForwardExecutor and a FunctionWrapper for
 each instruction and store those in a concretely-typed Vector.
 """
-immutable ForwardExecutor{I <: AbstractInstruction}
+struct ForwardExecutor{I <: AbstractInstruction}
     instruction::I
 end
 
@@ -86,7 +86,7 @@ is stored as a vector of non-concrete AbstractInstruction elements, so calling
 dispatch. Instead, we can create a ReverseExecutor and a FunctionWrapper for
 each instruction and store those in a concretely-typed Vector.
 """
-immutable ReverseExecutor{I <: AbstractInstruction}
+struct ReverseExecutor{I <: AbstractInstruction}
     instruction::I
 end
 
@@ -98,7 +98,7 @@ end
 Construct a compiled type by wrapping the `forward_exec!` and `reverse_exec!`
 methods on each instruction in the tape.
 """
-function (::Type{CompiledTape}){T<:AbstractTape}(t::T)
+function CompiledTape(t::T) where T<:AbstractTape
     CompiledTape{T}(t,
         [FunctionWrapper{Void, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
         [FunctionWrapper{Void, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
@@ -107,9 +107,9 @@ end
 
 Base.show(io::IO, t::CompiledTape) = print(io, typeof(t).name, "($(t.tape.func))")
 
-@compat const CompiledGradient{T<:GradientTape} = CompiledTape{T}
-@compat const CompiledJacobian{T<:JacobianTape} = CompiledTape{T}
-@compat const CompiledHessian{T<:HessianTape}   = CompiledTape{T}
+const CompiledGradient{T<:GradientTape} = CompiledTape{T}
+const CompiledJacobian{T<:JacobianTape} = CompiledTape{T}
+const CompiledHessian{T<:HessianTape}   = CompiledTape{T}
 
 Base.length(ct::CompiledTape) = length(ct.tape)
 

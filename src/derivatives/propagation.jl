@@ -22,9 +22,9 @@ efficiency.
 # utilities #
 #############
 
-index_bound{T,N}(x::Any, ::AbstractArray{T,N}) = nothing
+index_bound(x::Any, ::AbstractArray{T,N}) where {T,N} = nothing
 
-index_bound{T,N}(x::AbstractArray, ::AbstractArray{T,N}) = CartesianIndex{N}(ntuple(i -> size(x, i), Val{N}))
+index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} = CartesianIndex{N}(ntuple(i -> size(x, i), Val{N}))
 
 ###################
 # increment_deriv #
