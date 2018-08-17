@@ -89,13 +89,13 @@ function extract_result!(result::Tuple, output)
 end
 
 function extract_result!(result::AbstractArray, output::TrackedReal, input::TrackedArray)
-    copy!(result, deriv(input))
+    copyto!(result, deriv(input))
     return result
 end
 
 function extract_result!(result::DiffResult, output::TrackedReal, input::TrackedArray)
     result = DiffResults.value!(result, value(output))
-    copy!(DiffResults.gradient(result), deriv(input))
+    copyto!(DiffResults.gradient(result), deriv(input))
     return result
 end
 
@@ -133,7 +133,7 @@ function extract_result_value!(result::AbstractArray, output::AbstractArray)
 end
 
 function extract_result_value!(result::AbstractArray, output::TrackedArray)
-    copy!(result, value(output))
+    copyto!(result, value(output))
     return result
 end
 

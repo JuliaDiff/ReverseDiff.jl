@@ -1,8 +1,7 @@
 module TrackedTests
 
-using ReverseDiff, Base.Test
+using ReverseDiff, Test
 using ReverseDiff: TrackedReal, TrackedArray
-using Compat
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
 
@@ -28,11 +27,6 @@ function samefields(a::TrackedArray, b::TrackedArray)
             ReverseDiff.deriv(a) == ReverseDiff.deriv(b) &&
             ReverseDiff.tape(a) === ReverseDiff.tape(b))
 end
-
-println("testing TrackedReals/TrackedArrays...")
-tic()
-
-############################################################################################
 
 ################
 # Constructors #
@@ -61,7 +55,7 @@ t = TrackedReal(v, d, tp)
 @test t.tape === tp
 @test t.index === ReverseDiff.NULL_INDEX
 @test t.origin === nothing
-@test isa(t, TrackedReal{Float64,Int,Void})
+@test isa(t, TrackedReal{Float64,Int,Nothing})
 
 t = TrackedReal(v, d)
 
@@ -70,7 +64,7 @@ t = TrackedReal(v, d)
 @test t.tape === ReverseDiff.NULL_TAPE
 @test t.index === ReverseDiff.NULL_INDEX
 @test t.origin === nothing
-@test isa(t, TrackedReal{Float64,Int,Void})
+@test isa(t, TrackedReal{Float64,Int,Nothing})
 
 # TrackedArray #
 #--------------#
@@ -386,7 +380,7 @@ ReverseDiff.seed!(ta)
 @test ReverseDiff.deriv(ta) === darr == darr_copy
 ReverseDiff.unseed!(ta)
 @test ReverseDiff.value(ta) === varr == varr_copy
-@test ReverseDiff.deriv(ta) === darr == zeros(darr)
+@test ReverseDiff.deriv(ta) === darr == fill!(similar(darr), 0)
 ReverseDiff.deriv!(ta, darr_copy)
 @test ReverseDiff.value(ta) === varr == varr_copy
 @test ReverseDiff.deriv(ta) === darr == darr_copy
@@ -444,7 +438,7 @@ ReverseDiff.unseed!((tr, ta, trs))
 @test ReverseDiff.value(tr) === v
 @test ReverseDiff.deriv(tr) === 0.0
 @test ReverseDiff.value(ta) === varr == varr_copy
-@test ReverseDiff.deriv(ta) === darr == zeros(darr)
+@test ReverseDiff.deriv(ta) === darr == fill!(similar(darr), 0)
 @test ReverseDiff.value(trs[2]) === varr[1]
 @test ReverseDiff.deriv(trs[2]) === 0.0
 @test ReverseDiff.value(trs[3]) === varr[2]
@@ -588,7 +582,7 @@ ta1 = ta[1]
 A = TrackedArray{BigInt,Float64,1,Array{BigInt,1},Array{Float64,1}}
 T = TrackedReal{BigInt,Float64,A}
 
-t2 = convert(TrackedReal{BigFloat,BigFloat,Void}, ta1)
+t2 = convert(TrackedReal{BigFloat,BigFloat,Nothing}, ta1)
 @test length(tp) == 1
 instr = tp[1]
 @test instr.func === convert
@@ -601,7 +595,7 @@ empty!(tp)
 @test convert(BigFloat, tr) == v
 
 @test samefields(convert(T, 1), T(big(1), 0.0))
-@test samefields(convert(TrackedReal{BigInt,Float64,Void}, 1), TrackedReal(big(1), 0.0))
+@test samefields(convert(TrackedReal{BigInt,Float64,Nothing}, 1), TrackedReal(big(1), 0.0))
 
 @test convert(typeof(tr), tr) === tr
 @test convert(typeof(ta), ta) === ta
@@ -609,16 +603,8 @@ empty!(tp)
 
 @test promote_type(T, BigFloat) === TrackedReal{BigFloat,Float64,A}
 @test promote_type(T, Float64) === TrackedReal{BigFloat,Float64,A}
-@test promote_type(T, TrackedReal{BigFloat,BigFloat,Void}) === TrackedReal{BigFloat,BigFloat,Void}
+@test promote_type(T, TrackedReal{BigFloat,BigFloat,Nothing}) === TrackedReal{BigFloat,BigFloat,Nothing}
 @test promote_type(T, T) === T
-
-@test Base.promote_array_type(1, T, BigFloat) === TrackedReal{BigFloat,Float64,A}
-@test Base.promote_array_type(1, T, BigFloat, Int) === Int
-@test Base.promote_array_type(1, BigFloat, T) === TrackedReal{BigFloat,Float64,A}
-@test Base.promote_array_type(1, BigFloat, T, Int) === Int
-
-@test Base.r_promote(+, tr) === tr
-@test Base.r_promote(*, tr) === tr
 
 ###########################
 # AbstractArray Interface #
@@ -633,7 +619,7 @@ ta = TrackedArray(varr, darr, tp)
 @test samefields(ta[2], TrackedReal(varr[2], darr[2], tp, 2, ta))
 
 ta_sub = ta[:,:]
-idx = ReverseDiff.index_iterable(indices(ta), (:, :))
+idx = ReverseDiff.index_iterable(axes(ta), (:, :))
 @test collect(idx) == [(i, j) for i in 1:3, j in 1:3]
 @test samefields(ta_sub, ta)
 @test length(tp) == 1
@@ -645,7 +631,7 @@ instr = tp[1]
 empty!(tp)
 
 ta_sub = ta[:,1:2]
-idx = ReverseDiff.index_iterable(indices(ta), (:, 1:2))
+idx = ReverseDiff.index_iterable(axes(ta), (:, 1:2))
 @test collect(idx) == [(i, j) for i in 1:3, j in 1:2]
 @test samefields(ta_sub, TrackedArray(varr[:,1:2], darr[:,1:2], tp))
 @test length(tp) == 1
@@ -657,7 +643,7 @@ instr = tp[1]
 empty!(tp)
 
 ta_sub = ta[2:3,:]
-idx = ReverseDiff.index_iterable(indices(ta), (2:3, :))
+idx = ReverseDiff.index_iterable(axes(ta), (2:3, :))
 @test collect(idx) == [(i, j) for i in 2:3, j in 1:3]
 @test samefields(ta_sub, TrackedArray(varr[2:3,:], darr[2:3,:], tp))
 @test length(tp) == 1
@@ -669,7 +655,7 @@ instr = tp[1]
 empty!(tp)
 
 ta_sub = ta[1:2,2:3]
-idx = ReverseDiff.index_iterable(indices(ta), (1:2, 2:3))
+idx = ReverseDiff.index_iterable(axes(ta), (1:2, 2:3))
 @test collect(idx) == [(i, j) for i in 1:2, j in 2:3]
 @test samefields(ta_sub, TrackedArray(varr[1:2,2:3], darr[1:2,2:3], tp))
 @test length(tp) == 1
@@ -681,7 +667,7 @@ instr = tp[1]
 empty!(tp)
 
 ta_sub = ta[2:6]
-idx = ReverseDiff.index_iterable(indices(ta), (2:6,))
+idx = ReverseDiff.index_iterable(axes(ta), (2:6,))
 @test collect(idx) == [(i,) for i in 2:6]
 @test samefields(ta_sub, TrackedArray(varr[2:6], darr[2:6], tp))
 @test length(tp) == 1
@@ -693,7 +679,7 @@ instr = tp[1]
 empty!(tp)
 
 ta_sub = ta[:]
-idx = ReverseDiff.index_iterable(indices(ta), (:,))
+idx = ReverseDiff.index_iterable(axes(ta), (:,))
 @test collect(idx) == [(i, j) for i in 1:3, j in 1:3]
 @test samefields(ta_sub, TrackedArray(varr[:], darr[:], tp))
 @test length(tp) == 1
@@ -710,9 +696,7 @@ empty!(tp)
 
 @test Base.copy(ta) === ta
 
-@test ones(ta) == ones(TrackedReal{Float64,Float64,Void}, size(ta))
-
-@test zeros(ta) == zeros(TrackedReal{Float64,Float64,Void}, size(ta))
+@test all(samefields.(ta, copyto!(similar(ta), ta)))
 
 ####################
 # `Real` Interface #
@@ -729,18 +713,18 @@ tr_float = TrackedReal(v_float, d, tp)
 @test deepcopy(tr_float) === tr_float
 @test copy(tr_float) === tr_float
 
-@test samefields(float(tr_int), TrackedReal{Float64,Float64,Void}(float(v_int)))
+@test samefields(float(tr_int), TrackedReal{Float64,Float64,Nothing}(float(v_int)))
 @test float(tr_float) === tr_float
 
 @test samefields(one(tr_float), typeof(tr_float)(one(v_float)))
 
 @test samefields(zero(tr_float), typeof(tr_float)(zero(v_float)))
 
-tr_rand = rand(TrackedReal{Int,Float64,Void})
-@test samefields(tr_rand, TrackedReal{Int,Float64,Void}(ReverseDiff.value(tr_rand)))
+tr_rand = rand(TrackedReal{Int,Float64,Nothing})
+@test samefields(tr_rand, TrackedReal{Int,Float64,Nothing}(ReverseDiff.value(tr_rand)))
 
-tr_rand = rand(MersenneTwister(1), TrackedReal{Int,Float64,Void})
-@test samefields(tr_rand, TrackedReal{Int,Float64,Void}(ReverseDiff.value(tr_rand)))
+tr_rand = rand(MersenneTwister(1), TrackedReal{Int,Float64,Nothing})
+@test samefields(tr_rand, TrackedReal{Int,Float64,Nothing}(ReverseDiff.value(tr_rand)))
 
 @test eps(tr_float) === eps(v_float)
 @test eps(typeof(tr_float)) === eps(Float64)
@@ -768,8 +752,8 @@ tp = InstructionTape()
 @test samefields(ReverseDiff.track(v, tp), TrackedReal(v, zero(v), tp))
 @test samefields(ReverseDiff.track(v, Int, tp), TrackedReal(v, zero(Int), tp))
 
-@test samefields(ReverseDiff.track(varr, tp), TrackedArray(varr, zeros(varr), tp))
-@test samefields(ReverseDiff.track(varr, Int, tp), TrackedArray(varr, zeros(Int, size(varr)), tp))
+@test samefields(ReverseDiff.track(varr, tp), TrackedArray(varr, fill!(similar(varr), 0), tp))
+@test samefields(ReverseDiff.track(varr, Int, tp), TrackedArray(varr, fill(0, size(varr)), tp))
 
 tr = TrackedReal(v, d, tp)
 x = rand()
@@ -781,20 +765,16 @@ ta = TrackedArray(varr, darr, tp)
 x = rand(3)
 ReverseDiff.track!(ta, x)
 
-@test samefields(ta, TrackedArray(x, zeros(x), tp))
+@test samefields(ta, TrackedArray(x, fill!(similar(x), 0), tp))
 
 ta = TrackedArray(varr, darr, tp)
 trs = similar(ta)
 tp2 = InstructionTape()
 @test isa(trs, Vector{eltype(ta)})
-trs = similar(ta, TrackedReal{Float64,Float64,Void})
+trs = similar(ta, TrackedReal{Float64,Float64,Nothing})
 track!(trs, ta, tp2)
 for i in eachindex(trs)
     @test samefields(trs[i], track(varr[i], tp2))
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end

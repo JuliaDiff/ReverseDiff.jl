@@ -1,13 +1,8 @@
 module GradientTests
 
-using DiffTests, ForwardDiff, ReverseDiff, Base.Test
+using DiffTests, ForwardDiff, ReverseDiff, Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
-
-println("testing gradient/gradient!...")
-tic()
-
-############################################################################################
 
 function test_unary_gradient(f, x)
     test = ForwardDiff.gradient!(DiffResults.GradientResult(x), f, x)
@@ -42,7 +37,7 @@ function test_unary_gradient(f, x)
 
     # with GradientTape
 
-    seedx = rand(size(x))
+    seedx = rand(eltype(x), size(x))
     tp = ReverseDiff.GradientTape(f, seedx)
 
     test_approx(ReverseDiff.gradient!(tp, x), DiffResults.gradient(test))
@@ -128,7 +123,7 @@ function test_ternary_gradient(f, a, b, c)
 
     # with GradientTape
 
-    tp = ReverseDiff.GradientTape(f, (rand(size(a)), rand(size(b)), rand(size(c))))
+    tp = ReverseDiff.GradientTape(f, (rand(eltype(a), size(a)), rand(eltype(b), size(b)), rand(eltype(c), size(c))))
 
     ∇a, ∇b, ∇c = ReverseDiff.gradient!(tp, (a, b, c))
     test_approx(∇a, test_a)
@@ -191,9 +186,5 @@ for f in DiffTests.TERNARY_MATRIX_TO_NUMBER_FUNCS
     test_println("TERNARY_MATRIX_TO_NUMBER_FUNCS", f)
     test_ternary_gradient(f, rand(5, 5), rand(5, 5), rand(5, 5))
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module

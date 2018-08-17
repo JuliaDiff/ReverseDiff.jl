@@ -1,13 +1,9 @@
 module ElementwiseTests
 
-using ReverseDiff, ForwardDiff, Base.Test, DiffRules, SpecialFunctions, NaNMath, DiffTests
+using ReverseDiff, ForwardDiff, Test, DiffRules, SpecialFunctions, NaNMath, DiffTests
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
-println("testing elementwise derivatives (both forward and reverse passes)")
-tic()
-
-############################################################################################
 x, y = rand(3, 3), rand(3, 3)
 a, b = rand(3), rand(3)
 n = rand()
@@ -386,6 +382,7 @@ end
 DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 
 for (M, fsym, arity) in DiffRules.diffrules()
+    fsym === :rem2pi && continue
     if arity == 1
         f = eval(:($M.$fsym))
         is_domain_err_func = in(fsym, DOMAIN_ERR_FUNCS)
@@ -420,9 +417,5 @@ for f in DiffTests.BINARY_BROADCAST_OPS
     test_broadcast(f, f, n, a, tp, true)
     test_broadcast(f, f, a, n, tp, true)
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module

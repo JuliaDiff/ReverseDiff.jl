@@ -1,11 +1,11 @@
-__precompile__()
-
 module ReverseDiff
 
 using Base: RefValue
-using FunctionWrappers: FunctionWrapper
+using Random
+using LinearAlgebra
+using Statistics
 
-using Compat
+using FunctionWrappers: FunctionWrapper
 
 using DiffResults
 using DiffResults: DiffResult

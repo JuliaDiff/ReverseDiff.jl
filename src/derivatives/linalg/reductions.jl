@@ -63,7 +63,7 @@ end
 # mean #
 ########
 
-function Base.mean(x::TrackedArray{V,D}) where {V,D}
+function Statistics.mean(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
     out = track(mean(value(x)), D, tp)
     record!(tp, SpecialInstruction, mean, x, out)
@@ -96,11 +96,11 @@ function record_dot(x, y, ::Type{D}) where D
     return out
 end
 
-Base.dot(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_dot(x, y, D)
+LinearAlgebra.dot(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_dot(x, y, D)
 
 for A in ARRAY_TYPES
-    @eval Base.dot(x::TrackedArray{X,D}, y::$A) where {X,D} = record_dot(x, y, D)
-    @eval Base.dot(x::$A, y::TrackedArray{Y,D}) where {Y,D} = record_dot(x, y, D)
+    @eval LinearAlgebra.dot(x::TrackedArray{X,D}, y::$A) where {X,D} = record_dot(x, y, D)
+    @eval LinearAlgebra.dot(x::$A, y::TrackedArray{Y,D}) where {Y,D} = record_dot(x, y, D)
 end
 
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(dot)})
@@ -117,13 +117,13 @@ end
     output = instruction.output
     output_deriv = deriv(output)
     if istracked(a)
-        copy!(b_tmp, value(b))
-        scale!(output_deriv, b_tmp)
+        copyto!(b_tmp, value(b))
+        lmul!(output_deriv, b_tmp)
         increment_deriv!(a, b_tmp)
     end
     if istracked(b)
-        copy!(a_tmp, value(a))
-        scale!(output_deriv, a_tmp)
+        copyto!(a_tmp, value(a))
+        lmul!(output_deriv, a_tmp)
         increment_deriv!(b, a_tmp)
     end
     unseed!(output)

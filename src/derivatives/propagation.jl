@@ -24,7 +24,7 @@ efficiency.
 
 index_bound(x::Any, ::AbstractArray{T,N}) where {T,N} = nothing
 
-index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} = CartesianIndex{N}(ntuple(i -> size(x, i), Val{N}))
+index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} = CartesianIndex{N}(ntuple(i -> size(x, i), Val(N)))
 
 ###################
 # increment_deriv #
@@ -89,14 +89,14 @@ end
 
 function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                      results, p::Int, bound::CartesianIndex)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         increment_deriv!(input, x[i] * getpartial(results[i], p), min(bound, i))
     end
     return nothing
 end
 
 function diffresult_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                     results, p::Int, ::Void)
+                                     results, p::Int, ::Nothing)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in eachindex(results)
@@ -116,13 +116,13 @@ end
 
 function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     bound::CartesianIndex)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         increment_deriv!(input, x[i], min(bound, i))
     end
     return nothing
 end
 
-function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray, ::Void)
+function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray, ::Nothing)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in x
@@ -140,7 +140,7 @@ function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     partials::AbstractArray,
                                     input_bound::CartesianIndex,
                                     partials_bound::CartesianIndex)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         current_deriv = x[i] * partials[min(partials_bound, i)]
         increment_deriv!(input, current_deriv, min(input_bound, i))
     end
@@ -148,7 +148,7 @@ function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
 end
 
 function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                    partials::AbstractArray, ::Void, ::CartesianIndex)
+                                    partials::AbstractArray, ::Nothing, ::CartesianIndex)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in eachindex(x)
@@ -168,15 +168,15 @@ end
 
 function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     partial::Real, input_bound::CartesianIndex,
-                                    ::Void)
-    for i in CartesianRange(size(x))
+                                    ::Nothing)
+    for i in CartesianIndices(size(x))
         increment_deriv!(input, x[i] * partial, min(input_bound, i))
     end
     return nothing
 end
 
 function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                    partial::Real, ::Void, ::Void)
+                                    partial::Real, ::Nothing, ::Nothing)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in eachindex(x)
@@ -193,13 +193,13 @@ end
 
 function broadcast_decrement_deriv!(input::AbstractArray, x::AbstractArray,
                                     bound::CartesianIndex)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         decrement_deriv!(input, x[i], min(bound, i))
     end
     return nothing
 end
 
-function broadcast_decrement_deriv!(input::TrackedReal, x::AbstractArray, ::Void)
+function broadcast_decrement_deriv!(input::TrackedReal, x::AbstractArray, ::Nothing)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in x
@@ -216,7 +216,7 @@ end
 
 function reduction_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     bound::CartesianIndex)
-    for i in CartesianRange(size(input))
+    for i in CartesianIndices(size(input))
         increment_deriv!(input, x[min(bound, i)], i)
     end
     return nothing

@@ -1,13 +1,9 @@
 module ScalarTests
 
-using ReverseDiff, ForwardDiff, Base.Test, DiffRules, SpecialFunctions, NaNMath
+using ReverseDiff, ForwardDiff, Test, DiffRules, SpecialFunctions, NaNMath
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
-println("testing scalar derivatives (both forward and reverse passes)")
-tic()
-
-############################################################################################
 x, a, b = rand(3)
 tp = InstructionTape()
 int_range = 1:10
@@ -140,8 +136,9 @@ end
 DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 
 for (M, f, arity) in DiffRules.diffrules()
+    f === :rem2pi && continue
     if arity == 1
-        test_println("forward-mode unary scalar functions", f)
+        test_println("forward-mode unary scalar functions", string(M, ".", f))
         is_domain_err_func = in(f, DOMAIN_ERR_FUNCS)
         n = is_domain_err_func ? x + 1 : x
         test_forward(eval(:($M.$f)), n, tp, is_domain_err_func)
@@ -165,9 +162,5 @@ for f in ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS
     test_println("SKIPPED_BINARY_SCALAR_FUNCS", f)
     test_skip(eval(f), a, b, tp)
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module
