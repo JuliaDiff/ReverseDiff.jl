@@ -1,6 +1,6 @@
 module LinAlgTests
 
-using ReverseDiff, ForwardDiff, Test
+using ReverseDiff, ForwardDiff, Test, LinearAlgebra
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -221,8 +221,8 @@ end
 
 for (f!, f) in ReverseDiff.A_MUL_B_FUNCS
     test_println("A_mul_B functions", f)
-    test_arr2arr(eval(f), a, b, tp)
-    test_arr2arr_inplace(eval(f!), eval(f), x, a, b, tp)
+    test_arr2arr(eval(LinearAlgebra, f), a, b, tp)
+    test_arr2arr_inplace(eval(LinearAlgebra, f!), eval(LinearAlgebra, f), x, a, b, tp)
 end
 
 end # module

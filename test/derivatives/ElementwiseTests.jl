@@ -382,6 +382,7 @@ end
 DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 
 for (M, fsym, arity) in DiffRules.diffrules()
+    fsym === :rem2pi && continue
     if arity == 1
         f = eval(:($M.$fsym))
         is_domain_err_func = in(fsym, DOMAIN_ERR_FUNCS)

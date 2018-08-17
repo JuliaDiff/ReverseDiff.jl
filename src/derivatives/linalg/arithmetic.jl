@@ -157,7 +157,7 @@ end
 # multiplication (*) #
 ######################
 
-const A_MUL_B_FUNCS = ((:A_mul_B!, :*),
+const A_MUL_B_FUNCS = ((:mul!, :*),
                        (:A_mul_Bt!, :A_mul_Bt), (:At_mul_B!, :At_mul_B), (:At_mul_Bt!, :At_mul_Bt),
                        (:A_mul_Bc!, :A_mul_Bc), (:Ac_mul_B!, :Ac_mul_B), (:Ac_mul_Bc!, :Ac_mul_Bc))
 
