@@ -1,13 +1,9 @@
 module LinAlgTests
 
-using ReverseDiff, ForwardDiff, Base.Test
+using ReverseDiff, ForwardDiff, Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
-println("testing linear algebra derivatives (both forward and reverse passes)")
-tic()
-
-############################################################################################
 x, a, b = rand(3, 3), rand(3, 3), rand(3, 3)
 tp = InstructionTape()
 
@@ -228,9 +224,5 @@ for (f!, f) in ReverseDiff.A_MUL_B_FUNCS
     test_arr2arr(eval(f), a, b, tp)
     test_arr2arr_inplace(eval(f!), eval(f), x, a, b, tp)
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module

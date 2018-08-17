@@ -1,14 +1,9 @@
 module TapeTests
 
-using ReverseDiff, Base.Test
+using ReverseDiff, Test
 using ReverseDiff: SpecialInstruction, ScalarInstruction, NULL_TAPE
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
-
-println("testing InstructionTape/AbstractInstructions...")
-tic()
-
-############################################################################################
 
 for Instr in (SpecialInstruction, ScalarInstruction)
     x, y, k = rand(3), rand(2, 1), rand()
@@ -40,9 +35,5 @@ for Instr in (SpecialInstruction, ScalarInstruction)
     ReverseDiff.record!(NULL_TAPE, Instr, +, (x, y, k), z, c)
     @test isempty(NULL_TAPE)
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module

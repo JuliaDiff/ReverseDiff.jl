@@ -2,6 +2,8 @@ using ReverseDiff: InstructionTape, GradientConfig, JacobianConfig, HessianConfi
                    value, deriv, tape, valtype,
                    derivtype, track, track!
 
+using Random
+
 const COMPILED_TAPE_LIMIT = 5000
 
 # These functions correctly emit NaNs for certain arguments, but ReverseDiff's test
@@ -12,7 +14,7 @@ const SKIPPED_BINARY_SCALAR_TESTS = Symbol[:hankelh1, :hankelh1x, :hankelh2, :ha
 
 # make RNG deterministic, and thus make result inaccuracies
 # deterministic so we don't have to retune EPS for arbitrary inputs
-srand(1)
+Random.seed!(1)
 
 test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 

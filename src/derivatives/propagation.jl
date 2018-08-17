@@ -24,7 +24,7 @@ efficiency.
 
 index_bound(x::Any, ::AbstractArray{T,N}) where {T,N} = nothing
 
-index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} = CartesianIndex{N}(ntuple(i -> size(x, i), Val{N}))
+index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} = CartesianIndex{N}(ntuple(i -> size(x, i), Val(N)))
 
 ###################
 # increment_deriv #
@@ -96,7 +96,7 @@ function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
 end
 
 function diffresult_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                     results, p::Int, ::Void)
+                                     results, p::Int, ::Nothing)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in eachindex(results)
@@ -122,7 +122,7 @@ function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
     return nothing
 end
 
-function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray, ::Void)
+function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray, ::Nothing)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in x
@@ -148,7 +148,7 @@ function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
 end
 
 function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                    partials::AbstractArray, ::Void, ::CartesianIndex)
+                                    partials::AbstractArray, ::Nothing, ::CartesianIndex)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in eachindex(x)
@@ -168,7 +168,7 @@ end
 
 function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     partial::Real, input_bound::CartesianIndex,
-                                    ::Void)
+                                    ::Nothing)
     for i in CartesianRange(size(x))
         increment_deriv!(input, x[i] * partial, min(input_bound, i))
     end
@@ -176,7 +176,7 @@ function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
 end
 
 function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                    partial::Real, ::Void, ::Void)
+                                    partial::Real, ::Nothing, ::Nothing)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in eachindex(x)
@@ -199,7 +199,7 @@ function broadcast_decrement_deriv!(input::AbstractArray, x::AbstractArray,
     return nothing
 end
 
-function broadcast_decrement_deriv!(input::TrackedReal, x::AbstractArray, ::Void)
+function broadcast_decrement_deriv!(input::TrackedReal, x::AbstractArray, ::Nothing)
     pull_deriv!(input)
     input_deriv = input.deriv
     for i in x

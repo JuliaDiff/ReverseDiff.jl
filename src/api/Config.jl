@@ -101,14 +101,14 @@ See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
 function JacobianConfig(output::AbstractArray{D}, input::Tuple, tp::InstructionTape = InstructionTape()) where D
     cfg_input = map(x -> track(similar(x), D, tp), input)
-    cfg_output = track!(similar(output, TrackedReal{D,D,Void}), output, tp)
+    cfg_output = track!(similar(output, TrackedReal{D,D,Nothing}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
 end
 
 # we dispatch on V<:Real here because InstructionTape is actually also an AbstractArray
 function JacobianConfig(output::AbstractArray{D}, input::AbstractArray{V}, tp::InstructionTape = InstructionTape()) where {D,V<:Real}
     cfg_input = track(similar(input), D, tp)
-    cfg_output = track!(similar(output, TrackedReal{D,D,Void}), output, tp)
+    cfg_output = track!(similar(output, TrackedReal{D,D,Nothing}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
 end
 

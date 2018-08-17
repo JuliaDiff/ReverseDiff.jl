@@ -1,13 +1,8 @@
 module GradientTests
 
-using DiffTests, ForwardDiff, ReverseDiff, Base.Test
+using DiffTests, ForwardDiff, ReverseDiff, Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
-
-println("testing gradient/gradient!...")
-tic()
-
-############################################################################################
 
 function test_unary_gradient(f, x)
     test = ForwardDiff.gradient!(DiffResults.GradientResult(x), f, x)
@@ -191,9 +186,5 @@ for f in DiffTests.TERNARY_MATRIX_TO_NUMBER_FUNCS
     test_println("TERNARY_MATRIX_TO_NUMBER_FUNCS", f)
     test_ternary_gradient(f, rand(5, 5), rand(5, 5), rand(5, 5))
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module

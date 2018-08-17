@@ -1,13 +1,9 @@
 module ScalarTests
 
-using ReverseDiff, ForwardDiff, Base.Test, DiffRules, SpecialFunctions, NaNMath
+using ReverseDiff, ForwardDiff, Test, DiffRules, SpecialFunctions, NaNMath
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
-println("testing scalar derivatives (both forward and reverse passes)")
-tic()
-
-############################################################################################
 x, a, b = rand(3)
 tp = InstructionTape()
 int_range = 1:10
@@ -165,9 +161,5 @@ for f in ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS
     test_println("SKIPPED_BINARY_SCALAR_FUNCS", f)
     test_skip(eval(f), a, b, tp)
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module

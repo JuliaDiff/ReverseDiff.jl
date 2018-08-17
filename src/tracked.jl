@@ -33,11 +33,11 @@ missing-ness of the origin, and it's worth explaining why we don't take these ap
 
 The first alternative is to encode the lack of an origin as a parameter in the
 `TrackedReal` type. Indeed, this is exactly what we do if the origin of a `TrackedReal` is a
-constructor like `zero`, setting `O` to `Void`. However, this strategy is not a viable
+constructor like `zero`, setting `O` to `Nothing`. However, this strategy is not a viable
 solution for origin-less `TrackedReal`s that result from conversions. For example, take the
 expression `y = convert(::Type{T<:TrackedReal}, x::Real)`. `y` will not have an origin, but
 `isa(y, T)` MUST hold true regardless. This could break in a world where `T` forcibly
-specifies an origin of type `O != Void`.
+specifies an origin of type `O != Nothing`.
 
 The second alternative is to use `Nullable` + `isnull`. This solution would work, but it
 overcomplicates the API and would incur unneccesary pointer loads during re-validation,
@@ -58,7 +58,7 @@ end
 
 TrackedReal(v::V, a::D, tp::InstructionTape, i::Int, o::O) where {V,D,O} = TrackedReal{V,D,O}(v, a, tp, i, o)
 
-TrackedReal(v::V, a::D, tp::InstructionTape = NULL_TAPE) where {V,D} = TrackedReal{V,D,Void}(v, a, tp)
+TrackedReal(v::V, a::D, tp::InstructionTape = NULL_TAPE) where {V,D} = TrackedReal{V,D,Nothing}(v, a, tp)
 
 # TrackedArray #
 #--------------#
@@ -89,7 +89,7 @@ end
 istracked(x) = false
 istracked(::TrackedReal) = true
 istracked(::TrackedArray) = true
-istracked(::AbstractArray{T}) where {T} = T <: TrackedReal || !(isleaftype(T))
+istracked(::AbstractArray{T}) where {T} = T <: TrackedReal || !(isconcretetype(T))
 
 @inline value(x) = x
 @inline value(x::AbstractArray) = istracked(x) ? map(value, x) : x
@@ -145,7 +145,7 @@ end
 ###########
 
 @inline value!(t::TrackedReal, v::Real) = (t.value = v; nothing)
-@inline value!(t::TrackedArray, v::AbstractArray) = (copy!(value(t), v); nothing)
+@inline value!(t::TrackedArray, v::AbstractArray) = (copyto!(value(t), v); nothing)
 
 function value!(t::NTuple{N,Any}, v::NTuple{N,Any}) where N
     for i in eachindex(t)
@@ -155,7 +155,7 @@ function value!(t::NTuple{N,Any}, v::NTuple{N,Any}) where N
 end
 
 @inline deriv!(t::TrackedReal, v::Real) = (t.deriv = v; nothing)
-@inline deriv!(t::TrackedArray, v::AbstractArray) = (copy!(deriv(t), v); nothing)
+@inline deriv!(t::TrackedArray, v::AbstractArray) = (copyto!(deriv(t), v); nothing)
 
 function deriv!(t::NTuple{N,Any}, v::NTuple{N,Any}) where N
     for i in eachindex(t)
@@ -255,15 +255,7 @@ for R in REAL_TYPES
 end
 
 Base.promote_rule(::Type{R}, ::Type{TrackedReal{V,D,O}}) where {R<:Real,V,D,O} = TrackedReal{promote_type(R,V),D,O}
-Base.promote_rule(::Type{TrackedReal{V1,D1,O1}}, ::Type{TrackedReal{V2,D2,O2}}) where {V1,V2,D1,D2,O1,O2} = TrackedReal{promote_type(V1,V2),promote_type(D1,D2),Void}
-
-Base.promote_array_type(_, ::Type{T}, ::Type{F}) where {T<:TrackedReal, F<:AbstractFloat} = promote_type(T, F)
-Base.promote_array_type(_, ::Type{T}, ::Type{F}, ::Type{S}) where {T<:TrackedReal, F<:AbstractFloat, S} = S
-Base.promote_array_type(_, ::Type{F}, ::Type{T}) where {F<:AbstractFloat, T<:TrackedReal} = promote_type(T, F)
-Base.promote_array_type(_, ::Type{F}, ::Type{T}, ::Type{S}) where {F<:AbstractFloat, T<:TrackedReal, S} = S
-
-Base.r_promote(::typeof(+), t::T) where {T<:TrackedReal} = t
-Base.r_promote(::typeof(*), t::T) where {T<:TrackedReal} = t
+Base.promote_rule(::Type{TrackedReal{V1,D1,O1}}, ::Type{TrackedReal{V2,D2,O2}}) where {V1,V2,D1,D2,O1,O2} = TrackedReal{promote_type(V1,V2),promote_type(D1,D2),Nothing}
 
 ###########################
 # AbstractArray Interface #
@@ -276,19 +268,19 @@ colon2range(s, ::Colon) = s
 
 function index_iterable(shape::NTuple{N,Any}, i::NTuple{M,Any}) where {N,M}
     if N < M
-        return index_iterable(shape, ntuple(n -> i[n], Val{N}))
+        return index_iterable(shape, ntuple(n -> i[n], Val(N)))
     elseif M < N && isa(last(i), Colon)
-        return index_iterable(shape, ntuple(n -> (n > M ? Colon() : i[n]), Val{N}))
+        return index_iterable(shape, ntuple(n -> (n > M ? Colon() : i[n]), Val(N)))
     else
         return Base.Iterators.product(map(colon2range, shape[1:M], i)...)
     end
 end
 
-for T in (:Range, :Colon, :(Union{Colon,Range}))
+for T in (:AbstractRange, :Colon, :(Union{Colon,AbstractRange}))
     @eval function Base.getindex(t::TrackedArray, i::$(T)...)
         tp = tape(t)
         out = TrackedArray(value(t)[i...], deriv(t)[i...], tp)
-        idx = index_iterable(indices(t), i)
+        idx = index_iterable(axes(t), i)
         record!(tp, SpecialInstruction, getindex, (t, idx), out)
         return out
     end
@@ -324,14 +316,14 @@ Base.IndexStyle(::TrackedArray) = IndexLinear()
 
 Base.size(t::TrackedArray) = size(value(t))
 
-Base.copy(t::T) where {T<:TrackedArray} = t
+Base.copy(t::TrackedArray) = t
 
-Base.ones(t::TrackedArray{V,D}) where {V,D} = ones(TrackedReal{V,D,Void}, size(t))
+Base.similar(t::TrackedArray, args::Union{Integer, AbstractUnitRange}...) = similar(value(t), eltype(t), args...)
 
-Base.zeros(t::TrackedArray{V,D}) where {V,D} = zeros(TrackedReal{V,D,Void}, size(t))
+Base.similar(t::TrackedArray, T::Type, args::Union{Integer, AbstractUnitRange}...) = similar(value(t), T, args...)
 
 reshape_body = :(TrackedArray(reshape(value(t), dims), reshape(deriv(t), dims), tape(t)))
-@eval Base.reshape(t::TrackedArray, dims::Type{Val{N}}) where {N} = $reshape_body
+@eval Base.reshape(t::TrackedArray, dims::Val{N}) where {N} = $reshape_body
 @eval Base.reshape(t::TrackedArray, dims::Tuple{Vararg{Int,N}}) where {N} = $reshape_body
 @eval Base.reshape(t::TrackedArray, dims::Int64...) = $reshape_body
 @eval Base.reshape(t::TrackedArray, dims::AbstractUnitRange...) = $reshape_body
@@ -358,7 +350,7 @@ Base.one(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(one(V))
 Base.zero(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(zero(V))
 
 Base.rand(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(rand(V))
-Base.rand(rng::AbstractRNG, ::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(rand(rng, V))
+Base.rand(rng::Random.AbstractRNG, ::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(rand(rng, V))
 
 Base.eps(t::TrackedReal) = eps(value(t))
 Base.eps(::Type{T}) where {T<:TrackedReal} = eps(valtype(T))
@@ -391,7 +383,7 @@ track!(t::TrackedArray, x::AbstractArray) = (value!(t, x); unseed!(t); t)
 
 track!(t::TrackedReal, x::Real) = (value!(t, x); unseed!(t); t)
 
-function track!(t::AbstractArray{TrackedReal{D,D,Void}}, x::AbstractArray, tp::InstructionTape) where D
+function track!(t::AbstractArray{TrackedReal{D,D,Nothing}}, x::AbstractArray, tp::InstructionTape) where D
     for i in eachindex(t)
         t[i] = track(x[i], D, tp)
     end
@@ -402,7 +394,7 @@ end
 # Pretty Printing #
 ###################
 
-idstr(x) = string(base(62, object_id(x)))[1:3]
+idstr(x) = string(objectid(x), base=62)[1:3]
 
 function Base.show(io::IO, t::TrackedReal)
     tape_id = hastape(t) ? idstr(t.tape) : "---"

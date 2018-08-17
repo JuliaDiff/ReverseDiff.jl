@@ -1,18 +1,13 @@
 module HessianTests
 
-using DiffTests, ForwardDiff, ReverseDiff, Base.Test
+using DiffTests, ForwardDiff, ReverseDiff, Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
-
-println("testing hessian/hessian!...")
-tic()
 
 # Circumvent type inference bug where an erroneous `Any` eltype derails the computation
 # during tests, but not outside of the tests. This is really hacky, but I couldn't figure
 # out enough of an MRE for the bug to report it...
 ReverseDiff.hessian(DiffTests.mat2num_1, rand(3, 3))
-
-############################################################################################
 
 function test_unary_hessian(f, x)
     test = DiffResults.HessianResult(x)
@@ -94,9 +89,5 @@ for f in DiffTests.VECTOR_TO_NUMBER_FUNCS
     test_println("VECTOR_TO_NUMBER_FUNCS", f)
     test_unary_hessian(f, rand(5))
 end
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module

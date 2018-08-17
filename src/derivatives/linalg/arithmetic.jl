@@ -19,7 +19,7 @@ for A in ARRAY_TYPES
 end
 
 function record_plus!(out::TrackedArray, x, y)
-    copy!(value(out), value(x) + value(y))
+    copyto!(value(out), value(x) + value(y))
     record!(tape(x, y), SpecialInstruction, +, (x, y), out)
     return out
 end
@@ -88,13 +88,13 @@ for A in ARRAY_TYPES
 end
 
 function record_minus!(out::TrackedArray, x)
-    copy!(value(out), -(value(x)))
+    copyto!(value(out), -(value(x)))
     record!(tape(x), SpecialInstruction, -, x, out)
     return out
 end
 
 function record_minus!(out::TrackedArray, x, y)
-    copy!(value(out), value(x) - value(y))
+    copyto!(value(out), value(x) - value(y))
     record!(tape(x, y), SpecialInstruction, -, (x, y), out)
     return out
 end
@@ -178,21 +178,21 @@ for (f!, f) in A_MUL_B_FUNCS
         end
 
         @inline function $(record_f!)(out::TrackedArray{V,D}, x, y) where {V,D}
-            copy!(value(out), $(f)(value(x), value(y)))
+            copyto!(value(out), $(f)(value(x), value(y)))
             cache = (similar(x, D), similar(y, D))
             record!(tape(x, y), SpecialInstruction, $(f), (x, y), out, cache)
             return out
         end
     end
 
-    @eval Base.$(f)(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = $(record_f)(x, y, D)
-    @eval Base.$(f!)(out::TrackedArray{V,D}, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {V,X,Y,D} = $(record_f!)(out, x, y)
+    @eval LinearAlgebra.$(f)(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = $(record_f)(x, y, D)
+    @eval LinearAlgebra.$(f!)(out::TrackedArray{V,D}, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {V,X,Y,D} = $(record_f!)(out, x, y)
 
     for T in ARRAY_TYPES
-        @eval Base.$(f)(x::TrackedArray{V,D}, y::$(T)) where {V,D} = $(record_f)(x, y, D)
-        @eval Base.$(f)(x::$(T), y::TrackedArray{V,D}) where {V,D} = $(record_f)(x, y, D)
-        @eval Base.$(f!)(out::TrackedArray, x::TrackedArray, y::$(T)) = $(record_f!)(out, x, y)
-        @eval Base.$(f!)(out::TrackedArray, x::$(T), y::TrackedArray) = $(record_f!)(out, x, y)
+        @eval LinearAlgebra.$(f)(x::TrackedArray{V,D}, y::$(T)) where {V,D} = $(record_f)(x, y, D)
+        @eval LinearAlgebra.$(f)(x::$(T), y::TrackedArray{V,D}) where {V,D} = $(record_f)(x, y, D)
+        @eval LinearAlgebra.$(f!)(out::TrackedArray, x::TrackedArray, y::$(T)) = $(record_f!)(out, x, y)
+        @eval LinearAlgebra.$(f!)(out::TrackedArray, x::$(T), y::TrackedArray) = $(record_f!)(out, x, y)
     end
 end
 
