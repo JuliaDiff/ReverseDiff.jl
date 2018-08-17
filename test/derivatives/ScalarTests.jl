@@ -136,8 +136,9 @@ end
 DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
 
 for (M, f, arity) in DiffRules.diffrules()
+    f === :rem2pi && continue
     if arity == 1
-        test_println("forward-mode unary scalar functions", f)
+        test_println("forward-mode unary scalar functions", string(M, ".", f))
         is_domain_err_func = in(f, DOMAIN_ERR_FUNCS)
         n = is_domain_err_func ? x + 1 : x
         test_forward(eval(:($M.$f)), n, tp, is_domain_err_func)

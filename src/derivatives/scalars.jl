@@ -4,13 +4,13 @@
 
 for (M, f, arity) in DiffRules.diffrules()
     if arity == 1
-        @eval @inline $M.$(f)(t::TrackedReal) = ForwardOptimize($f)(t)
+        @eval @inline $M.$(f)(t::TrackedReal) = ForwardOptimize($M.$(f))(t)
     elseif arity == 2
-        @eval @inline $M.$(f)(a::TrackedReal, b::TrackedReal) = ForwardOptimize($f)(a, b)
+        @eval @inline $M.$(f)(a::TrackedReal, b::TrackedReal) = ForwardOptimize($M.$(f))(a, b)
         for R in REAL_TYPES
             @eval begin
-                @inline $M.$(f)(a::TrackedReal, b::$R) = ForwardOptimize($f)(a, b)
-                @inline $M.$(f)(a::$R, b::TrackedReal) = ForwardOptimize($f)(a, b)
+                @inline $M.$(f)(a::TrackedReal, b::$R) = ForwardOptimize($M.$(f))(a, b)
+                @inline $M.$(f)(a::$R, b::TrackedReal) = ForwardOptimize($M.$(f))(a, b)
             end
         end
     end

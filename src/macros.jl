@@ -4,26 +4,22 @@ works for the following formats:
 - `@forward f(args...) = ...`
 - `@forward f = (args...) -> ...`
 =#
-function annotate_func_expr(typesym, expr)
+function annotate_func_expr(typesym, _module_, expr)
     if isa(expr, Expr) && (expr.head == :(=) || expr.head == :function)
         lhs = expr.args[1]
-        if isa(lhs, Expr) && lhs.head == :call # named function definition site
-            name_and_types = lhs.args[1]
-            if isa(name_and_types, Expr) && name_and_types.head == :curly
-                old_name = name_and_types.args[1]
-                hidden_name = Symbol("#hidden_$(old_name)")
-                name_and_types.args[1] = hidden_name
-            elseif isa(name_and_types, Symbol)
-                old_name = name_and_types
-                hidden_name = Symbol("#hidden_$(old_name)")
-                lhs.args[1] = hidden_name
+        if isa(lhs, Expr) && (lhs.head == :call || lhs.head == :where) # named function definition site
+            given_name = lhs.head == :where ? lhs.args[1].args[1] : lhs.args[1]
+            @assert isa(given_name, Symbol) "potentially malformed function signature for $typesym"
+            hidden_name = Symbol("#hidden_$(given_name)")
+            if lhs.head == :where
+                lhs.args[1].args[1] = hidden_name
             else
-                error("potentially malformed function signature for $typesym")
+                lhs.args[1] = hidden_name
             end
             return quote
                 $expr
-                if !(isdefined($(Expr(:quote, old_name))))
-                    const $(old_name) = ReverseDiff.$(typesym)($(hidden_name))
+                if !(isdefined($(_module_), $(Expr(:quote, given_name))))
+                    const $(given_name) = ReverseDiff.$(typesym)($(hidden_name))
                 end
             end
         elseif isa(lhs, Symbol) # variable assignment site
@@ -74,7 +70,7 @@ ReverseDiff overloads many Base scalar functions to behave as `@forward` functio
 default. A full list is given by `DiffRules.diffrules()`.
 """
 macro forward(ex)
-    return esc(annotate_func_expr(:ForwardOptimize, ex))
+    return esc(annotate_func_expr(:ForwardOptimize, __module__, ex))
 end
 
 # fallback #
@@ -163,7 +159,7 @@ A full list is given by `ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS` and
 `ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS`.
 """
 macro skip(ex)
-    return esc(annotate_func_expr(:SkipOptimize, ex))
+    return esc(annotate_func_expr(:SkipOptimize, __module__, ex))
 end
 
 @inline (self::SkipOptimize{F})(args...) where {F} = self.f(map(value, args)...)
