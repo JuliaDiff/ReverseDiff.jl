@@ -41,7 +41,7 @@ end
 # Forward-Mode Optimization #
 #############################
 
-immutable ForwardOptimize{F}
+struct ForwardOptimize{F}
     f::F
 end
 
@@ -80,12 +80,12 @@ end
 # fallback #
 #----------#
 
-@inline (self::ForwardOptimize{F}){F}(args...) = self.f(args...)
+@inline (self::ForwardOptimize{F})(args...) where {F} = self.f(args...)
 
 # unary #
 #-------#
 
-@inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D})
+@inline function (self::ForwardOptimize{F})(t::TrackedReal{V,D}) where {F,V,D}
     T = promote_type(V, D)
     result = DiffResult(zero(T), zero(T))
     result = ForwardDiff.derivative!(result, self.f, value(t))
@@ -99,7 +99,7 @@ end
 # binary #
 #--------#
 
-@inline function (self::ForwardOptimize{F}){F,V1,V2,D}(a::TrackedReal{V1,D}, b::TrackedReal{V2,D})
+@inline function (self::ForwardOptimize{F})(a::TrackedReal{V1,D}, b::TrackedReal{V2,D}) where {F,V1,V2,D}
     T = promote_type(V1, V2, D)
     result = DiffResults.GradientResult(SVector(zero(T), zero(T)))
     result = ForwardDiff.gradient!(result, x -> self.f(x[1], x[2]), SVector(value(a), value(b)))
@@ -110,7 +110,7 @@ end
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,V,D}(x::Real, t::TrackedReal{V,D})
+@inline function (self::ForwardOptimize{F})(x::Real, t::TrackedReal{V,D}) where {F,V,D}
     T = promote_type(typeof(x), V, D)
     result = DiffResult(zero(T), zero(T))
     result = ForwardDiff.derivative!(result, vt -> self.f(x, vt), value(t))
@@ -122,7 +122,7 @@ end
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D}, x::Real)
+@inline function (self::ForwardOptimize{F})(t::TrackedReal{V,D}, x::Real) where {F,V,D}
     T = promote_type(typeof(x), V, D)
     result = DiffResult(zero(T), zero(T))
     result = ForwardDiff.derivative!(result, vt -> self.f(vt, x), value(t))
@@ -134,14 +134,14 @@ end
     return out
 end
 
-@inline (self::ForwardOptimize{F}){F}(x::Dual, t::TrackedReal) = invoke(self.f, Tuple{Dual,Real}, x, t)
-@inline (self::ForwardOptimize{F}){F}(t::TrackedReal, x::Dual) = invoke(self.f, Tuple{Real,Dual}, t, x)
+@inline (self::ForwardOptimize{F})(x::Dual, t::TrackedReal) where {F} = invoke(self.f, Tuple{Dual,Real}, x, t)
+@inline (self::ForwardOptimize{F})(t::TrackedReal, x::Dual) where {F} = invoke(self.f, Tuple{Real,Dual}, t, x)
 
 #################################
 # Skip Instruction Optimization #
 #################################
 
-immutable SkipOptimize{F}
+struct SkipOptimize{F}
     f::F
 end
 
@@ -166,7 +166,7 @@ macro skip(ex)
     return esc(annotate_func_expr(:SkipOptimize, ex))
 end
 
-@inline (self::SkipOptimize{F}){F}(args...) = self.f(map(value, args)...)
-@inline (self::SkipOptimize{F}){F}(a) = self.f(value(a))
-@inline (self::SkipOptimize{F}){F}(a, b) = self.f(value(a), value(b))
-@inline (self::SkipOptimize{F}){F}(a, b, c) = self.f(value(a), value(b), value(c))
+@inline (self::SkipOptimize{F})(args...) where {F} = self.f(map(value, args)...)
+@inline (self::SkipOptimize{F})(a) where {F} = self.f(value(a))
+@inline (self::SkipOptimize{F})(a, b) where {F} = self.f(value(a), value(b))
+@inline (self::SkipOptimize{F})(a, b, c) where {F} = self.f(value(a), value(b), value(c))

@@ -26,14 +26,14 @@ end
 
 # Base allocating version
 
-@inline Base.:+{X,Y,D}(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = record_plus(x, y, D)
+@inline Base.:+(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_plus(x, y, D)
 
 for A in ARRAY_TYPES
-    @eval @inline Base.:+{V,D}(x::TrackedArray{V,D}, y::$(A)) = record_plus(x, y, D)
-    @eval @inline Base.:+{V,D}(x::$(A), y::TrackedArray{V,D}) = record_plus(x, y, D)
+    @eval @inline Base.:+(x::TrackedArray{V,D}, y::$(A)) where {V,D} = record_plus(x, y, D)
+    @eval @inline Base.:+(x::$(A), y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
 end
 
-function record_plus{D}(x, y, ::Type{D})
+function record_plus(x, y, ::Type{D}) where D
     tp = tape(x, y)
     out = track(value(x) + value(y), D, tp)
     record!(tp, SpecialInstruction, +, (x, y), out)
@@ -101,21 +101,21 @@ end
 
 # Base allocating version
 
-Base.:-{X,Y,D}(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = record_minus(x, y, D)
+Base.:-(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_minus(x, y, D)
 
 for A in ARRAY_TYPES
-    @eval Base.:-{V,D}(x::TrackedArray{V,D}, y::$(A)) = record_minus(x, y, D)
-    @eval Base.:-{V,D}(x::$(A), y::TrackedArray{V,D}) = record_minus(x, y, D)
+    @eval Base.:-(x::TrackedArray{V,D}, y::$(A)) where {V,D} = record_minus(x, y, D)
+    @eval Base.:-(x::$(A), y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
 end
 
-function Base.:-{V,D}(x::TrackedArray{V,D})
+function Base.:-(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
     out = track(-(value(x)), D, tp)
     record!(tp, SpecialInstruction, -, x, out)
     return out
 end
 
-function record_minus{D}(x, y, ::Type{D})
+function record_minus(x, y, ::Type{D}) where D
     tp = tape(x, y)
     out = track(value(x) - value(y), D, tp)
     record!(tp, SpecialInstruction, -, (x, y), out)
@@ -169,7 +169,7 @@ for (f!, f) in A_MUL_B_FUNCS
     record_f! = Symbol(string("record_", f!))
 
     @eval begin
-        @inline function $(record_f){D}(x, y, ::Type{D})
+        @inline function $(record_f)(x, y, ::Type{D}) where D
             tp = tape(x, y)
             out = track($(f)(value(x), value(y)), D, tp)
             cache = (similar(x, D), similar(y, D))
@@ -177,7 +177,7 @@ for (f!, f) in A_MUL_B_FUNCS
             return out
         end
 
-        @inline function $(record_f!){V,D}(out::TrackedArray{V,D}, x, y)
+        @inline function $(record_f!)(out::TrackedArray{V,D}, x, y) where {V,D}
             copy!(value(out), $(f)(value(x), value(y)))
             cache = (similar(x, D), similar(y, D))
             record!(tape(x, y), SpecialInstruction, $(f), (x, y), out, cache)
@@ -185,12 +185,12 @@ for (f!, f) in A_MUL_B_FUNCS
         end
     end
 
-    @eval Base.$(f){X,Y,D}(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(record_f)(x, y, D)
-    @eval Base.$(f!){V,X,Y,D}(out::TrackedArray{V,D}, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) = $(record_f!)(out, x, y)
+    @eval Base.$(f)(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = $(record_f)(x, y, D)
+    @eval Base.$(f!)(out::TrackedArray{V,D}, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {V,X,Y,D} = $(record_f!)(out, x, y)
 
     for T in ARRAY_TYPES
-        @eval Base.$(f){V,D}(x::TrackedArray{V,D}, y::$(T)) = $(record_f)(x, y, D)
-        @eval Base.$(f){V,D}(x::$(T), y::TrackedArray{V,D}) = $(record_f)(x, y, D)
+        @eval Base.$(f)(x::TrackedArray{V,D}, y::$(T)) where {V,D} = $(record_f)(x, y, D)
+        @eval Base.$(f)(x::$(T), y::TrackedArray{V,D}) where {V,D} = $(record_f)(x, y, D)
         @eval Base.$(f!)(out::TrackedArray, x::TrackedArray, y::$(T)) = $(record_f!)(out, x, y)
         @eval Base.$(f!)(out::TrackedArray, x::$(T), y::TrackedArray) = $(record_f!)(out, x, y)
     end

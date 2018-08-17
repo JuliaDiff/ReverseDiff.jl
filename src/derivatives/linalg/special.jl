@@ -2,7 +2,7 @@
 # det #
 #######
 
-function Base.det{V,D}(x::TrackedArray{V,D})
+function Base.det(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
     x_value = value(x)
     det_x_value = det(x_value)
@@ -36,7 +36,7 @@ end
 # inv #
 #######
 
-function Base.inv{V,D}(x::TrackedArray{V,D})
+function Base.inv(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
     out_value = inv(value(x))
     out = track(out_value, D, tp)

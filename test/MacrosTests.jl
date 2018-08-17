@@ -20,17 +20,17 @@ x, a, b = rand(3)
 f0(x) = 1. / (1. + exp(-x))
 f0(a, b) = sqrt(a^2 + b^2)
 
-ReverseDiff.@forward f1{T<:Real}(x::T) = 1. / (1. + exp(-x))
-ReverseDiff.@forward f1{A,B<:Real}(a::A, b::B) = sqrt(a^2 + b^2)
+ReverseDiff.@forward f1(x::T) where {T<:Real} = 1. / (1. + exp(-x))
+ReverseDiff.@forward f1(a::A, b::B) where {A,B<:Real} = sqrt(a^2 + b^2)
 
 ReverseDiff.@forward f2(x) = 1. / (1. + exp(-x))
 ReverseDiff.@forward f2(a, b) = sqrt(a^2 + b^2)
 
-ReverseDiff.@forward function f3{T<:Real}(x::T)
+ReverseDiff.@forward function f3(x::T) where T<:Real
     return 1. / (1. + exp(-x))
 end
 
-ReverseDiff.@forward function f3{A,B<:Real}(a::A, b::B)
+ReverseDiff.@forward function f3(a::A, b::B) where {A,B<:Real}
     return sqrt(a^2 + b^2)
 end
 
@@ -119,17 +119,17 @@ test_forward(f6, a, b, tp)
 
 g0 = f0
 
-ReverseDiff.@skip g1{T<:Real}(x::T) = 1. / (1. + exp(-x))
-ReverseDiff.@skip g1{A,B<:Real}(a::A, b::B) = sqrt(a^2 + b^2)
+ReverseDiff.@skip g1(x::T) where {T<:Real} = 1. / (1. + exp(-x))
+ReverseDiff.@skip g1(a::A, b::B) where {A,B<:Real} = sqrt(a^2 + b^2)
 
 ReverseDiff.@skip g2(x) = 1. / (1. + exp(-x))
 ReverseDiff.@skip g2(a, b) = sqrt(a^2 + b^2)
 
-ReverseDiff.@skip function g3{T<:Real}(x::T)
+ReverseDiff.@skip function g3(x::T) where T<:Real
     return 1. / (1. + exp(-x))
 end
 
-ReverseDiff.@skip function g3{A,B<:Real}(a::A, b::B)
+ReverseDiff.@skip function g3(a::A, b::B) where {A,B<:Real}
     return sqrt(a^2 + b^2)
 end
 
