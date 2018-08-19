@@ -37,7 +37,7 @@ function test_unary_gradient(f, x)
 
     # with GradientTape
 
-    seedx = rand(size(x))
+    seedx = rand(eltype(x), size(x))
     tp = ReverseDiff.GradientTape(f, seedx)
 
     test_approx(ReverseDiff.gradient!(tp, x), DiffResults.gradient(test))
@@ -123,7 +123,7 @@ function test_ternary_gradient(f, a, b, c)
 
     # with GradientTape
 
-    tp = ReverseDiff.GradientTape(f, (rand(size(a)), rand(size(b)), rand(size(c))))
+    tp = ReverseDiff.GradientTape(f, (rand(eltype(a), size(a)), rand(eltype(b), size(b)), rand(eltype(c), size(c))))
 
     ∇a, ∇b, ∇c = ReverseDiff.gradient!(tp, (a, b, c))
     test_approx(∇a, test_a)

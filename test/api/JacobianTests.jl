@@ -38,7 +38,7 @@ function test_unary_jacobian(f, x)
 
     # with JacobianTape
 
-    tp = ReverseDiff.JacobianTape(f, rand(size(x)))
+    tp = ReverseDiff.JacobianTape(f, rand(eltype(x), size(x)))
 
     test_approx(ReverseDiff.jacobian!(tp, x), DiffResults.jacobian(test))
 
@@ -118,7 +118,7 @@ function test_unary_jacobian(f!, y, x)
 
     # with JacobianTape
 
-    tp = ReverseDiff.JacobianTape(f!, y, rand(size(x)))
+    tp = ReverseDiff.JacobianTape(f!, y, rand(eltype(x), size(x)))
 
     out = ReverseDiff.jacobian!(tp, x)
     test_approx(out, DiffResults.jacobian(test))
@@ -201,7 +201,7 @@ function test_binary_jacobian(f, a, b)
 
     # with JacobianTape
 
-    tp = ReverseDiff.JacobianTape(f, (rand(size(a)), rand(size(b))))
+    tp = ReverseDiff.JacobianTape(f, (rand(eltype(a), size(a)), rand(eltype(b), size(b))))
 
     Ja, Jb = ReverseDiff.jacobian!(tp, (a, b))
     test_approx(Ja, test_a)
@@ -274,7 +274,7 @@ for f in (DiffTests.ARRAY_TO_ARRAY_FUNCS..., DiffTests.MATRIX_TO_MATRIX_FUNCS...
 
     # with JacobianTape
 
-    tp = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(f, y), rand(size(x)))
+    tp = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(f, y), rand(eltype(x), size(x)))
     J = ReverseDiff.jacobian!(tp, x)
     test_approx(J, test)
 end
@@ -297,8 +297,8 @@ for f in DiffTests.BINARY_MATRIX_TO_MATRIX_FUNCS
 
     # with JacobianTape
 
-    ra = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(x -> f(x, b), y), rand(size(a)))
-    rb = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(x -> f(a, x), y), rand(size(b)))
+    ra = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(x -> f(x, b), y), rand(eltype(a), size(a)))
+    rb = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(x -> f(a, x), y), rand(eltype(b), size(b)))
     Ja = ReverseDiff.jacobian!(ra, a)
     Jb = ReverseDiff.jacobian!(rb, b)
     test_approx(Ja, test_a)

@@ -2,21 +2,21 @@ const TESTDIR = dirname(@__FILE__)
 
 test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 
-# println("running TapeTests...")
-# t = @elapsed include(joinpath(TESTDIR, "TapeTests.jl"))
-# println("done (took $t seconds).")
+println("running TapeTests...")
+t = @elapsed include(joinpath(TESTDIR, "TapeTests.jl"))
+println("done (took $t seconds).")
 
-# println("running TrackedTests...")
-# t = @elapsed include(joinpath(TESTDIR, "TrackedTests.jl"))
-# println("done (took $t seconds).")
+println("running TrackedTests...")
+t = @elapsed include(joinpath(TESTDIR, "TrackedTests.jl"))
+println("done (took $t seconds).")
 
-# println("running MacrosTests...")
-# t = @elapsed include(joinpath(TESTDIR, "MacrosTests.jl"))
-# println("done (took $t seconds).")
+println("running MacrosTests...")
+t = @elapsed include(joinpath(TESTDIR, "MacrosTests.jl"))
+println("done (took $t seconds).")
 
-# println("running ScalarTests...")
-# t = @elapsed include(joinpath(TESTDIR, "derivatives/ScalarTests.jl"))
-# println("done (took $t seconds).")
+println("running ScalarTests...")
+t = @elapsed include(joinpath(TESTDIR, "derivatives/ScalarTests.jl"))
+println("done (took $t seconds).")
 
 println("running LinAlgTests...")
 t = @elapsed include(joinpath(TESTDIR, "derivatives/LinAlgTests.jl"))

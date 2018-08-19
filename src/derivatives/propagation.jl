@@ -89,7 +89,7 @@ end
 
 function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                      results, p::Int, bound::CartesianIndex)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         increment_deriv!(input, x[i] * getpartial(results[i], p), min(bound, i))
     end
     return nothing
@@ -116,7 +116,7 @@ end
 
 function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     bound::CartesianIndex)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         increment_deriv!(input, x[i], min(bound, i))
     end
     return nothing
@@ -140,7 +140,7 @@ function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     partials::AbstractArray,
                                     input_bound::CartesianIndex,
                                     partials_bound::CartesianIndex)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         current_deriv = x[i] * partials[min(partials_bound, i)]
         increment_deriv!(input, current_deriv, min(input_bound, i))
     end
@@ -169,7 +169,7 @@ end
 function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     partial::Real, input_bound::CartesianIndex,
                                     ::Nothing)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         increment_deriv!(input, x[i] * partial, min(input_bound, i))
     end
     return nothing
@@ -193,7 +193,7 @@ end
 
 function broadcast_decrement_deriv!(input::AbstractArray, x::AbstractArray,
                                     bound::CartesianIndex)
-    for i in CartesianRange(size(x))
+    for i in CartesianIndices(size(x))
         decrement_deriv!(input, x[i], min(bound, i))
     end
     return nothing
@@ -216,7 +216,7 @@ end
 
 function reduction_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     bound::CartesianIndex)
-    for i in CartesianRange(size(input))
+    for i in CartesianIndices(size(input))
         increment_deriv!(input, x[min(bound, i)], i)
     end
     return nothing

@@ -118,12 +118,12 @@ end
     output_deriv = deriv(output)
     if istracked(a)
         copyto!(b_tmp, value(b))
-        scale!(output_deriv, b_tmp)
+        lmul!(output_deriv, b_tmp)
         increment_deriv!(a, b_tmp)
     end
     if istracked(b)
         copyto!(a_tmp, value(a))
-        scale!(output_deriv, a_tmp)
+        lmul!(output_deriv, a_tmp)
         increment_deriv!(b, a_tmp)
     end
     unseed!(output)

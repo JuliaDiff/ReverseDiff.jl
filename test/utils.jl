@@ -18,7 +18,7 @@ Random.seed!(1)
 
 test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 
-@inline test_approx(A, B) = @test isapprox(A, B, atol = 1e-5)
+@inline test_approx(A, B, _atol = 1e-5) = @test isapprox(A, B, atol = _atol)
 
 tracked_is(a, b) = value(a) === value(b) && deriv(a) === deriv(b) && tape(a) === tape(b)
 tracked_is(a::AbstractArray, b::AbstractArray) = all(map(tracked_is, a, b))

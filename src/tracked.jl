@@ -367,6 +367,9 @@ Base.trunc(::Type{R}, t::TrackedReal) where {R<:Real} = trunc(R, value(t))
 Base.round(t::TrackedReal) = round(value(t))
 Base.round(::Type{R}, t::TrackedReal) where {R<:Real} = round(R, value(t))
 
+Base.oneunit(t::TrackedReal) = one(t)
+Base.oneunit(::Type{T}) where {T<:TrackedReal} = one(T)
+
 ################
 # track/track! #
 ################

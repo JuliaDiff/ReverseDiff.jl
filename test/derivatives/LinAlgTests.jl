@@ -1,6 +1,6 @@
 module LinAlgTests
 
-using ReverseDiff, ForwardDiff, Test, LinearAlgebra
+using ReverseDiff, ForwardDiff, Test, LinearAlgebra, Statistics
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -22,7 +22,7 @@ function test_arr2num(f, x, tp)
     test_approx(deriv(xt), ForwardDiff.gradient(f, x))
 
     # forward
-    x2 = rand(size(x))
+    x2 = rand(eltype(x), size(x))
     ReverseDiff.value!(xt, x2)
     ReverseDiff.forward_pass!(tp)
     @test value(yt) == f(x2)
@@ -46,7 +46,7 @@ function test_arr2arr(f, x, tp)
     test_approx(out, ForwardDiff.jacobian(f, x))
 
     # forward
-    x2 = rand(size(x))
+    x2 = rand(eltype(x), size(x))
     ReverseDiff.value!(xt, x2)
     ReverseDiff.forward_pass!(tp)
     @test value(yt) == f(x2)
@@ -72,7 +72,7 @@ function test_arr2arr(f, a, b, tp)
     test_approx(out, ForwardDiff.jacobian(x -> f(x, b), a))
 
     # forward
-    a2 = rand(size(a))
+    a2 = rand(eltype(a), size(a))
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
@@ -93,7 +93,7 @@ function test_arr2arr(f, a, b, tp)
     test_approx(out, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
-    b2 = rand(size(b))
+    b2 = rand(eltype(b), size(b))
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a, b2)
@@ -117,7 +117,7 @@ function test_arr2arr(f, a, b, tp)
     test_approx(out_b, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
-    a2, b2 = rand(size(a)), rand(size(b))
+    a2, b2 = rand(eltype(a), size(a)), rand(eltype(b), size(b))
     ReverseDiff.value!(at, a2)
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
@@ -146,7 +146,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     test_approx(out, ForwardDiff.jacobian(x -> f(x, b), a))
 
     # forward
-    a2 = rand(size(a))
+    a2 = rand(eltype(a), size(a))
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
@@ -168,7 +168,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     test_approx(out, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
-    b2 = rand(size(b))
+    b2 = rand(eltype(b), size(b))
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a, b2)
@@ -193,7 +193,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     test_approx(out_b, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
-    a2, b2 = rand(size(a)), rand(size(b))
+    a2, b2 = rand(eltype(a), size(a)), rand(eltype(b), size(b))
     ReverseDiff.value!(at, a2)
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
