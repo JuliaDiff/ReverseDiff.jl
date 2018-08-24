@@ -9,6 +9,12 @@
 
 [**See ReverseDiff Usage Examples**](https://github.com/JuliaDiff/ReverseDiff.jl/tree/master/examples)
 
+**Note: While ReverseDiff technically supports Julia v0.7/v1.0 and is somewhat maintained, it
+is currently not actively developed. Instead, ForwardDiff/ReverseDiff's maintainers are
+focused on the development of a new AD package built on top of [Cassette](https://github.com/jrevels/Cassette.jl).
+In the meantime, it might be worth checking out other reverse-mode AD implementations in Nabla.jl,
+AutoGrad.jl, Flux.jl, or XGrad.jl.**
+
 ReverseDiff implements methods to take **gradients**, **Jacobians**, **Hessians**, and
 higher-order derivatives of native Julia functions (or any callable object, really) using
 **reverse mode automatic differentiation (AD)**.
