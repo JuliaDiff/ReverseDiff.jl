@@ -358,11 +358,11 @@ function broadcast_plus(x, y, ::Type{D}) where D
     tp = tape(x, y)
     out = track(value(x) .+ value(y), D, tp)
     cache = (index_bound(x, out), index_bound(y, out))
-    record!(tp, SpecialInstruction, Base.:(.+), (x, y), out, cache)
+    record!(tp, SpecialInstruction, (broadcast, +), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(.+)})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(+)}})
     a, b = instruction.input
     output = instruction.output
     pull_value!(a)
@@ -371,7 +371,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.+)})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(+)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -389,11 +389,11 @@ function broadcast_minus(x, y, ::Type{D}) where D
     tp = tape(x, y)
     out = track(value(x) .- value(y), D, tp)
     cache = (index_bound(x, out), index_bound(y, out))
-    record!(tp, SpecialInstruction, Base.:(.-), (x, y), out, cache)
+    record!(tp, SpecialInstruction, (broadcast, -), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(.-)})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(-)}})
     a, b = instruction.input
     output = instruction.output
     pull_value!(a)
@@ -402,7 +402,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.-)})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(-)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -420,11 +420,11 @@ function broadcast_mul(x, y, ::Type{D}) where D
     tp = tape(x, y)
     out = track(value(x) .* value(y), D, tp)
     cache = (index_bound(x, out), index_bound(y, out))
-    record!(tp, SpecialInstruction, Base.:(.*), (x, y), out, cache)
+    record!(tp, SpecialInstruction, (broadcast, *), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(.*)})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(*)}})
     a, b = instruction.input
     output = instruction.output
     pull_value!(a)
@@ -433,7 +433,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.*)})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(*)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -467,11 +467,11 @@ function broadcast_rdiv(x, y, ::Type{D}) where D
     cache = (n_partials, d_partials,
              index_bound(x, out), index_bound(y, out),
              index_bound(n_partials, out), index_bound(d_partials, out))
-    record!(tp, SpecialInstruction, Base.:(./), (x, y), out, cache)
+    record!(tp, SpecialInstruction, (broadcast, /), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(./)})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}})
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
     n_partials, d_partials = instruction.cache
@@ -484,7 +484,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(./)})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -506,11 +506,11 @@ function broadcast_ldiv(x, y, ::Type{D}) where D
     cache = (n_partials, d_partials,
              index_bound(x, out), index_bound(y, out),
              index_bound(n_partials, out), index_bound(d_partials, out))
-    record!(tp, SpecialInstruction, Base.:(.\), (x, y), out, cache)
+    record!(tp, SpecialInstruction, (broadcast, \), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(.\)})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}})
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
     n_partials, d_partials = instruction.cache
@@ -523,7 +523,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.\)})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -563,11 +563,11 @@ function broadcast_pow(x, y, ::Type{D}) where D
     cache = (bs_partials, ex_partials,
              index_bound(x, out), index_bound(y, out),
              index_bound(bs_partials, out), index_bound(ex_partials, out))
-    record!(tp, SpecialInstruction, Base.:(.^), (x, y), out, cache)
+    record!(tp, SpecialInstruction, (broadcast, ^), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(.^)})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(^)}})
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
     bs_partials, ex_partials = instruction.cache
@@ -580,7 +580,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(.^)})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(^)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)

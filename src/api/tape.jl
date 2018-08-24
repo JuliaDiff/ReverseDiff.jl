@@ -54,8 +54,8 @@ end
 
 struct CompiledTape{T<:AbstractTape} <: AbstractTape
     tape::T
-    forward_exec::Vector{FunctionWrapper{Void, Tuple{}}}
-    reverse_exec::Vector{FunctionWrapper{Void, Tuple{}}}
+    forward_exec::Vector{FunctionWrapper{Nothing, Tuple{}}}
+    reverse_exec::Vector{FunctionWrapper{Nothing, Tuple{}}}
 end
 
 """
@@ -100,8 +100,8 @@ methods on each instruction in the tape.
 """
 function CompiledTape(t::T) where T<:AbstractTape
     CompiledTape{T}(t,
-        [FunctionWrapper{Void, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
-        [FunctionWrapper{Void, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
+        [FunctionWrapper{Nothing, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
+        [FunctionWrapper{Nothing, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
         )
 end
 

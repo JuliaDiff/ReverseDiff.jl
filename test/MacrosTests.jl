@@ -1,14 +1,9 @@
 module MacrosTests
 
-using ReverseDiff, ForwardDiff, Base.Test, StaticArrays
+using ReverseDiff, ForwardDiff, Test, StaticArrays
 using ForwardDiff: Dual, Partials, partials
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
-
-println("testing macros (@forward, @skip, etc.)...")
-tic()
-
-############################################################################################
 
 tp = InstructionTape()
 x, a, b = rand(3)
@@ -185,9 +180,5 @@ test_skip(g5, x, tp)
 ReverseDiff.@skip g6 = (a, b) -> sqrt(a^2 + b^2)
 test_println("@skip anonymous functions", g6)
 test_skip(g6, a, b, tp)
-
-############################################################################################
-
-println("done (took $(toq()) seconds)")
 
 end # module
