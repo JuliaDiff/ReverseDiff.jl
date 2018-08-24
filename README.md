@@ -1,8 +1,6 @@
 # ReverseDiff
 
 [![Build Status](https://travis-ci.org/JuliaDiff/ReverseDiff.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ReverseDiff.jl)
-[![ReverseDiff](http://pkg.julialang.org/badges/ReverseDiff_0.5.svg)](http://pkg.julialang.org/?pkg=ReverseDiff)
-[![ReverseDiff](http://pkg.julialang.org/badges/ReverseDiff_0.6.svg)](http://pkg.julialang.org/?pkg=ReverseDiff)
 [![Coverage Status](https://coveralls.io/repos/github/JuliaDiff/ReverseDiff.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
 
 [**Go To ReverseDiff's Documentation**](http://www.juliadiff.org/ReverseDiff.jl/)
