@@ -219,10 +219,29 @@ for f in (+, -)
     test_arr2arr(f, a, b, tp)
 end
 
-for (f!, f) in ReverseDiff.A_MUL_B_FUNCS
-    test_println("A_mul_B functions", f)
-    test_arr2arr(eval(LinearAlgebra, f), a, b, tp)
-    test_arr2arr_inplace(eval(LinearAlgebra, f!), eval(LinearAlgebra, f), x, a, b, tp)
+test_println("*(A, B) functions", "*(a, b)")
+
+test_arr2arr(*, a, b, tp)
+test_arr2arr_inplace(mul!, *, x, a, b, tp)
+
+for f in (transpose, adjoint)
+    test_println("*(A, B) functions", string("*(", f, "(a), b)"))
+    test_arr2arr(*, f(a), b, tp)
+    test_arr2arr_inplace(mul!, *, x, f(a), b, tp)
+    test_println("*(A, B) functions", string("*(a, ", f, "(b))"))
+    test_arr2arr(*, a, f(b), tp)
+    test_arr2arr_inplace(mul!, *, x, a, f(b), tp)
+    test_println("*(A, B) functions", string("*(", f, "(a), ", f, "(b))"))
+    test_arr2arr(*, f(a), f(b), tp)
+    test_arr2arr_inplace(mul!, *, x, f(a), f(b), tp)
 end
+
+test_println("*(A, B) functions", "*(adjoint(a), transpose(b))")
+test_arr2arr(*, adjoint(a), transpose(b), tp)
+test_arr2arr_inplace(mul!, *, x, adjoint(a), transpose(b), tp)
+
+test_println("*(A, B) functions", "*(transpose(a), adjoint(b))")
+test_arr2arr(*, transpose(a), adjoint(b), tp)
+test_arr2arr_inplace(mul!, *, x, transpose(a), adjoint(b), tp)
 
 end # module

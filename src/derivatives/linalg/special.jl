@@ -49,8 +49,8 @@ end
     output = instruction.output
     output_value, output_deriv = value(output), deriv(output)
     output_tmp1, output_tmp2 = instruction.cache
-    A_mul_Bc!(output_tmp1, output_deriv, output_value)
-    Ac_mul_B!(output_tmp2, output_value, output_tmp1)
+    mul!(output_tmp1, output_deriv, adjoint(output_value))
+    mul!(output_tmp2, adjoint(output_value), output_tmp1)
     decrement_deriv!(instruction.input, output_tmp2)
     unseed!(output)
     return nothing
