@@ -60,6 +60,10 @@ TrackedReal(v::V, a::D, tp::InstructionTape, i::Int, o::O) where {V,D,O} = Track
 
 TrackedReal(v::V, a::D, tp::InstructionTape = NULL_TAPE) where {V,D} = TrackedReal{V,D,Nothing}(v, a, tp)
 
+# we define these special cases so that the "constructor <--> convert" pun holds for `TrackedReal`
+# this is Jarett's favorite piece of code. A true work of art.
+@inline TrackedReal{V,D,O}(x::TrackedReal) where {V,D,O} = convert(TrackedReal{V,D,O}, x)
+
 # TrackedArray #
 #--------------#
 
