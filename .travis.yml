@@ -10,9 +10,9 @@ matrix:
 notifications:
     email: false
 sudo: false
-script:
-    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-    - julia -e 'using Pkg; Pkg.clone(pwd()); Pkg.build("ReverseDiff"); Pkg.test("ReverseDiff"; coverage=true)'
+#script:
+#    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+#    - julia -e 'using Pkg; Pkg.clone(pwd()); Pkg.build("ReverseDiff"); Pkg.test("ReverseDiff"; coverage=true)'
 after_success:
     # push coverage results to Coveralls
     - julia -e 'using Pkg; cd(Pkg.dir("ReverseDiff")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
