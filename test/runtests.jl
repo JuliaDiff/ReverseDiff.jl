@@ -26,10 +26,6 @@ println("running ElementwiseTests...")
 t = @elapsed include(joinpath(TESTDIR, "derivatives/ElementwiseTests.jl"))
 println("done (took $t seconds).")
 
-println("running ConfigTests...")
-t = @elapsed include(joinpath(TESTDIR, "api/ConfigTests.jl"))
-println("done (took $t seconds).")
-
 println("running GradientTests...")
 t = @elapsed include(joinpath(TESTDIR, "api/GradientTests.jl"))
 println("done (took $t seconds).")
@@ -40,4 +36,8 @@ println("done (took $t seconds).")
 
 println("running HessianTests...")
 t = @elapsed include(joinpath(TESTDIR, "api/HessianTests.jl"))
+println("done (took $t seconds).")
+
+println("running ConfigTests...")
+t = @elapsed include(joinpath(TESTDIR, "api/ConfigTests.jl"))
 println("done (took $t seconds).")
