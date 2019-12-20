@@ -1,8 +1,0 @@
-julia 0.7
-DiffResults 0.0.1
-DiffRules 0.0.4
-NaNMath 0.2.2
-SpecialFunctions 0.1.0
-ForwardDiff 0.8.0
-StaticArrays 0.8.3
-FunctionWrappers 1.0.0
