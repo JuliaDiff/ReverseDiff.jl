@@ -241,8 +241,8 @@ macro grad(expr)
         throw("Invalid `ReverseDiff` custom gradient definition.")
     end
 end
-add_to_deriv!(d1, d2::Nothing) = d1
-function add_to_deriv!(d1, d2)
+add_to_deriv!(d1, d2) = nothing
+function add_to_deriv!(d1::Union{TrackedReal, TrackedArray}, d2)
     d = ReverseDiff.deriv(d1)
     d .+= d2
 end
