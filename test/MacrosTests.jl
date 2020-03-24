@@ -224,7 +224,7 @@ custom_grad_called = false
 @test custom_grad_called
 
 custom_grad_called = false
-ReverseDiff.gradient(A_x -> sum(g(reshape(A_x[1:9], 3, 3), A_x[10:end])), A_x) == 
+@test ReverseDiff.gradient(A_x -> sum(g(reshape(A_x[1:9], 3, 3), A_x[10:end])), A_x) == 
     ReverseDiff.gradient(A_x -> sum(reshape(A_x[1:9], 3, 3) * A_x[10:end]), A_x)
 @test custom_grad_called
 
