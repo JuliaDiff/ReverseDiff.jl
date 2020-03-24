@@ -242,7 +242,10 @@ macro grad(expr)
     end
 end
 add_to_deriv!(d1, d2::Nothing) = d1
-add_to_deriv!(d1, d2) = ReverseDiff.deriv(d1) .+= d2
+function add_to_deriv!(d1, d2)
+    d = ReverseDiff.deriv(d1)
+    d .+= d2
+end
 function remove_tp(t)
     if @capture(t, X_::T_)
         return X
