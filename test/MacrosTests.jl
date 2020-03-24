@@ -181,4 +181,37 @@ ReverseDiff.@skip g6 = (a, b) -> sqrt(a^2 + b^2)
 test_println("@skip anonymous functions", g6)
 test_skip(g6, a, b, tp)
 
+#########
+# @grad #
+#########
+
+using LinearAlgebra
+
+x = rand(3);
+A = rand(3, 3);
+A_x = [vec(A); x];
+
+f(x) = dot(x, x)
+f(x::ReverseDiff.TrackedVector) = ReverseDiff.track(f, x)
+ReverseDiff.@grad function f(x::AbstractVector)
+    xv = ReverseDiff.value(x)
+    dot(xv, xv), Δ -> (Δ * 2 * xv,)
+end
+ReverseDiff.gradient(f, x) == ReverseDiff.gradient(x -> dot(x, x), x)
+
+g(A, x) = A * x
+g(A, x::ReverseDiff.TrackedVector) = ReverseDiff.track(g, A, x)
+g(A::ReverseDiff.TrackedMatrix, x) = ReverseDiff.track(g, A, x)
+g(A::ReverseDiff.TrackedMatrix, x::ReverseDiff.TrackedVector) = ReverseDiff.track(g, A, x)
+ReverseDiff.@grad function g(A::AbstractMatrix, x::AbstractVector)
+    Av = ReverseDiff.value(A)
+    xv = ReverseDiff.value(x)
+    Av * xv, Δ -> (Δ * xv', Av' * Δ)
+end
+
+ReverseDiff.gradient(x -> sum(g(A, x)), x) == ReverseDiff.gradient(x -> sum(A * x), x)
+ReverseDiff.gradient(A -> sum(g(A, x)), A) == ReverseDiff.gradient(A -> sum(A * x), A)
+ReverseDiff.gradient(A_x -> sum(g(reshape(A_x[1:9], 3, 3), A_x[10:end])), A_x) == 
+    ReverseDiff.gradient(A_x -> sum(reshape(A_x[1:9], 3, 3) * A_x[10:end]), A_x)
+
 end # module
