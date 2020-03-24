@@ -166,3 +166,89 @@ end
 @inline (self::SkipOptimize{F})(a) where {F} = self.f(value(a))
 @inline (self::SkipOptimize{F})(a, b) where {F} = self.f(value(a), value(b))
 @inline (self::SkipOptimize{F})(a, b, c) where {F} = self.f(value(a), value(b), value(c))
+
+"""
+    f(x) = dot(x, x)
+    f(x::ReverseDiff.TrackedVector) = ReverseDiff.track(f, x)
+    ReverseDiff.@grad function f(x)
+        xv = ReverseDiff.value(x)
+        return dot(xv, xv), ∇ -> (∇ * 2 * xv,)
+    end
+
+The `@grad` macro provides a way for the users to define custom adjoints for single-output functions wrt to their input numbers or arrays.
+"""
+macro grad(expr)
+    if @capture(expr, 
+        (f_(xs__) where {T__} = body_) | 
+        (f_(xs__) = body_) | 
+        (function f_(xs__) body_ end) | 
+        (function f_(xs__) where {T__} body_ end)
+    )
+        closure = gensym(:f)
+        tp = gensym(:tp)
+        output_value = gensym(:ov)
+        output = gensym(:o)
+        back = gensym(:back)
+        xsv = remove_tp.(xs)
+        T = T == nothing ? [] : T
+        return quote
+            function ReverseDiff.track(::typeof($f), $(xs...)) where {$(T...),}
+                $closure = ($(xs...),) -> $body
+                $tp = ReverseDiff.tape($(xsv...),)
+                $output_value, $back = $closure($(xsv...),)
+                $output = ReverseDiff.track($output_value, $tp)
+                ReverseDiff.record!(
+                    $tp,
+                    ReverseDiff.SpecialInstruction,
+                    $f,
+                    ($(xsv...),),
+                    $output,
+                    ($back, $closure),
+                )
+                return $output
+            end
+
+            @static if !hasmethod(
+                ReverseDiff.special_reverse_exec!,
+                Tuple{ReverseDiff.SpecialInstruction{typeof($f)}},
+            )
+                @noinline function ReverseDiff.special_reverse_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
+                    output = instruction.output
+                    input = instruction.input
+                    back = instruction.cache[1]
+                    input_derivs = back(ReverseDiff.deriv(output))
+                    @assert input_derivs isa Tuple
+                    ReverseDiff.add_to_deriv!.(input, input_derivs)
+                    ReverseDiff.unseed!(output)
+                    return nothing
+                end
+            end
+
+            @static if !hasmethod(
+                ReverseDiff.special_forward_exec!,
+                Tuple{ReverseDiff.SpecialInstruction{typeof($f)}},
+            )
+                @noinline function ReverseDiff.special_forward_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
+                    output, input = instruction.output, instruction.input
+                    pullback = instruction.cache[2]
+                    out_value = pullback(input...)[1]
+                    ReverseDiff.value!(output, out_value)
+                    return nothing
+                end
+            end
+        end |> esc
+    else
+        throw("Invalid `ReverseDiff` custom gradient definition.")
+    end
+end
+add_to_deriv!(d1, d2::Nothing) = d1
+add_to_deriv!(d1, d2) = ReverseDiff.deriv(d1) .+= d2
+function remove_tp(t)
+    if @capture(t, X_::T_)
+        return X
+    elseif @capture(t, ::typeof(T_))
+        return T
+    else
+        return t
+    end
+end
