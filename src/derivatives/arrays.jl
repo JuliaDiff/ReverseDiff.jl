@@ -37,6 +37,7 @@ for f in [:hcat, :vcat]
         cnames = map(_ -> gensym(), c)
         @eval Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::Union{TrackedArray,TrackedReal}, xs::Union{AbstractArray,Number}...) = track($f, $(cnames...), x, xs...)
     end
+    #=
     for i = 0:2, c = combinations([:AbstractVecOrMat, :TrackedVecOrMat], i)
         cnames = map(_ -> gensym(), c)
         @eval Base.$f($([:($x::$c{T}) for (x, c) in zip(cnames, c)]...), x::TrackedVecOrMat{T}, xs::AbstractVecOrMat{T}...) where T = track($f, $(cnames...), x, xs...)
@@ -45,6 +46,7 @@ for f in [:hcat, :vcat]
         cnames = map(_ -> gensym(), c)
         @eval Base.$f($([:($x::$c{T}) for (x, c) in zip(cnames, c)]...), x::TrackedVector{T}, xs::AbstractVector{T}...) where T = track($f, $(cnames...), x, xs...)
     end
+    =#
     @eval begin
         @grad function $f(x::Real)
             $f(value(x)), (Δ) -> (Δ[1],)
@@ -96,7 +98,7 @@ end
 end
 
 Base.cat(Xs::TrackedArray...; dims) = track(cat, Xs...; dims = dims)
-@grad function cat(Xs::RTA{<:Any, D}...; dims) where {D}
+@grad function cat(Xs::TrackedArray{<:Any, D}...; dims) where {D}
     Xs_value = value.(Xs)
     return cat(Xs_value...; dims = dims), Δ -> begin
         start = ntuple(i -> 0, Val(ndims(Δ)))
@@ -111,12 +113,3 @@ Base.cat(Xs::TrackedArray...; dims) = track(cat, Xs...; dims = dims)
         return (Δs...,)
     end
 end
-
-#############
-## reshape ##
-#############
-
-Base.reshape(xs::TrackedArray, dims::Union{Colon,Int}...) = reshape(xs, dims)
-Base.reshape(xs::TrackedArray, dims::Tuple{Vararg{Union{Int,Colon}}}) = reshape(xs, Base._reshape_uncolon(xs, dims))
-Base.reshape(xs::TrackedArray, dims::Tuple{Vararg{Int}}) = track(reshape, xs, dims)
-@grad reshape(xs, dims) = reshape(value(xs), dims), Δ -> (reshape(Δ, size(xs)),nothing)
