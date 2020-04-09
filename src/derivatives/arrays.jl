@@ -37,17 +37,12 @@ for f in [:hcat, :vcat]
         cnames = map(_ -> gensym(), c)
         @eval Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::Union{TrackedArray,TrackedReal}, xs::Union{AbstractArray,Number}...) = track($f, $(cnames...), x, xs...)
     end
-    #=
-    for i = 0:2, c = combinations([:AbstractVecOrMat, :TrackedVecOrMat], i)
-        cnames = map(_ -> gensym(), c)
-        @eval Base.$f($([:($x::$c{T}) for (x, c) in zip(cnames, c)]...), x::TrackedVecOrMat{T}, xs::AbstractVecOrMat{T}...) where T = track($f, $(cnames...), x, xs...)
-    end
-    for i = 0:2, c = combinations([:AbstractVector, :TrackedVector], i)
-        cnames = map(_ -> gensym(), c)
-        @eval Base.$f($([:($x::$c{T}) for (x, c) in zip(cnames, c)]...), x::TrackedVector{T}, xs::AbstractVector{T}...) where T = track($f, $(cnames...), x, xs...)
-    end
-    =#
     @eval begin
+        Base.$f(x::TrackedVecOrMat{T}, xs::AbstractVecOrMat{T}...) where T = track($f, x, xs...)
+        Base.$f(x1::TrackedVecOrMat{T}, x2::TrackedVecOrMat{T}, xs::AbstractVecOrMat{T}...) where T = track($f, x1, x2, xs...)
+        Base.$f(x::TrackedVector{T}, xs::AbstractVector{T}...) where T = track($f, x, xs...)
+        Base.$f(x1::TrackedVector{T}, x2::TrackedVector{T}, xs::AbstractVector{T}...) where T = track($f, x1, x2, xs...)
+
         @grad function $f(x::Real)
             $f(value(x)), (Δ) -> (Δ[1],)
         end
