@@ -183,10 +183,6 @@ end
     return out
 end
 
-
-const TrackedVector{V,D} = TrackedArray{V,D,1}
-const TrackedMatrix{V,D} = TrackedArray{V,D,2}
-
 for S1 in (:TrackedArray, :TrackedVector, :TrackedMatrix)
     for S2 in (:TrackedArray, :TrackedVector, :TrackedMatrix)
         @eval begin

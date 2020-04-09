@@ -86,6 +86,10 @@ function TrackedArray(value::AbstractArray{V,N},
     return TrackedArray{V,D,N,typeof(value),typeof(deriv)}(value, deriv, tape)
 end
 
+const TrackedVector{V,D} = TrackedArray{V,D,1}
+const TrackedMatrix{V,D} = TrackedArray{V,D,2}
+const TrackedVecOrMat{V,D} = Union{TrackedVector{V,D}, TrackedMatrix{V,D}}
+
 ###########
 # getters #
 ###########
@@ -310,6 +314,53 @@ end
     i = 0
     for idx in indices
         output_value[i += 1] = input_value[CartesianIndex(idx)]
+    end
+    return nothing
+end
+
+function Base.getindex(t::TrackedArray, inds::AbstractArray{<:CartesianIndex})
+    tp = tape(t)
+    out = TrackedArray(value(t)[inds], deriv(t)[inds], tp)
+    record!(tp, SpecialInstruction, getindex, (t, inds), out)
+    return out
+end
+function Base.getindex(t::TrackedArray, i::Int...)
+    ind = LinearIndices(t)[i...]
+    return TrackedReal(value(t)[i...], deriv(t)[i...], tape(t), ind, t)
+end
+function Base.getindex(t::TrackedArray, _inds::Union{Integer, Colon, AbstractArray{<:Integer}}...)
+    inds = ntuple(Val(length(_inds))) do i
+        _inds[i] isa Colon && return firstindex(t,i):lastindex(t,i)
+        return _inds[i]
+    end
+    tp = tape(t)
+    out = TrackedArray(value(t)[inds...], deriv(t)[inds...], tp)
+    record!(tp, SpecialInstruction, (getindex, Val(:genric)), (t, inds), out)
+    return out
+end
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{<:Tuple{typeof(getindex), Val{:generic}}})
+    input, inds = instruction.input
+    output = instruction.output
+    cinds = CartesianIndices(map(i -> 1:length(i), inds))
+    input_deriv = deriv(input)
+    output_deriv = deriv(output)
+    i = 0
+    for _idx in cinds
+        idx = CartesianIndex(map(getindex, inds, Tuple(_idx)))
+        input_deriv[idx] += output_deriv[i += 1]
+    end
+    unseed!(output)
+    return nothing
+end
+@noinline function special_forward_exec!(instruction::SpecialInstruction{<:Tuple{typeof(getindex), Val{:generic}}})
+    input, inds = instruction.input
+    input_value = value(input)
+    output_value = value(instruction.output)
+    cinds = CartesianIndices(map(i -> 1:length(i), inds))
+    i = 0
+    for cind in cinds
+        idx = CartesianIndex(map(getindex, inds, Tuple(cind)))
+        output_value[i += 1] = input_value[idx]
     end
     return nothing
 end
