@@ -335,7 +335,7 @@ function Base.getindex(t::TrackedArray, _inds::Union{Integer, Colon, AbstractArr
     end
     tp = tape(t)
     out = TrackedArray(value(t)[inds...], deriv(t)[inds...], tp)
-    record!(tp, SpecialInstruction, (getindex, Val(:genric)), (t, inds), out)
+    record!(tp, SpecialInstruction, (getindex, Val(:generic)), (t, inds), out)
     return out
 end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{<:Tuple{typeof(getindex), Val{:generic}}})
