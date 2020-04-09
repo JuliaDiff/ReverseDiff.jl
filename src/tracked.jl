@@ -382,6 +382,7 @@ reshape_body = :(TrackedArray(reshape(value(t), dims), reshape(deriv(t), dims), 
 @eval Base.reshape(t::TrackedArray, dims::Tuple{Vararg{Int,N}}) where {N} = $reshape_body
 @eval Base.reshape(t::TrackedArray, dims::Int64...) = $reshape_body
 @eval Base.reshape(t::TrackedArray, dims::AbstractUnitRange...) = $reshape_body
+@eval Base.reshape(t::TrackedArray, dims::Colon...) = $reshape_body
 @eval Base.reshape(t::TrackedArray, dims::Union{AbstractUnitRange,Int64,Colon}...) = $reshape_body
 
 ####################
