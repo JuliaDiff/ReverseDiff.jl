@@ -183,12 +183,7 @@ macro grad(expr)
     d[:name] = closure
     closure_ex = MacroTools.combinedef(d)
 
-    tp = gensym(:tp)
-    output_value = gensym(:output_value)
-    output = gensym(:output)
-    back = gensym(:back)
-    args = gensym(:args)
-    kwargs = gensym(:kwargs)
+    @gensym tp output_value output back args kwargs
     args_ex = getargs_expr(d[:args])
     kwargs_ex = getkwargs_expr(d[:kwargs])
     return quote
