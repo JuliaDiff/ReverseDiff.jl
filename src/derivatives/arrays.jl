@@ -74,7 +74,7 @@ end
 
 @grad function hcat(xs::Union{TrackedVector, TrackedMatrix}...)
     xs_value = value.(xs)
-    out_value = hcat(xs_value...)
+    out_value = reduce(hcat,xs_value)
     function back(Δ)
         start = 0
         Δs = map(xs) do xsi
