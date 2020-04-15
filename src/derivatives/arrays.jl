@@ -57,7 +57,7 @@ end
 
 @grad function vcat(xs::Union{TrackedVector, TrackedMatrix}...)
     xs_value = value.(xs)
-    out_value = vcat(xs_value...)
+    out_value = reduce(vcat,xs_value)
     function back(Δ)
         start = 0
         Δs = map(xs) do xsi
