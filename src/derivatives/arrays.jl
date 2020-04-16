@@ -38,6 +38,8 @@ for f in [:hcat, :vcat]
         @eval Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::Union{TrackedArray,TrackedReal}, xs::Union{AbstractArray,Number}...) = track($f, $(cnames...), x, xs...)
     end
     @eval begin
+        Base.$f(xs::TrackedVector{T}...) where T = track($f, xs...)
+        Base.$f(xs::TrackedMatrix{T}...) where T = track($f, xs...)
         Base.$f(x::TrackedVecOrMat{T}, xs::AbstractVecOrMat{T}...) where T = track($f, x, xs...)
         Base.$f(x1::TrackedVecOrMat{T}, x2::TrackedVecOrMat{T}, xs::AbstractVecOrMat{T}...) where T = track($f, x1, x2, xs...)
         Base.$f(x::TrackedVector{T}, xs::AbstractVector{T}...) where T = track($f, x, xs...)
