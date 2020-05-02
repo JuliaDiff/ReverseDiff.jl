@@ -48,7 +48,7 @@ of them (as far as I know at the time of this writing):
 ...and, simply put, it's fast (for gradients, at least). Using the code from `examples/gradient.jl`:
 
 ```julia
-julia> using BenchmarkTools
+julia> using BenchmarkTools, Pkg
 
 # this script defines f and ∇f!
 julia> include(joinpath(Pkg.dir("ReverseDiff"), "examples/gradient.jl"));
