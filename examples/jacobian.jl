@@ -1,4 +1,5 @@
 using ReverseDiff: JacobianTape, JacobianConfig, jacobian, jacobian!, compile
+using LinearAlgebra: mul!
 
 #########
 # setup #
@@ -6,7 +7,7 @@ using ReverseDiff: JacobianTape, JacobianConfig, jacobian, jacobian!, compile
 
 # some objective functions to work with
 f(a, b) = (a + b) * (a * b)'
-g!(out, a, b) = A_mul_Bc!(out, a + b, a * b)
+g!(out, a, b) = mul!(out, a + b, a * b)
 
 # pre-record JacobianTapes for `f` and `g` using inputs of shape 10x10 with Float64 elements
 const f_tape = JacobianTape(f, (rand(10, 10), rand(10, 10)))
