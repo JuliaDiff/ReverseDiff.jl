@@ -1,4 +1,4 @@
-using ReverseDiff: GradientTape, GradientConfig, gradient, gradient!, compile
+using ReverseDiff: GradientTape, GradientConfig, gradient, gradient!, compile, DiffResults
 
 #########
 # setup #
