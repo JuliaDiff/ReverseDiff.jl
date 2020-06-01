@@ -33,31 +33,28 @@ function combinations(xs, n)
 end
 
 for f in [:hcat, :vcat]
-    for i = 0:2, c = combinations([:AbstractArray, :TrackedArray, :Number, :TrackedReal], i)
+    for i = 0:2, c = combinations([:AbstractVector, :TrackedVector, :AbstractMatrix, :TrackedMatrix, :Number, :TrackedReal], i)
         cnames = map(_ -> gensym(), c)
-        @eval Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::Union{TrackedArray,TrackedReal}, xs::Union{AbstractArray,Number}...) = track($f, $(cnames...), x, xs...)
-    end
-    @eval begin
-        Base.$f(xs::TrackedVector{T}...) where T = track($f, xs...)
-        Base.$f(xs::TrackedMatrix{T}...) where T = track($f, xs...)
-        Base.$f(x::TrackedVecOrMat{T}, xs::AbstractVecOrMat{T}...) where T = track($f, x, xs...)
-        Base.$f(x1::TrackedVecOrMat{T}, x2::TrackedVecOrMat{T}, xs::AbstractVecOrMat{T}...) where T = track($f, x1, x2, xs...)
-        Base.$f(x::TrackedVector{T}, xs::AbstractVector{T}...) where T = track($f, x, xs...)
-        Base.$f(x1::TrackedVector{T}, x2::TrackedVector{T}, xs::AbstractVector{T}...) where T = track($f, x1, x2, xs...)
-
-        @grad function $f(x::Real)
-            $f(value(x)), (Δ) -> (Δ[1],)
+        @eval begin
+            Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedArray) = track($f, $(cnames...), x)
+            Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedReal) = track($f, $(cnames...), x)
         end
-        @grad function $f(x1::Real, x2::Real)
-            $f(value(x1), value(x2)), (Δ) -> (Δ[1], Δ[2])
-        end
-        @grad function $f(x1::AbstractVector, x2::Real)
-            $f(value(x1), value(x2)), (Δ) -> (Δ[1:length(x1)], Δ[length(x1)+1])
+        for T in [
+            :AbstractVector,
+            :AbstractMatrix,
+            :Number,
+            :AbstractVecOrMat,
+            :(Union{AbstractVector, Number}),
+        ]
+            @eval begin
+                Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedArray, xs::$T...) = track($f, $(cnames...), x, xs...)
+                Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedReal, xs::$T...) = track($f, $(cnames...), x, xs...)
+            end
         end
     end
 end
 
-@grad function vcat(xs::AbstractVecOrMat...)
+@grad function vcat(xs::Union{Number, AbstractVecOrMat}...)
     xs_value = value.(xs)
     out_value = reduce(vcat,xs_value)
     function back(Δ)
@@ -74,7 +71,7 @@ end
     return out_value, back
 end
 
-@grad function hcat(xs::AbstractVecOrMat...)
+@grad function hcat(xs::Union{Number, AbstractVecOrMat}...)
     xs_value = value.(xs)
     out_value = reduce(hcat,xs_value)
     function back(Δ)
@@ -94,8 +91,11 @@ end
     return out_value, back
 end
 
-Base.cat(Xs::TrackedArray...; dims) = track(cat, Xs...; dims = dims)
-@grad function cat(Xs::AbstractArray...; dims)
+for i = 0:2, c = combinations([:AbstractArray, :TrackedArray, :Number, :TrackedReal], i)
+    cnames = map(_ -> gensym(), c)
+    @eval Base.cat($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::Union{TrackedArray,TrackedReal}, xs::Union{AbstractArray,Number}...; dims) = track(cat, $(cnames...), x, xs...; dims=dims)
+end
+@grad function cat(Xs::Union{Number, AbstractArray}...; dims)
     Xs_value = value.(Xs)
     return cat(Xs_value...; dims = dims), Δ -> begin
         start = ntuple(i -> 0, Val(ndims(Δ)))
