@@ -36,7 +36,8 @@ for f in [:hcat, :vcat]
     for i = 0:2, c = combinations([:AbstractVector, :TrackedVector, :AbstractMatrix, :TrackedMatrix, :Number, :TrackedReal], i)
         cnames = map(_ -> gensym(), c)
         @eval begin
-            Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedArray) = track($f, $(cnames...), x)
+            Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedVector) = track($f, $(cnames...), x)
+            Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedMatrix) = track($f, $(cnames...), x)
             Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedReal) = track($f, $(cnames...), x)
         end
         for T in [
@@ -47,7 +48,8 @@ for f in [:hcat, :vcat]
             :(Union{AbstractVector, Number}),
         ]
             @eval begin
-                Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedArray, xs::$T...) = track($f, $(cnames...), x, xs...)
+                Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedVector, xs::$T...) = track($f, $(cnames...), x, xs...)
+                Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedMatrix, xs::$T...) = track($f, $(cnames...), x, xs...)
                 Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedReal, xs::$T...) = track($f, $(cnames...), x, xs...)
             end
         end
