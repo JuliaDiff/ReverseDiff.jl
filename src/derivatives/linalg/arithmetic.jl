@@ -321,3 +321,7 @@ function reverse_mul!(output, output_deriv, a::Transpose, b::Adjoint, a_tmp, b_t
         increment_deriv!(_a, transpose(mul!(a_tmp, adjoint(mulargvalue(b)), adjoint(output_deriv))))
     end
 end
+
+## zero
+
+Base.zero(x::ReverseDiff.TrackedArray) = track(zero(x.value))
