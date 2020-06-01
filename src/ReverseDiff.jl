@@ -28,6 +28,7 @@ const SKIPPED_BINARY_SCALAR_FUNCS = Symbol[:isequal, :isless, :<, :>, :(==), :(!
 include("tape.jl")
 include("tracked.jl")
 include("macros.jl")
+include("derivatives/arrays.jl")
 include("derivatives/propagation.jl")
 include("derivatives/scalars.jl")
 include("derivatives/elementwise.jl")
