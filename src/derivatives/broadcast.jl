@@ -196,29 +196,29 @@ end
     results, _, bounds = instruction.cache
     N = length(input)
     if N == 1 || all(isequal(size(input[1])), size.(Base.tail(input)))
-        _add_to_deriv!(input, output_deriv, results)
+        _br_add_to_deriv!(input, output_deriv, results)
     else
-        _add_to_deriv!(input, output_deriv, results, bounds)
+        _br_add_to_deriv!(input, output_deriv, results, bounds)
     end
     unseed!(output)
     return nothing
 end
 
-@generated function _add_to_deriv!(xs::T, o, r) where {T <: Tuple}
+@generated function _br_add_to_deriv!(xs::T, o, r) where {T <: Tuple}
     N = length(T.types)
-    return Expr(:block, [:(_add_to_deriv!(xs[$i], o, r, Val($i))) for i in 1:N]...)
+    return Expr(:block, [:(_br_add_to_deriv!(xs[$i], o, r, Val($i))) for i in 1:N]...)
 end
-_add_to_deriv!(_, _, _, _) = nothing
-function _add_to_deriv!(x::Union{TrackedReal, TrackedArray}, out_deriv, results, ::Val{i}) where {i}
+_br_add_to_deriv!(_, _, _, _) = nothing
+function _br_add_to_deriv!(x::Union{TrackedReal, TrackedArray}, out_deriv, results, ::Val{i}) where {i}
     return istracked(x) && diffresult_increment_deriv!(x, out_deriv, results, i)
 end
 
-@generated function _add_to_deriv!(xs::T, o, r, bounds) where {T <: Tuple}
+@generated function _br_add_to_deriv!(xs::T, o, r, bounds) where {T <: Tuple}
     N = length(T.types)
-    return Expr(:block, [:(_add_to_deriv!(xs[$i], o, r, Val($i), bounds[$i])) for i in 1:N]...)
+    return Expr(:block, [:(_br_add_to_deriv!(xs[$i], o, r, Val($i), bounds[$i])) for i in 1:N]...)
 end
-_add_to_deriv!(_, _, _, _, _) = nothing
-function _add_to_deriv!(x::Union{TrackedReal,TrackedArray}, out_deriv, results, ::Val{i}, bound) where {i}
+_br_add_to_deriv!(_, _, _, _, _) = nothing
+function _br_add_to_deriv!(x::Union{TrackedReal,TrackedArray}, out_deriv, results, ::Val{i}, bound) where {i}
     return istracked(x) && diffresult_increment_deriv!(x, out_deriv, results, i, bound)
 end
 

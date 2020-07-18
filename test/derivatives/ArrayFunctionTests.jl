@@ -1,3 +1,4 @@
+using ForwardDiff
 using ReverseDiff: track, value, gradient, TrackedVector, TrackedMatrix, TrackedArray
 using Test
 
@@ -32,6 +33,29 @@ function testcat(f, args::Tuple{Any, Any}, type, kwargs=NamedTuple())
     x = f(track.(args)...; kwargs...)
     @test x isa type
     @test value(x) == f(args...; kwargs...)
+
+    sizes = size.(args)
+    F = vecx -> sum(f(unpack(sizes, vecx)...; kwargs...))
+    X = pack(args)
+    @test ForwardDiff.gradient(F, X) == gradient(F, X)
+end
+function pack(xs)
+    return mapreduce(vcat, xs) do x
+        x isa Number ? x : vec(x)
+    end
+end
+function unpack(sizes, vecx)
+    start = 0
+    out = map(sizes) do s
+        if s === ()
+            x = vecx[start+1]
+            start += 1
+        else
+            x = reshape(vecx[start+1:start+prod(s)], s)
+            start += prod(s)
+        end
+    end
+    return out
 end
 
 @testset "cat" begin
