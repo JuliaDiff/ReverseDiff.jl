@@ -222,6 +222,7 @@ end
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input, output = instruction.input, instruction.output
     results, df, _ = instruction.cache
+    pull_value!.(input)
     broadcast!(df, results, value.(input)...)
     output_value = value(output)
     output_value .= DiffResults.value.(results)
@@ -266,6 +267,7 @@ end
     input, output = instruction.input, instruction.output
     f = instruction.cache[1]
     output_value = value(output)
+    pull_value!.(input)
     broadcast!(f, output_value, value.(input)...)
     return nothing
 end
