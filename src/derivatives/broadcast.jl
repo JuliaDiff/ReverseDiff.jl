@@ -283,7 +283,7 @@ end
     N = length(input)
     Δargs = _derivs(f, output_deriv, value.(input)...)
     dxs = map(unbroadcast, input, Δargs)
-    map(_br_add_to_deriv!, input, dxs)
+    map(_add_to_deriv!, input, dxs)
     unseed!(output)
     return nothing
 end
