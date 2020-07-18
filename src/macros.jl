@@ -215,7 +215,7 @@ macro grad(expr)
                 back = instruction.cache[1]
                 input_derivs = back($ReverseDiff.deriv(output))
                 @assert input_derivs isa Tuple
-                $ReverseDiff.add_to_deriv!.(input, input_derivs)
+                $ReverseDiff._add_to_deriv!.(input, input_derivs)
                 $ReverseDiff.unseed!(output)
                 return nothing
             end
@@ -237,8 +237,8 @@ macro grad(expr)
         end
     end |> esc
 end
-add_to_deriv!(d1, d2) = nothing
-function add_to_deriv!(d1::Union{TrackedReal, TrackedArray}, d2)
+_add_to_deriv!(d1, d2) = nothing
+function _add_to_deriv!(d1::Union{TrackedReal, TrackedArray}, d2)
     increment_deriv!(d1, d2)
 end
 function getargs_expr(args_with_types)
