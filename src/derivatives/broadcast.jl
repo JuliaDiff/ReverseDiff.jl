@@ -39,7 +39,10 @@ Broadcast.BroadcastStyle(::TrackedStyle, b::BroadcastStyle) = TrackedStyle()
 
 # We have to re-build the original broadcast struct to get the appropriate array
 # style. We need this primarily to support CuArrays' broadcasting fixes.
-broadcast_rebuild(xs) = value(xs)
+broadcast_rebuild(xs) = recur_value(xs)
+recur_value(xs) = xs
+recur_value(xs::Union{TrackedReal, TrackedArray}) = recur_value(value(xs))
+
 function broadcast_rebuild(bc::Broadcasted)
     broadcasted(bc.f, broadcast_rebuild.(bc.args)...)
 end
