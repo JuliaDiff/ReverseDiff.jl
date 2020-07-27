@@ -7,14 +7,16 @@ include(joinpath(dirname(@__FILE__), "../utils.jl"))
 x, a, b = rand(3, 3), rand(3, 3), rand(3, 3)
 tp = InstructionTape()
 
-function test_arr2num(f, x, tp)
+function test_arr2num(f, x, tp; ignore_tape_length = false)
     xt = track(copy(x), tp)
     y = f(x)
 
     # record
     yt = f(xt)
     @test yt == y
-    @test length(tp) == 1
+    if !ignore_tape_length
+        @test length(tp) == 1
+    end
 
     # reverse
     ReverseDiff.seed!(yt)
@@ -204,12 +206,29 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     empty!(tp)
 end
 
-for f in (sum, det, y -> dot(vec(y), vec(y)), mean)
+for f in (sum, det, mean, y -> dot(vec(y), vec(y)))
     test_println("Array -> Number functions", f)
     test_arr2num(f, x, tp)
 end
 
+for f in (
+    y -> vec(y)' * vec(y),
+    y -> vec(y)' * ones(length(y)),
+    y -> ones(length(y))' * vec(y),
+    y -> transpose(vec(y)) * vec(y),
+    y -> transpose(vec(y)) * ones(length(y)),
+    y -> transpose(ones(length(y))) * vec(y),
+)
+    test_println("Array -> Number functions", f)
+    test_arr2num(f, x, tp, ignore_tape_length=true)
+end
+
 for f in (-, inv)
+    test_println("Array -> Array functions", f)
+    test_arr2arr(f, x, tp)
+end
+
+for f in (x -> copy(transpose(x)), x -> copy(adjoint(x)))
     test_println("Array -> Array functions", f)
     test_arr2arr(f, x, tp)
 end
