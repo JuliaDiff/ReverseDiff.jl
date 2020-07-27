@@ -238,6 +238,10 @@ for S1 in (:TrackedArray, :TrackedVector, :TrackedMatrix)
         end
     end
 end
+Base.:*(A::Adjoint{<:Real, <:TrackedVector{<:Real}}, B::AbstractVector{<:Real}) = dot(A, B)
+Base.:*(A::Adjoint{<:Real, <:TrackedVector{<:Real}}, B::TrackedVector{<:Real}) = dot(A, B)
+Base.:*(A::Transpose{<:Real, <:TrackedVector{<:Real}}, B::AbstractVector{<:Real}) = dot(A, B)
+Base.:*(A::Transpose{<:Real, <:TrackedVector{<:Real}}, B::TrackedVector{<:Real}) = dot(A, B)
 
 # forward pass #
 #--------------#
