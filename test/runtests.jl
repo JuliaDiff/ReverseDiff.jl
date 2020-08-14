@@ -45,3 +45,7 @@ println("done (took $t seconds).")
 println("running ConfigTests...")
 t = @elapsed include(joinpath(TESTDIR, "api/ConfigTests.jl"))
 println("done (took $t seconds).")
+
+println("running CallableStructTests...")
+t = @elapsed include(joinpath(TESTDIR, "CallableStructTests.jl"))
+println("done (took $t seconds).")

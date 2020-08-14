@@ -187,15 +187,17 @@ macro grad(expr)
     args_ex = getargs_expr(d[:args])
     kwargs_ex = getkwargs_expr(d[:kwargs])
 
-    if isexpr(f, :(::))
-        f = f.args[2]
-    else
-        f = :(::typeof($f)) # used to handle callable struct
-    end
-    @show f
     # refer to Tracker: https://github.com/FluxML/Tracker.jl/blob/master/src/Tracker.jl#L60
+    if isexpr(f, :(::))
+        fh = :(<:$(f.args[2]))
+        fhp = f
+    else
+        fh = :(typeof($f))
+        fhp = :(::$fh)
+    end
+    
     return quote
-        function $ReverseDiff.track($f, $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...),}
+        function $ReverseDiff.track($fhp, $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...),}
             $closure_ex
             $args = $args_ex
             $kwargs = $kwargs_ex
@@ -215,9 +217,9 @@ macro grad(expr)
 
         if !hasmethod(
             $ReverseDiff.special_reverse_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+            Tuple{$ReverseDiff.SpecialInstruction{$fh}},
         )
-            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{$fh})
                 output = instruction.output
                 input = instruction.input
                 back = instruction.cache[1]
@@ -231,9 +233,9 @@ macro grad(expr)
 
         if !hasmethod(
             $ReverseDiff.special_forward_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+            Tuple{$ReverseDiff.SpecialInstruction{$fh}},
         )
-            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{$fh})
                 output, input = instruction.output, instruction.input
                 $ReverseDiff.pull_value!.(input)
                 pullback = instruction.cache[2]
