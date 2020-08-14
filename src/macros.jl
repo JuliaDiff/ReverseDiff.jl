@@ -179,15 +179,23 @@ The `@grad` macro provides a way for the users to define custom adjoints for sin
 macro grad(expr)
     d = MacroTools.splitdef(expr)
     f = d[:name]
-    closure = gensym(f)
+    closure = gensym(string(f))  # `gensym(f)` would not work for callable struct 
     d[:name] = closure
     closure_ex = MacroTools.combinedef(d)
 
     @gensym tp output_value output back args kwargs
     args_ex = getargs_expr(d[:args])
     kwargs_ex = getkwargs_expr(d[:kwargs])
+
+    if isexpr(f, :(::))
+        f = f.args[2]
+    else
+        f = :(::typeof($f)) # used to handle callable struct
+    end
+    @show f
+    # refer to Tracker: https://github.com/FluxML/Tracker.jl/blob/master/src/Tracker.jl#L60
     return quote
-        function $ReverseDiff.track(::typeof($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...),}
+        function $ReverseDiff.track($f, $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...),}
             $closure_ex
             $args = $args_ex
             $kwargs = $kwargs_ex
