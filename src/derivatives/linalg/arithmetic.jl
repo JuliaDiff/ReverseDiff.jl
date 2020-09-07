@@ -241,20 +241,20 @@ end
 
 for TV in (:AbstractVector, :Vector)
     @eval begin
-        Base.:*(A::Adjoint{<:Any, <:TrackedVector{T}}, B::$TV{T}) where {T <: Real} = dot(A, B)
-        Base.:*(A::Adjoint{<:Any, <:$TV{T}}, B::TrackedVector{T}) where {T <: Real} = dot(A, B)
-        Base.:*(A::Transpose{<:Any, <:TrackedVector{T}}, B::$TV{T}) where {T <: Real} = dot(A, B)
-        Base.:*(A::Transpose{<:Any, <:$TV{T}}, B::TrackedVector{T}) where {T <: Real} = dot(A, B)
-        Base.:*(A::Adjoint{<:Any, <:TrackedVector{<:Real}}, B::$TV{<:Real}) = dot(A, B)
-        Base.:*(A::Adjoint{<:Any, <:$TV{<:Real}}, B::TrackedVector{<:Real}) = dot(A, B)
-        Base.:*(A::Transpose{<:Any, <:TrackedVector{<:Real}}, B::$TV{<:Real}) = dot(A, B)
-        Base.:*(A::Transpose{<:Any, <:$TV{<:Real}}, B::TrackedVector{<:Real}) = dot(A, B)
+        Base.:*(A::Adjoint{<:Number, <:TrackedVector{T}}, B::$TV{T}) where {T <: Real} = dot(A, B)
+        Base.:*(A::Adjoint{<:Number, <:$TV{T}}, B::TrackedVector{T}) where {T <: Real} = dot(A, B)
+        Base.:*(A::Transpose{<:Number, <:TrackedVector{T}}, B::$TV{T}) where {T <: Real} = dot(A, B)
+        Base.:*(A::Transpose{<:Number, <:$TV{T}}, B::TrackedVector{T}) where {T <: Real} = dot(A, B)
+        Base.:*(A::Adjoint{<:Number, <:TrackedVector{<:Real}}, B::$TV{<:Real}) = dot(A, B)
+        Base.:*(A::Adjoint{<:Number, <:$TV{<:Real}}, B::TrackedVector{<:Real}) = dot(A, B)
+        Base.:*(A::Transpose{<:Number, <:TrackedVector{<:Real}}, B::$TV{<:Real}) = dot(A, B)
+        Base.:*(A::Transpose{<:Number, <:$TV{<:Real}}, B::TrackedVector{<:Real}) = dot(A, B)
     end
 end
-Base.:*(A::Adjoint{<:Any, <:TrackedVector{T, D}}, B::TrackedVector{T, D}) where {T <: Real, D} = dot(parent(A), B)
-Base.:*(A::Adjoint{<:Any, <:TrackedVector{<:Real, D}}, B::TrackedVector{<:Real, D}) where {D} = dot(parent(A), B)
-Base.:*(A::Transpose{<:Any, <:TrackedVector{T, D}}, B::TrackedVector{T, D}) where {T <: Real, D} = dot(parent(A), B)
-Base.:*(A::Transpose{<:Any, <:TrackedVector{<:Real, D}}, B::TrackedVector{<:Real, D}) where {D} = dot(parent(A), B)
+Base.:*(A::Adjoint{<:Number, <:TrackedVector{T, D}}, B::TrackedVector{T, D}) where {T <: Real, D} = dot(parent(A), B)
+Base.:*(A::Adjoint{<:Number, <:TrackedVector{<:Real, D}}, B::TrackedVector{<:Real, D}) where {D} = dot(parent(A), B)
+Base.:*(A::Transpose{<:Number, <:TrackedVector{T, D}}, B::TrackedVector{T, D}) where {T <: Real, D} = dot(parent(A), B)
+Base.:*(A::Transpose{<:Number, <:TrackedVector{<:Real, D}}, B::TrackedVector{<:Real, D}) where {D} = dot(parent(A), B)
 
 # forward pass #
 #--------------#
