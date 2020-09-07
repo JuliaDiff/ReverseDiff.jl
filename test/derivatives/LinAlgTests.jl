@@ -13,10 +13,10 @@ function test_arr2num(f, x, tp; ignore_tape_length = false)
 
     # record
     yt = f(xt)
-    @test yt == y
     if !ignore_tape_length
         @test length(tp) == 1
     end
+    @test abs(yt - y) <= abs(y) * eps(typeof(y))
 
     # reverse
     ReverseDiff.seed!(yt)
@@ -27,7 +27,8 @@ function test_arr2num(f, x, tp; ignore_tape_length = false)
     x2 = rand(eltype(x), size(x))
     ReverseDiff.value!(xt, x2)
     ReverseDiff.forward_pass!(tp)
-    @test value(yt) == f(x2)
+    y = f(x2)
+    @test abs(value(yt) - y) <= abs(y) * eps(typeof(y))
     ReverseDiff.value!(xt, x)
 
     empty!(tp)
@@ -78,8 +79,8 @@ function test_arr2arr(f, a, b, tp)
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
+    
     ReverseDiff.value!(at, a)
-
     empty!(tp)
 
     ########################################
@@ -206,12 +207,13 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     empty!(tp)
 end
 
-for f in (sum, det, mean, y -> dot(vec(y), vec(y)))
+for f in (sum, det, mean)
     test_println("Array -> Number functions", f)
     test_arr2num(f, x, tp)
 end
 
 for f in (
+    y -> dot(vec(y), vec(y)),
     y -> vec(y)' * vec(y),
     y -> vec(y)' * ones(length(y)),
     y -> ones(length(y))' * vec(y),
