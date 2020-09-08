@@ -79,7 +79,7 @@ function test_arr2arr(f, a, b, tp)
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
-    
+
     ReverseDiff.value!(at, a)
     empty!(tp)
 
@@ -264,5 +264,23 @@ test_arr2arr_inplace(mul!, *, x, adjoint(a), transpose(b), tp)
 test_println("*(A, B) functions", "*(transpose(a), adjoint(b))")
 test_arr2arr(*, transpose(a), adjoint(b), tp)
 test_arr2arr_inplace(mul!, *, x, transpose(a), adjoint(b), tp)
+
+# https://github.com/SciML/DiffEqSensitivity.jl/issues/330
+
+function aug_dynamics!(dz, z, K, t)
+    x = @view z[2:end]
+    u = -K * x
+    dz[1] = x' * x + u' * u
+    dz[2:end] = x + u
+end
+
+function adj_diff(x)
+    z = [y for y in x]
+    dz = similar(z)
+    aug_dynamics!(dz, z, ones(2, 2), 0.0)
+    sum(dz)
+end
+
+@test ReverseDiff.gradient(adj_diff,ones(3)) == [0.0,9.0,9.0]
 
 end # module
