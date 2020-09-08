@@ -172,6 +172,10 @@ function test_ternary_gradient(f, a, b, c)
     end
 end
 
+# issue #140
+nested_array_mul_140(x) = sum(sum(x[1] * [[x[2], x[3]]]))
+test_unary_gradient(nested_array_mul_140, rand(5))
+
 for f in DiffTests.MATRIX_TO_NUMBER_FUNCS
     test_println("MATRIX_TO_NUMBER_FUNCS", f)
     test_unary_gradient(f, rand(5, 5))
