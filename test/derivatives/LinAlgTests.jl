@@ -207,21 +207,27 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     empty!(tp)
 end
 
-for f in (sum, det, mean)
+for f in (
+    sum,
+    det,
+    mean,
+    y -> dot(vec(y), vec(y)),
+    y -> vec(y)' * vec(y),
+    y -> vec(y)' * ones(length(y)),
+    y -> ones(length(y))' * vec(y),
+)
     test_println("Array -> Number functions", f)
     test_arr2num(f, x, tp)
 end
 
 for f in (
-    y -> dot(vec(y), vec(y)),
-    y -> vec(y)' * vec(y),
-    y -> vec(y)' * ones(length(y)),
-    y -> ones(length(y))' * vec(y),
+    y -> vec(y)' * Matrix{Float64}(I, length(y), length(y)) * vec(y),
     y -> transpose(vec(y)) * vec(y),
     y -> transpose(vec(y)) * ones(length(y)),
     y -> transpose(ones(length(y))) * vec(y),
 )
     test_println("Array -> Number functions", f)
+    # TODO: transpose needs investigation; it is giving an unusually large tape length here
     test_arr2num(f, x, tp, ignore_tape_length=true)
 end
 
