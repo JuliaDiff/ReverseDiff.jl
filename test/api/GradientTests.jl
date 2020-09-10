@@ -175,7 +175,7 @@ end
 # issue https://github.com/JuliaDiff/ReverseDiff.jl/issues/140
 nested_array_mul_140(x) = sum(sum(x[1] * [[x[2], x[3]]]))
 test_println("Issue #140", nested_array_mul_140)
-test_unary_gradient(nested_array_mul_140, rand(5))
+test_unary_gradient(nested_array_mul_140, [1.0, 2.0, 1.0, -2.4, 4.0])
 
 for f in DiffTests.MATRIX_TO_NUMBER_FUNCS
     test_println("MATRIX_TO_NUMBER_FUNCS", f)

@@ -337,10 +337,10 @@ for (F, broadcast_f) in ((typeof(+), :broadcast_plus),
     end
     for A in ARRAY_TYPES
         @eval begin
-            @inline Base.broadcast(::$F, x::TrackedArray{X,D}, y::$A) where {X,D} = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast(::$F, x::$A, y::TrackedArray{Y,D}) where {Y,D} = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast(::$F, x::TrackedReal{X,D}, y::$A) where {X,D} = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast(::$F, x::$A, y::TrackedReal{Y,D}) where {Y,D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::TrackedArray{X,D}, y::$A{<:Real}) where {X,D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::$A{<:Real}, y::TrackedArray{Y,D}) where {Y,D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::TrackedReal{X,D}, y::$A{<:Real}) where {X,D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::$A{<:Real}, y::TrackedReal{Y,D}) where {Y,D} = $(broadcast_f)(x, y, D)
         end
     end
     for R in REAL_TYPES
