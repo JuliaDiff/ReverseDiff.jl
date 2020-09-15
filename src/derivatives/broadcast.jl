@@ -276,10 +276,10 @@ for (M, f, arity) in DiffRules.diffrules()
         end
         for A in ARRAY_TYPES
             @eval begin
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{$A,TrackedArray}}) = _materialize(bc.f, bc.args)
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedArray, $A}}) = _materialize(bc.f, bc.args)
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{$A, TrackedReal}}) = _materialize(bc.f, bc.args)
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedReal,$A}}) = _materialize(bc.f, bc.args)
+                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{$A{<:Number},TrackedArray}}) = _materialize(bc.f, bc.args)
+                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedArray, $A{<:Number}}}) = _materialize(bc.f, bc.args)
+                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{$A{<:Number}, TrackedReal}}) = _materialize(bc.f, bc.args)
+                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedReal,$A{<:Number}}}) = _materialize(bc.f, bc.args)
             end
         end
         for R in REAL_TYPES
