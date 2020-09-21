@@ -16,18 +16,25 @@ end
     @test any(iszero, track([ones(2); 0.0]))
 end
 
-function testcat(f, args::Tuple{Any, Any}, type, kwargs=NamedTuple())
+function testcat(f, args::Tuple, type, kwargs=NamedTuple())
     x = f(track.(args)...; kwargs...)
     @test x isa type
     @test value(x) == f(args...; kwargs...)
 
-    x = f(track(args[1]), args[2]; kwargs...)
-    @test x isa type
-    @test value(x) == f(args...; kwargs...)
+    if length(args) == 1
+        x = f(track(args[1]); kwargs...)
+        @test x isa type
+        @test value(x) == f(args...; kwargs...)
+    else
+        @assert length(args) == 2
+        x = f(track(args[1]), args[2]; kwargs...)
+        @test x isa type
+        @test value(x) == f(args...; kwargs...)
 
-    x = f(args[1], track(args[2]); kwargs...)
-    @test x isa type
-    @test value(x) == f(args...; kwargs...)
+        x = f(args[1], track(args[2]); kwargs...)
+        @test x isa type
+        @test value(x) == f(args...; kwargs...)
+    end
 
     args = (args..., args...)
     x = f(track.(args)...; kwargs...)
