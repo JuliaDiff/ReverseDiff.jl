@@ -16,18 +16,25 @@ end
     @test any(iszero, track([ones(2); 0.0]))
 end
 
-function testcat(f, args::Tuple{Any, Any}, type, kwargs=NamedTuple())
+function testcat(f, args::Tuple, type, kwargs=NamedTuple())
     x = f(track.(args)...; kwargs...)
     @test x isa type
     @test value(x) == f(args...; kwargs...)
 
-    x = f(track(args[1]), args[2]; kwargs...)
-    @test x isa type
-    @test value(x) == f(args...; kwargs...)
+    if length(args) == 1
+        x = f(track(args[1]); kwargs...)
+        @test x isa type
+        @test value(x) == f(args...; kwargs...)
+    else
+        @assert length(args) == 2
+        x = f(track(args[1]), args[2]; kwargs...)
+        @test x isa type
+        @test value(x) == f(args...; kwargs...)
 
-    x = f(args[1], track(args[2]); kwargs...)
-    @test x isa type
-    @test value(x) == f(args...; kwargs...)
+        x = f(args[1], track(args[2]); kwargs...)
+        @test x isa type
+        @test value(x) == f(args...; kwargs...)
+    end
 
     args = (args..., args...)
     x = f(track.(args)...; kwargs...)
@@ -64,6 +71,7 @@ end
     a = rand(3,3,3)
     n = rand()
 
+    testcat(cat, (n,), TrackedVector, (dims=1,))
     testcat(cat, (n, n), TrackedVector, (dims=1,))
     testcat(cat, (n, n), TrackedMatrix, (dims=2,))
     testcat(cat, (v, n), TrackedVector, (dims=1,))
@@ -79,11 +87,13 @@ end
     testcat(cat, (a, a), TrackedArray, (dims=3,))
     testcat(cat, (a, m), TrackedArray, (dims=3,))
 
+    testcat(vcat, (n,), TrackedVector)
     testcat(vcat, (n, n), TrackedVector)
     testcat(vcat, (v, n), TrackedVector)
     testcat(vcat, (n, v), TrackedVector)
     testcat(vcat, (v, v), TrackedVector)
 
+    testcat(hcat, (n,), TrackedMatrix)
     testcat(hcat, (n, n), TrackedMatrix)
     testcat(hcat, (v, v), TrackedMatrix)
     testcat(hcat, (v, m), TrackedMatrix)
