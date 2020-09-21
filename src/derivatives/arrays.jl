@@ -58,17 +58,17 @@ end
 
 @grad function vcat(xs::Union{Number, AbstractVecOrMat}...)
     xs_value = value.(xs)
-    out_value = reduce(vcat,xs_value)
+    out_value = vcat(xs_value...,)
     function back(Δ)
         start = 0
         Δs = map(xs) do xsi
-          if xsi isa Number
-            d = Δ[start+1]
-          else
-            d = Δ[start+1:start+size(xsi,1), :]
-          end
-          start += size(xsi, 1)
-          d
+            if xsi isa Number
+              d = Δ[start+1]
+            else
+              d = Δ[start+1:start+size(xsi,1), :]
+            end
+            start += size(xsi, 1)
+            d
         end
         return (Δs...,)
     end
@@ -77,7 +77,7 @@ end
 
 @grad function hcat(xs::Union{Number, AbstractVecOrMat}...)
     xs_value = value.(xs)
-    out_value = reduce(hcat, xs_value)
+    out_value = hcat(xs_value...,)
     function back(Δ)
         start = 0
         Δs = map(xs) do xsi
