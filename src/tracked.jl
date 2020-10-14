@@ -223,6 +223,8 @@ unseed!(x::AbstractArray, i) = unseed!(x[i])
 capture(t::TrackedReal) = ifelse(hastape(t), t, value(t))
 capture(t::TrackedArray) = t
 capture(t::AbstractArray) = istracked(t) ?  map!(capture, similar(t), t) : copy(t)
+# `StaticArray`s don't support mutation unless the eltype is a bits type (`isbitstype`).
+capture(t::SA) where SA <: StaticArray = istracked(t) ? SA(map(capture, t)) : copy(t)
 
 ########################
 # Conversion/Promotion #
