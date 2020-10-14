@@ -172,6 +172,8 @@ function deriv!(t::NTuple{N,Any}, v::NTuple{N,Any}) where N
     return nothing
 end
 
+deriv!(t::StaticArray, v::AbstractArray) = deriv!(Tuple(t), Tuple(v))
+
 # pulling values from origin #
 #----------------------------#
 
