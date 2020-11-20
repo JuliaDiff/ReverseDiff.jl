@@ -85,17 +85,17 @@ function get_implementation(bc, f, T, args)
 end
 function Base.copy(_bc::Broadcasted{TrackedStyle})
     bc = remove_not_tracked(_bc)
-    flattened_bc = Broadcast.flatten(bc)
+    flattened_bc = Base.Broadcast.flatten(bc)
     untracked_bc = broadcast_rebuild(bc)
-    flattened_untracked_bc = Broadcast.flatten(untracked_bc)
     T = Core.Compiler.return_type(copy, Tuple{typeof(untracked_bc)})
-    f, args = flattened_untracked_bc.f, flattened_bc.args
+    f, args = flattened_bc.f, flattened_bc.args
     implementation = get_implementation(_bc, f, T, args)
     if implementation isa Val{:reversediff}
         return ∇broadcast(f, args...)
     elseif implementation isa Val{:tracker}
         return tracker_∇broadcast(f, args...)
     else
+        flattened_untracked_bc = Base.Broadcast.flatten(untracked_bc)
         style, axes = getstyle(flattened_untracked_bc), flattened_bc.axes
         return copy(Broadcasted{style, typeof(axes), typeof(f), typeof(args)}(f, args, axes))
     end

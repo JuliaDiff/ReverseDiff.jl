@@ -28,7 +28,8 @@ julia = "1"
 
 [extras]
 DiffTests = "de460e47-3fe3-5279-bb4a-814414816d5d"
+FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["DiffTests", "Test"]
+test = ["DiffTests", "FillArrays", "Test"]
