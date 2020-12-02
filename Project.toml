@@ -22,7 +22,7 @@ ForwardDiff = "0.10"
 FunctionWrappers = "1"
 MacroTools = "0.5"
 NaNMath = "0.3"
-SpecialFunctions = "0.8, 0.9, 0.10"
+SpecialFunctions = "0.8, 0.9, 0.10, 1.1"
 StaticArrays = "0.10, 0.11, 0.12"
 julia = "1"
 
