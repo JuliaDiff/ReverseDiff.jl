@@ -116,3 +116,6 @@ end
     end
     return nothing
 end
+
+Base.prevfloat(r::TrackedReal) = r - eps(value(r))
+Base.nextfloat(r::TrackedReal) = r + eps(value(r))
