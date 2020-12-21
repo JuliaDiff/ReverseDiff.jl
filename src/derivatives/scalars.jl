@@ -116,3 +116,6 @@ end
     end
     return nothing
 end
+
+Base.prevfloat(r::ReverseDiff.TrackedReal) = r - eps(ReverseDiff.value(r))
+Base.nextfloat(r::ReverseDiff.TrackedReal) = r + eps(ReverseDiff.value(r))
