@@ -385,6 +385,10 @@ reshape_body = :(TrackedArray(reshape(value(t), dims), reshape(deriv(t), dims), 
 @eval Base.reshape(t::TrackedArray, dims::Colon...) = $reshape_body
 @eval Base.reshape(t::TrackedArray, dims::Union{AbstractUnitRange,Int64,Colon}...) = $reshape_body
 
+Base.@propagate_inbounds function Base.view(t::TrackedArray, inds...)
+    return TrackedArray(view(value(t), inds...), view(deriv(t), inds...), tape(t))
+end
+
 ####################
 # `Real` Interface #
 ####################

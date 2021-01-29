@@ -1,7 +1,7 @@
 module TrackedTests
 
 using ReverseDiff, Test
-using ReverseDiff: TrackedReal, TrackedArray
+using ReverseDiff: TrackedReal, TrackedArray, TrackedVector, TrackedMatrix
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
 
@@ -697,6 +697,26 @@ empty!(tp)
 @test Base.copy(ta) === ta
 
 @test all(samefields.(ta, copyto!(similar(ta), ta)))
+
+ta_sub = view(ta, :, :)
+@test ta_sub isa TrackedMatrix
+@test size(ta_sub) == (3, 3)
+
+ta_sub = view(ta, :, 1:2)
+@test ta_sub isa TrackedMatrix
+@test size(ta_sub) == (3, 2)
+
+# violates assertion `IndexStyle(value) === IndexLinear()``
+@test_throws AssertionError view(ta, 2:3, :)
+@test_throws AssertionError view(ta, 2:3, 1:2)
+
+ta_sub = view(ta, 2:6)
+@test ta_sub isa TrackedVector
+@test size(ta_sub) == (5,)
+
+ta_sub = view(ta, :)
+@test ta_sub isa TrackedVector
+@test size(ta_sub) == (9,)
 
 ####################
 # `Real` Interface #
