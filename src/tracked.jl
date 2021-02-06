@@ -426,6 +426,8 @@ Base.round(::Type{R}, t::TrackedReal) where {R<:Real} = round(R, value(t))
 Base.oneunit(t::TrackedReal) = one(t)
 Base.oneunit(::Type{T}) where {T<:TrackedReal} = one(T)
 
+Base.rtoldefault(::Type{T}) where {T<:TrackedReal} = sqrt(eps(T))
+
 ################
 # track/track! #
 ################
