@@ -3,7 +3,7 @@
 [![Build status](https://github.com/JuliaDiff/ReverseDiff.jl/workflows/CI/badge.svg)](https://github.com/JuliaDiff/ReverseDiff.jl/actions)
 [![codecov.io](https://codecov.io/github/JuliaDiff/ReverseDiff.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
 
-[**Go To ReverseDiff's Documentation**](http://www.juliadiff.org/ReverseDiff.jl/)
+[**Go To ReverseDiff's Documentation**](https://juliadiff.org/ReverseDiff.jl/)
 
 [**See ReverseDiff Usage Examples**](https://github.com/JuliaDiff/ReverseDiff.jl/tree/master/examples)
 
