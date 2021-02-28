@@ -741,6 +741,14 @@ tr_rand = rand(MersenneTwister(1), TrackedReal{Int,Float64,Nothing})
 @test round(tr_float) === round(v_float)
 @test round(Int, tr_float) === round(Int, v_float)
 
+f = rand()
+tr1 = ReverseDiff.TrackedReal(f, rand(), tp)
+tr2 = ReverseDiff.TrackedReal(2*f, rand(), tp)
+tr3 = ReverseDiff.TrackedReal(f + eps(f), rand(), tp)
+
+@test isapprox(tr1, tr2) == false
+@test isapprox(tr1, tr3) == true
+
 ################
 # track/track! #
 ################
