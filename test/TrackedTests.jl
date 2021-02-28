@@ -591,8 +591,8 @@ instr = tp[1]
 @test instr.cache === nothing
 empty!(tp)
 
-@test convert(Float64, tr) === v
-@test convert(BigFloat, tr) == v
+@test_throws ArgumentError convert(Float64, tr)
+@test_throws ArgumentError convert(BigFloat, tr)
 
 @test samefields(convert(T, 1), T(big(1), 0.0))
 @test samefields(convert(TrackedReal{BigInt,Float64,Nothing}, 1), TrackedReal(big(1), 0.0))
