@@ -324,6 +324,21 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     g2 = ReverseDiff.gradient(A -> sum(sum(A, dims = 1)), A)
     @test g1 == g2
     @test custom_grad_called
+
+    f9(x::AbstractVector) = sum(abs2, x)
+    f9(x::AbstractVector{<:TrackedReal}) = ReverseDiff.track(f9, x)
+    @grad function f9(x::AbstractVector{<:TrackedReal})
+        global custom_grad_called = true
+        xv = ReverseDiff.value(x)
+        f9(xv), Δ -> ((2 * Δ) .* xv,)
+    end
+    custom_grad_called = false
+    g1 = ReverseDiff.gradient(A) do x
+        sum(i -> f9(view(x, :, i)), axes(x, 2))
+    end
+    g2 = ReverseDiff.gradient(x -> sum(abs2, x), A)
+    @test g1 == g2
+    @test custom_grad_called
 end
 
 end # module
