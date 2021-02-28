@@ -1,24 +1,22 @@
 module LinAlgTests
 
-using ReverseDiff, ForwardDiff, Base.Test
+using ReverseDiff, ForwardDiff, Test, LinearAlgebra, Statistics
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
-println("testing linear algebra derivatives (both forward and reverse passes)")
-tic()
-
-############################################################################################
 x, a, b = rand(3, 3), rand(3, 3), rand(3, 3)
 tp = InstructionTape()
 
-function test_arr2num(f, x, tp)
+function test_arr2num(f, x, tp; ignore_tape_length = false)
     xt = track(copy(x), tp)
     y = f(x)
 
     # record
     yt = f(xt)
-    @test yt == y
-    @test length(tp) == 1
+    if !ignore_tape_length
+        @test length(tp) == 1
+    end
+    @test abs(yt - y) <= abs(y) * eps(typeof(y))
 
     # reverse
     ReverseDiff.seed!(yt)
@@ -26,10 +24,11 @@ function test_arr2num(f, x, tp)
     test_approx(deriv(xt), ForwardDiff.gradient(f, x))
 
     # forward
-    x2 = rand(size(x))
+    x2 = rand(eltype(x), size(x))
     ReverseDiff.value!(xt, x2)
     ReverseDiff.forward_pass!(tp)
-    @test value(yt) == f(x2)
+    y = f(x2)
+    @test abs(value(yt) - y) <= abs(y) * eps(typeof(y))
     ReverseDiff.value!(xt, x)
 
     empty!(tp)
@@ -50,7 +49,7 @@ function test_arr2arr(f, x, tp)
     test_approx(out, ForwardDiff.jacobian(f, x))
 
     # forward
-    x2 = rand(size(x))
+    x2 = rand(eltype(x), size(x))
     ReverseDiff.value!(xt, x2)
     ReverseDiff.forward_pass!(tp)
     @test value(yt) == f(x2)
@@ -76,12 +75,12 @@ function test_arr2arr(f, a, b, tp)
     test_approx(out, ForwardDiff.jacobian(x -> f(x, b), a))
 
     # forward
-    a2 = rand(size(a))
+    a2 = rand(eltype(a), size(a))
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
+    
     ReverseDiff.value!(at, a)
-
     empty!(tp)
 
     ########################################
@@ -97,7 +96,7 @@ function test_arr2arr(f, a, b, tp)
     test_approx(out, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
-    b2 = rand(size(b))
+    b2 = rand(eltype(b), size(b))
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a, b2)
@@ -121,7 +120,7 @@ function test_arr2arr(f, a, b, tp)
     test_approx(out_b, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
-    a2, b2 = rand(size(a)), rand(size(b))
+    a2, b2 = rand(eltype(a), size(a)), rand(eltype(b), size(b))
     ReverseDiff.value!(at, a2)
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
@@ -150,7 +149,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     test_approx(out, ForwardDiff.jacobian(x -> f(x, b), a))
 
     # forward
-    a2 = rand(size(a))
+    a2 = rand(eltype(a), size(a))
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
@@ -172,7 +171,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     test_approx(out, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
-    b2 = rand(size(b))
+    b2 = rand(eltype(b), size(b))
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a, b2)
@@ -197,7 +196,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     test_approx(out_b, ForwardDiff.jacobian(x -> f(a, x), b))
 
     # forward
-    a2, b2 = rand(size(a)), rand(size(b))
+    a2, b2 = rand(eltype(a), size(a)), rand(eltype(b), size(b))
     ReverseDiff.value!(at, a2)
     ReverseDiff.value!(bt, b2)
     ReverseDiff.forward_pass!(tp)
@@ -208,12 +207,36 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     empty!(tp)
 end
 
-for f in (sum, det, y -> dot(vec(y), vec(y)), mean)
+for f in (
+    sum,
+    det,
+    mean,
+    y -> dot(vec(y), vec(y)),
+    y -> vec(y)' * vec(y),
+    y -> vec(y)' * ones(length(y)),
+    y -> ones(length(y))' * vec(y),
+)
     test_println("Array -> Number functions", f)
     test_arr2num(f, x, tp)
 end
 
+for f in (
+    y -> vec(y)' * Matrix{Float64}(I, length(y), length(y)) * vec(y),
+    y -> transpose(vec(y)) * vec(y),
+    y -> transpose(vec(y)) * ones(length(y)),
+    y -> transpose(ones(length(y))) * vec(y),
+)
+    test_println("Array -> Number functions", f)
+    # TODO: transpose needs investigation; it is giving an unusually large tape length here
+    test_arr2num(f, x, tp, ignore_tape_length=true)
+end
+
 for f in (-, inv)
+    test_println("Array -> Array functions", f)
+    test_arr2arr(f, x, tp)
+end
+
+for f in (x -> copy(transpose(x)), x -> copy(adjoint(x)))
     test_println("Array -> Array functions", f)
     test_arr2arr(f, x, tp)
 end
@@ -223,14 +246,29 @@ for f in (+, -)
     test_arr2arr(f, a, b, tp)
 end
 
-for (f!, f) in ReverseDiff.A_MUL_B_FUNCS
-    test_println("A_mul_B functions", f)
-    test_arr2arr(eval(f), a, b, tp)
-    test_arr2arr_inplace(eval(f!), eval(f), x, a, b, tp)
+test_println("*(A, B) functions", "*(a, b)")
+
+test_arr2arr(*, a, b, tp)
+test_arr2arr_inplace(mul!, *, x, a, b, tp)
+
+for f in (transpose, adjoint)
+    test_println("*(A, B) functions", string("*(", f, "(a), b)"))
+    test_arr2arr(*, f(a), b, tp)
+    test_arr2arr_inplace(mul!, *, x, f(a), b, tp)
+    test_println("*(A, B) functions", string("*(a, ", f, "(b))"))
+    test_arr2arr(*, a, f(b), tp)
+    test_arr2arr_inplace(mul!, *, x, a, f(b), tp)
+    test_println("*(A, B) functions", string("*(", f, "(a), ", f, "(b))"))
+    test_arr2arr(*, f(a), f(b), tp)
+    test_arr2arr_inplace(mul!, *, x, f(a), f(b), tp)
 end
 
-############################################################################################
+test_println("*(A, B) functions", "*(adjoint(a), transpose(b))")
+test_arr2arr(*, adjoint(a), transpose(b), tp)
+test_arr2arr_inplace(mul!, *, x, adjoint(a), transpose(b), tp)
 
-println("done (took $(toq()) seconds)")
+test_println("*(A, B) functions", "*(transpose(a), adjoint(b))")
+test_arr2arr(*, transpose(a), adjoint(b), tp)
+test_arr2arr_inplace(mul!, *, x, transpose(a), adjoint(b), tp)
 
 end # module

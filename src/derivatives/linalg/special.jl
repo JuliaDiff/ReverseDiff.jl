@@ -1,8 +1,24 @@
+########
+# copy #
+########
+
+for (T, f) in [(:Adjoint, :adjoint), (:Transpose, :transpose)]
+    _f = Symbol(:_copy, f)
+    @eval begin
+        Base.copy(A::$T{<:TrackedReal, <:TrackedVecOrMat}) = $_f(parent(A))
+        $_f(A) = copy($f(A))
+        $_f(A::TrackedVecOrMat) = track($_f, A)
+        @grad function $_f(A::AbstractVecOrMat)
+            return copy($f(value(A))), ∇ -> (copy($f(∇)),)
+        end
+    end
+end
+
 #######
 # det #
 #######
 
-function Base.det{V,D}(x::TrackedArray{V,D})
+function LinearAlgebra.det(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
     x_value = value(x)
     det_x_value = det(x_value)
@@ -36,7 +52,7 @@ end
 # inv #
 #######
 
-function Base.inv{V,D}(x::TrackedArray{V,D})
+function LinearAlgebra.inv(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
     out_value = inv(value(x))
     out = track(out_value, D, tp)
@@ -49,8 +65,8 @@ end
     output = instruction.output
     output_value, output_deriv = value(output), deriv(output)
     output_tmp1, output_tmp2 = instruction.cache
-    A_mul_Bc!(output_tmp1, output_deriv, output_value)
-    Ac_mul_B!(output_tmp2, output_value, output_tmp1)
+    mul!(output_tmp1, output_deriv, adjoint(output_value))
+    mul!(output_tmp2, adjoint(output_value), output_tmp1)
     decrement_deriv!(instruction.input, output_tmp2)
     unseed!(output)
     return nothing

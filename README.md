@@ -1,17 +1,15 @@
 # ReverseDiff
 
-[![Build Status](https://travis-ci.org/JuliaDiff/ReverseDiff.jl.svg?branch=master)](https://travis-ci.org/JuliaDiff/ReverseDiff.jl)
-[![ReverseDiff](http://pkg.julialang.org/badges/ReverseDiff_0.5.svg)](http://pkg.julialang.org/?pkg=ReverseDiff)
-[![ReverseDiff](http://pkg.julialang.org/badges/ReverseDiff_0.6.svg)](http://pkg.julialang.org/?pkg=ReverseDiff)
-[![Coverage Status](https://coveralls.io/repos/github/JuliaDiff/ReverseDiff.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
+[![Build status](https://github.com/JuliaDiff/ReverseDiff.jl/workflows/CI/badge.svg)](https://github.com/JuliaDiff/ReverseDiff.jl/actions)
+[![codecov.io](https://codecov.io/github/JuliaDiff/ReverseDiff.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
 
-[**Go To ReverseDiff's Documentation**](http://www.juliadiff.org/ReverseDiff.jl/)
+[**Go To ReverseDiff's Documentation**](https://juliadiff.org/ReverseDiff.jl/)
 
 [**See ReverseDiff Usage Examples**](https://github.com/JuliaDiff/ReverseDiff.jl/tree/master/examples)
 
-ReverseDiff implements methods to take **gradients**, **Jacobians**, **Hessians**, and
-higher-order derivatives of native Julia functions (or any callable object, really) using
-**reverse mode automatic differentiation (AD)**.
+ReverseDiff is a fast and compile-able tape-based **reverse mode automatic differentiation (AD)** that 
+implements methods to take **gradients**, **Jacobians**, **Hessians**, and
+higher-order derivatives of native Julia functions (or any callable object, really).
 
 While performance can vary depending on the functions you evaluate, the algorithms
 implemented by ReverseDiff **generally outperform non-AD algorithms in both speed and
@@ -28,8 +26,6 @@ To install ReverseDiff, simply use Julia's package manager:
 ```julia
 julia> Pkg.add("ReverseDiff")
 ```
-
-The current version of ReverseDiff supports Julia v0.5 (and intends to support Julia v0.6 once it is released).
 
 ## Why use ReverseDiff?
 
@@ -52,7 +48,7 @@ of them (as far as I know at the time of this writing):
 ...and, simply put, it's fast (for gradients, at least). Using the code from `examples/gradient.jl`:
 
 ```julia
-julia> using BenchmarkTools
+julia> using BenchmarkTools, Pkg
 
 # this script defines f and ∇f!
 julia> include(joinpath(Pkg.dir("ReverseDiff"), "examples/gradient.jl"));

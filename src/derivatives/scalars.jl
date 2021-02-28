@@ -2,22 +2,16 @@
 # ForwardOptimize #
 ###################
 
-# unary #
-#-------#
-
-for f in FORWARD_UNARY_SCALAR_FUNCS
-    @eval @inline Base.$(f)(t::TrackedReal) = ForwardOptimize($f)(t)
-end
-
-# binary #
-#--------#
-
-for f in FORWARD_BINARY_SCALAR_FUNCS
-    @eval @inline Base.$(f)(a::TrackedReal, b::TrackedReal) = ForwardOptimize($f)(a, b)
-    for R in REAL_TYPES
-        @eval begin
-            @inline Base.$(f)(a::TrackedReal, b::$R) = ForwardOptimize($f)(a, b)
-            @inline Base.$(f)(a::$R, b::TrackedReal) = ForwardOptimize($f)(a, b)
+for (M, f, arity) in DiffRules.diffrules()
+    if arity == 1
+        @eval @inline $M.$(f)(t::TrackedReal) = ForwardOptimize($M.$(f))(t)
+    elseif arity == 2
+        @eval @inline $M.$(f)(a::TrackedReal, b::TrackedReal) = ForwardOptimize($M.$(f))(a, b)
+        for R in REAL_TYPES
+            @eval begin
+                @inline $M.$(f)(a::TrackedReal, b::$R) = ForwardOptimize($M.$(f))(a, b)
+                @inline $M.$(f)(a::$R, b::TrackedReal) = ForwardOptimize($M.$(f))(a, b)
+            end
         end
     end
 end
@@ -50,7 +44,7 @@ end
 # reverse #
 ###########
 
-@noinline function scalar_reverse_exec!{F,I,O,C}(instruction::ScalarInstruction{F,I,O,C})
+@noinline function scalar_reverse_exec!(instruction::ScalarInstruction{F,I,O,C}) where {F,I,O,C}
     f = instruction.func
     input = instruction.input
     output = instruction.output
@@ -78,38 +72,50 @@ end
 # forward #
 ###########
 
-@noinline function scalar_forward_exec!{F,I,O,C}(instruction::ScalarInstruction{F,I,O,C})
+@noinline function scalar_forward_exec!(instruction::ScalarInstruction{F,I,O,C}) where {F,I,O,C}
     f = instruction.func
     input = instruction.input
     output = instruction.output
     cache = instruction.cache
-    # these annotations are needed to help inference along
-    local dual1::Dual{1,valtype(output)}
-    local dual2::Dual{2,valtype(output)}
     if istracked(input)
-        pull_value!(input)
-        dual1 = f(Dual(value(input), one(valtype(input))))
-        value!(output, ForwardDiff.value(dual1))
-        cache[] = ForwardDiff.partials(dual1, 1)
+        unary_scalar_forward_exec!(f, output, input, cache)
     else
-        a, b = input
-        pull_value!(a)
-        pull_value!(b)
-        if istracked(a) && istracked(b)
-            VA, VB = valtype(a), valtype(b)
-            dual2 = f(Dual(value(a), one(VA), zero(VA)), Dual(value(b), zero(VB), one(VB)))
-            value!(output, ForwardDiff.value(dual2))
-            cache[] = ForwardDiff.partials(dual2)
-        else
-            if istracked(a)
-                dual1 = f(Dual(value(a), one(valtype(a))), b)
-            else
-                dual1 = f(a, Dual(value(b), one(valtype(b))))
-            end
-            value!(output, ForwardDiff.value(dual1))
-            partial = ForwardDiff.partials(dual1, 1)
-            cache[] = Partials((partial, partial))
-        end
+        binary_scalar_forward_exec!(f, output, input, cache)
     end
     return nothing
 end
+
+@noinline function unary_scalar_forward_exec!(f::F, output::O, input, cache) where {F,O}
+    pull_value!(input)
+    result1 = DiffResult(zero(valtype(O)), zero(valtype(O)))
+    result1 = ForwardDiff.derivative!(result1, f, value(input))
+    value!(output, DiffResults.value(result1))
+    cache[] = DiffResults.derivative(result1)
+    return nothing
+end
+
+@noinline function binary_scalar_forward_exec!(f::F, output::O, input, cache) where {F,O}
+    a, b = input
+    pull_value!(a)
+    pull_value!(b)
+    if istracked(a) && istracked(b)
+        result2 = DiffResults.GradientResult(SVector(zero(valtype(O)), zero(valtype(O))))
+        result2 = ForwardDiff.gradient!(result2, x -> f(x[1], x[2]), SVector(value(a), value(b)))
+        value!(output, DiffResults.value(result2))
+        cache[] = DiffResults.gradient(result2)
+    else
+        result1 = DiffResult(zero(valtype(O)), zero(valtype(O)))
+        if istracked(a)
+            result1 = ForwardDiff.derivative!(result1, va -> f(va, b), value(a))
+        else
+            result1 = ForwardDiff.derivative!(result1, vb -> f(a, vb), value(b))
+        end
+        value!(output, DiffResults.value(result1))
+        partial = DiffResults.derivative(result1)
+        cache[] = SVector(partial, partial)
+    end
+    return nothing
+end
+
+Base.prevfloat(r::TrackedReal) = r - eps(value(r))
+Base.nextfloat(r::TrackedReal) = r + eps(value(r))

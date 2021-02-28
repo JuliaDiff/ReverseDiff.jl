@@ -2,11 +2,11 @@
 # AbstractInstruction #
 #######################
 
-@compat abstract type AbstractInstruction end
+abstract type AbstractInstruction end
 
-@compat const InstructionTape = Vector{AbstractInstruction}
+const InstructionTape = Vector{AbstractInstruction}
 
-function record!{InstructionType}(tp::InstructionTape, ::Type{InstructionType}, args...)
+function record!(tp::InstructionTape, ::Type{InstructionType}, args...) where InstructionType
     tp !== NULL_TAPE && push!(tp, InstructionType(args...))
     return nothing
 end
@@ -27,18 +27,18 @@ end
 # ScalarInstruction #
 #-------------------#
 
-@compat immutable ScalarInstruction{F,I,O,C} <: AbstractInstruction
+struct ScalarInstruction{F,I,O,C} <: AbstractInstruction
     func::F
     input::I
     output::O
     cache::C
     # disable default outer constructor
-    function (::Type{ScalarInstruction{F,I,O,C}}){F,I,O,C}(func, input, output, cache)
+    function ScalarInstruction{F,I,O,C}(func, input, output, cache) where {F,I,O,C}
         return new{F,I,O,C}(func, input, output, cache)
     end
 end
 
-@inline function _ScalarInstruction{F,I,O,C}(func::F, input::I, output::O, cache::C)
+@inline function _ScalarInstruction(func::F, input::I, output::O, cache::C) where {F,I,O,C}
     return ScalarInstruction{F,I,O,C}(func, input, output, cache)
 end
 
@@ -49,18 +49,18 @@ end
 # SpecialInstruction #
 #--------------------#
 
-@compat immutable SpecialInstruction{F,I,O,C} <: AbstractInstruction
+struct SpecialInstruction{F,I,O,C} <: AbstractInstruction
     func::F
     input::I
     output::O
     cache::C
     # disable default outer constructor
-    function (::Type{SpecialInstruction{F,I,O,C}}){F,I,O,C}(func, input, output, cache)
+    function SpecialInstruction{F,I,O,C}(func, input, output, cache) where {F,I,O,C}
         return new{F,I,O,C}(func, input, output, cache)
     end
 end
 
-@inline function _SpecialInstruction{F,I,O,C}(func::F, input::I, output::O, cache::C)
+@inline function _SpecialInstruction(func::F, input::I, output::O, cache::C) where {F,I,O,C}
     return SpecialInstruction{F,I,O,C}(func, input, output, cache)
 end
 
@@ -108,8 +108,6 @@ function Base.show(io::IO, instruction::AbstractInstruction, pad = "")
     println(io, pad, "  output: ", compactrepr(instruction.output))
     print(io,   pad, "  cache:  ", compactrepr(instruction.cache))
 end
-
-Base.display(tp::InstructionTape) = show(STDOUT, tp)
 
 function Base.show(io::IO, tp::InstructionTape)
     println("$(length(tp))-element InstructionTape:")

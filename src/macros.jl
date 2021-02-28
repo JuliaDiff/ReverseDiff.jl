@@ -4,26 +4,22 @@ works for the following formats:
 - `@forward f(args...) = ...`
 - `@forward f = (args...) -> ...`
 =#
-function annotate_func_expr(typesym, expr)
+function annotate_func_expr(typesym, _module_, expr)
     if isa(expr, Expr) && (expr.head == :(=) || expr.head == :function)
         lhs = expr.args[1]
-        if isa(lhs, Expr) && lhs.head == :call # named function definition site
-            name_and_types = lhs.args[1]
-            if isa(name_and_types, Expr) && name_and_types.head == :curly
-                old_name = name_and_types.args[1]
-                hidden_name = Symbol("#hidden_$(old_name)")
-                name_and_types.args[1] = hidden_name
-            elseif isa(name_and_types, Symbol)
-                old_name = name_and_types
-                hidden_name = Symbol("#hidden_$(old_name)")
-                lhs.args[1] = hidden_name
+        if isa(lhs, Expr) && (lhs.head == :call || lhs.head == :where) # named function definition site
+            given_name = lhs.head == :where ? lhs.args[1].args[1] : lhs.args[1]
+            @assert isa(given_name, Symbol) "potentially malformed function signature for $typesym"
+            hidden_name = Symbol("#hidden_$(given_name)")
+            if lhs.head == :where
+                lhs.args[1].args[1] = hidden_name
             else
-                error("potentially malformed function signature for $typesym")
+                lhs.args[1] = hidden_name
             end
             return quote
                 $expr
-                if !(isdefined($(Expr(:quote, old_name))))
-                    const $(old_name) = ReverseDiff.$(typesym)($(hidden_name))
+                if !(isdefined($(_module_), $(Expr(:quote, given_name))))
+                    const $(given_name) = ReverseDiff.$(typesym)($(hidden_name))
                 end
             end
         elseif isa(lhs, Symbol) # variable assignment site
@@ -41,7 +37,7 @@ end
 # Forward-Mode Optimization #
 #############################
 
-immutable ForwardOptimize{F}
+struct ForwardOptimize{F}
     f::F
 end
 
@@ -71,26 +67,27 @@ overloads `map`/`broadcast` to dispatch on `@forward`-applied functions. For exa
 `map(@forward(f), x)` will usually be more performant than `map(f, x)`.
 
 ReverseDiff overloads many Base scalar functions to behave as `@forward` functions by
-default. A full list is given by `ReverseDiff.FORWARD_UNARY_SCALAR_FUNCS` and
-`ReverseDiff.FORWARD_BINARY_SCALAR_FUNCS`.
+default. A full list is given by `DiffRules.diffrules()`.
 """
 macro forward(ex)
-    return esc(annotate_func_expr(:ForwardOptimize, ex))
+    return esc(annotate_func_expr(:ForwardOptimize, __module__, ex))
 end
 
 # fallback #
 #----------#
 
-@inline (self::ForwardOptimize{F}){F}(args...) = self.f(args...)
+@inline (self::ForwardOptimize{F})(args...) where {F} = self.f(args...)
 
 # unary #
 #-------#
 
-@inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D})
-    dual = self.f(Dual(value(t), one(V)))
+@inline function (self::ForwardOptimize{F})(t::TrackedReal{V,D}) where {F,V,D}
+    T = promote_type(V, D)
+    result = DiffResult(zero(T), zero(T))
+    result = ForwardDiff.derivative!(result, self.f, value(t))
     tp = tape(t)
-    out = track(ForwardDiff.value(dual), D, tp)
-    cache = RefValue(ForwardDiff.partials(dual, 1))
+    out = track(DiffResults.value(result), D, tp)
+    cache = RefValue(DiffResults.derivative(result))
     record!(tp, ScalarInstruction, self.f, t, out, cache)
     return out
 end
@@ -98,45 +95,49 @@ end
 # binary #
 #--------#
 
-@inline function (self::ForwardOptimize{F}){F,V1,V2,D}(a::TrackedReal{V1,D}, b::TrackedReal{V2,D})
-    dual_a = Dual(value(a), one(V1), zero(V1))
-    dual_b = Dual(value(b), zero(V2), one(V2))
-    dual_c = self.f(dual_a, dual_b)
+@inline function (self::ForwardOptimize{F})(a::TrackedReal{V1,D}, b::TrackedReal{V2,D}) where {F,V1,V2,D}
+    T = promote_type(V1, V2, D)
+    result = DiffResults.GradientResult(SVector(zero(T), zero(T)))
+    result = ForwardDiff.gradient!(result, x -> self.f(x[1], x[2]), SVector(value(a), value(b)))
     tp = tape(a, b)
-    out = track(ForwardDiff.value(dual_c), D, tp)
-    cache = RefValue(ForwardDiff.partials(dual_c))
+    out = track(DiffResults.value(result), D, tp)
+    cache = RefValue(DiffResults.gradient(result))
     record!(tp, ScalarInstruction, self.f, (a, b), out, cache)
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,V,D}(x::Real, t::TrackedReal{V,D})
-    dual = self.f(x, Dual(value(t), one(V)))
+@inline function (self::ForwardOptimize{F})(x::Real, t::TrackedReal{V,D}) where {F,V,D}
+    T = promote_type(typeof(x), V, D)
+    result = DiffResult(zero(T), zero(T))
+    result = ForwardDiff.derivative!(result, vt -> self.f(x, vt), value(t))
     tp = tape(t)
-    out = track(ForwardDiff.value(dual), D, tp)
-    partial = ForwardDiff.partials(dual, 1)
-    cache = RefValue(Partials((partial, partial)))
+    out = track(DiffResults.value(result), D, tp)
+    dt = DiffResults.derivative(result)
+    cache = RefValue(SVector(dt, dt))
     record!(tp, ScalarInstruction, self.f, (x, t), out, cache)
     return out
 end
 
-@inline function (self::ForwardOptimize{F}){F,V,D}(t::TrackedReal{V,D}, x::Real)
-    dual = self.f(Dual(value(t), one(V)), x)
+@inline function (self::ForwardOptimize{F})(t::TrackedReal{V,D}, x::Real) where {F,V,D}
+    T = promote_type(typeof(x), V, D)
+    result = DiffResult(zero(T), zero(T))
+    result = ForwardDiff.derivative!(result, vt -> self.f(vt, x), value(t))
     tp = tape(t)
-    out = track(ForwardDiff.value(dual), D, tp)
-    partial = ForwardDiff.partials(dual, 1)
-    cache = RefValue(Partials((partial, partial)))
+    out = track(DiffResults.value(result), D, tp)
+    dt = DiffResults.derivative(result)
+    cache = RefValue(SVector(dt, dt))
     record!(tp, ScalarInstruction, self.f, (t, x), out, cache)
     return out
 end
 
-@inline (self::ForwardOptimize{F}){F}(x::Dual, t::TrackedReal) = invoke(self.f, (Dual, Real), x, t)
-@inline (self::ForwardOptimize{F}){F}(t::TrackedReal, x::Dual) = invoke(self.f, (Real, Dual), t, x)
+@inline (self::ForwardOptimize{F})(x::Dual, t::TrackedReal) where {F} = invoke(self.f, Tuple{Dual,Real}, x, t)
+@inline (self::ForwardOptimize{F})(t::TrackedReal, x::Dual) where {F} = invoke(self.f, Tuple{Real,Dual}, t, x)
 
 #################################
 # Skip Instruction Optimization #
 #################################
 
-immutable SkipOptimize{F}
+struct SkipOptimize{F}
     f::F
 end
 
@@ -158,10 +159,132 @@ A full list is given by `ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS` and
 `ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS`.
 """
 macro skip(ex)
-    return esc(annotate_func_expr(:SkipOptimize, ex))
+    return esc(annotate_func_expr(:SkipOptimize, __module__, ex))
 end
 
-@inline (self::SkipOptimize{F}){F}(args...) = self.f(map(value, args)...)
-@inline (self::SkipOptimize{F}){F}(a) = self.f(value(a))
-@inline (self::SkipOptimize{F}){F}(a, b) = self.f(value(a), value(b))
-@inline (self::SkipOptimize{F}){F}(a, b, c) = self.f(value(a), value(b), value(c))
+@inline (self::SkipOptimize{F})(args...) where {F} = self.f(map(value, args)...)
+@inline (self::SkipOptimize{F})(a) where {F} = self.f(value(a))
+@inline (self::SkipOptimize{F})(a, b) where {F} = self.f(value(a), value(b))
+@inline (self::SkipOptimize{F})(a, b, c) where {F} = self.f(value(a), value(b), value(c))
+
+"""
+    f(x) = dot(x, x)
+    f(x::ReverseDiff.TrackedVector) = ReverseDiff.track(f, x)
+    ReverseDiff.@grad function f(x)
+        xv = ReverseDiff.value(x)
+        return dot(xv, xv), Δ -> (Δ * 2 * xv,)
+    end
+The `@grad` macro provides a way for the users to define custom adjoints for single-output functions wrt to their input numbers or arrays.
+"""
+macro grad(expr)
+    d = MacroTools.splitdef(expr)
+    f = d[:name]
+    closure = gensym(f)
+    d[:name] = closure
+    closure_ex = MacroTools.combinedef(d)
+
+    @gensym tp output_value output back args kwargs
+    args_ex = getargs_expr(d[:args])
+    kwargs_ex = getkwargs_expr(d[:kwargs])
+    return quote
+        function $ReverseDiff.track(::typeof($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...),}
+            $closure_ex
+            $args = $args_ex
+            $kwargs = $kwargs_ex
+            $tp = $ReverseDiff.tape($args...)
+            $output_value, $back = $closure($args...; $kwargs...)
+            $output = $ReverseDiff.track($output_value, $tp)
+            $ReverseDiff.record!(
+                $tp,
+                $ReverseDiff.SpecialInstruction,
+                $f,
+                $args,
+                $output,
+                ($back, $closure, $kwargs),
+            )
+            return $output
+        end
+
+        if !hasmethod(
+            $ReverseDiff.special_reverse_exec!,
+            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+        )
+            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+                output = instruction.output
+                input = instruction.input
+                back = instruction.cache[1]
+                input_derivs = back($ReverseDiff.deriv(output))
+                @assert input_derivs isa Tuple
+                $ReverseDiff._add_to_deriv!.(input, input_derivs)
+                $ReverseDiff.unseed!(output)
+                return nothing
+            end
+        end
+
+        if !hasmethod(
+            $ReverseDiff.special_forward_exec!,
+            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+        )
+            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+                output, input = instruction.output, instruction.input
+                $ReverseDiff.pull_value!.(input)
+                pullback = instruction.cache[2]
+                kwargs = instruction.cache[3]
+                out_value = pullback(input...; kwargs...)[1]
+                $ReverseDiff.value!(output, out_value)
+                return nothing
+            end
+        end
+    end |> esc
+end
+_add_to_deriv!(d1, d2) = nothing
+function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2)
+    increment_deriv!(d1, d2)
+end
+function getargs_expr(args_with_types)
+    expr = Expr(:tuple)
+    for at in args_with_types
+        x, tosplat = remove_tp(at)
+        if tosplat
+            push!(expr.args, :($x...))
+        else
+            push!(expr.args, x)
+        end
+    end
+    return expr
+end
+function getkwargs_expr(kwargs_with_types)
+    syms = []
+    final = nothing
+    for at in kwargs_with_types
+        final isa Nothing || throw("Invalid kwargs.")
+        x, tosplat = remove_tp(at)
+        if tosplat
+            final = x
+        else
+            push!(syms, x)
+        end
+    end
+    expr = length(syms) == 0 ? :(NamedTuple()) : Expr(:tuple, [:($f = $f) for f in syms]...)
+    final = final == nothing ? :(NamedTuple()) : final
+    return :(Base.merge($expr, $final))
+end
+function remove_tp(t)
+    if @capture(t, X_::T_...)
+        return X, true
+    elseif @capture(t, X_::T_)
+        return X, false
+    elseif @capture(t, X_::T_ = V_)
+        return X, false
+    elseif @capture(t, ::typeof(T_)...)
+        return T, true
+    elseif @capture(t, ::typeof(T_))
+        return T, false
+    elseif @capture(t, X_...)
+        return X, true
+    elseif @capture(t, X_ = V_)
+        return X, false
+    else
+        return t, false
+    end
+end

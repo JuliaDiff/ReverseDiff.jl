@@ -58,7 +58,7 @@ function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, inpu
 end
 
 function seeded_reverse_pass!(result::DiffResult, output::AbstractArray, input::TrackedArray, tape)
-    seeded_reverse_pass!(DiffBase.jacobian(result), output, input, tape)
+    seeded_reverse_pass!(DiffResults.jacobian(result), output, input, tape)
     extract_result_value!(result, output)
     return result
 end
@@ -89,13 +89,13 @@ function extract_result!(result::Tuple, output)
 end
 
 function extract_result!(result::AbstractArray, output::TrackedReal, input::TrackedArray)
-    copy!(result, deriv(input))
+    copyto!(result, deriv(input))
     return result
 end
 
 function extract_result!(result::DiffResult, output::TrackedReal, input::TrackedArray)
-    result = DiffBase.value!(result, value(output))
-    copy!(DiffBase.gradient(result), deriv(input))
+    result = DiffResults.value!(result, value(output))
+    copyto!(DiffResults.gradient(result), deriv(input))
     return result
 end
 
@@ -105,8 +105,8 @@ function extract_result!(result::AbstractArray, output::Number)
 end
 
 function extract_result!(result::DiffResult, output::Number)
-    result = DiffBase.value!(result, output)
-    fill_zeros!(DiffBase.gradient(result))
+    result = DiffResults.value!(result, output)
+    fill_zeros!(DiffResults.gradient(result))
     return result
 end
 
@@ -118,12 +118,12 @@ function extract_result_value!(result::Tuple, output)
 end
 
 function extract_result_value!(result::DiffResult, output::AbstractArray)
-    result = DiffBase.value!(value, result, output)
+    result = DiffResults.value!(value, result, output)
     return result
 end
 
 function extract_result_value!(result::DiffResult, output::TrackedArray)
-    result = DiffBase.value!(result, value(output))
+    result = DiffResults.value!(result, value(output))
     return result
 end
 
@@ -133,7 +133,7 @@ function extract_result_value!(result::AbstractArray, output::AbstractArray)
 end
 
 function extract_result_value!(result::AbstractArray, output::TrackedArray)
-    copy!(result, value(output))
+    copyto!(result, value(output))
     return result
 end
 
