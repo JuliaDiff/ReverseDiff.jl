@@ -238,7 +238,7 @@ macro grad(expr)
     end |> esc
 end
 _add_to_deriv!(d1, d2) = nothing
-function _add_to_deriv!(d1::Union{TrackedReal, TrackedArray}, d2)
+function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2)
     increment_deriv!(d1, d2)
 end
 function getargs_expr(args_with_types)
