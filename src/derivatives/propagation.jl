@@ -44,7 +44,7 @@ end
 
 function increment_deriv!(t::TrackedReal, x::Real)
     pull_deriv!(t)
-    t.deriv += x
+    t.deriv += _convert(typeof(t.deriv), x)
     push_deriv!(t)
     return nothing
 end
@@ -67,7 +67,7 @@ end
 
 function decrement_deriv!(t::TrackedReal, x::Real)
     pull_deriv!(t)
-    t.deriv -= x
+    t.deriv -= _convert(typeof(t.deriv), x)
     push_deriv!(t)
     return nothing
 end

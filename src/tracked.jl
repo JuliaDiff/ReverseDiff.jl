@@ -228,11 +228,16 @@ capture(t::AbstractArray) = istracked(t) ?  map!(capture, similar(t), t) : copy(
 # Conversion/Promotion #
 ########################
 
+_convert(::Type{R}, t::TrackedReal) where {R <: Real} = R(value(t))
+_convert(::Type{R}, t::Real) where {R <: TrackedReal} = R(t)
+_convert(::Type{R}, t::Real) where {R <: Real} = R(t)
+_convert(::Type{R}, t::TrackedReal) where {R <: TrackedReal} = R(t)
+
 # recording a instruction for this preserves the line of references back to the origin's deriv
 function Base.convert(::Type{T1}, t::T2) where {T1<:TrackedReal,T2<:TrackedReal}
     V1, D1, O1 = valtype(T1), derivtype(T1), origintype(T1)
     tp = tape(t)
-    out = TrackedReal{V1,D1,O1}(convert(V1, value(t)), convert(D1, deriv(t)), tp)
+    out = TrackedReal{V1,D1,O1}(_convert(V1, value(t)), _convert(D1, deriv(t)), tp)
     record!(tp, SpecialInstruction, convert, t, out)
     return out
 end
@@ -252,8 +257,14 @@ end
 end
 
 Base.convert(::Type{Real}, t::T) where {T<:TrackedReal} = t
-Base.convert(::Type{R}, t::T) where {R<:Real,T<:TrackedReal} = R(value(t))
-Base.convert(::Type{T}, x::R) where {T<:TrackedReal,R<:Real} = TrackedReal{valtype(T),derivtype(T),origintype(T)}(convert(valtype(T), value(x)))
+function Base.convert(::Type{R}, t::T) where {R<:Real,T<:TrackedReal}
+    throw(ArgumentError("Converting an instance of $T to $R is not defined. Please use `ReverseDiff.value` instead."))
+end
+function Base.convert(::Type{T}, x::R) where {T<:TrackedReal, R<:Real}
+    return TrackedReal{valtype(T), derivtype(T), origintype(T)}(
+        convert(valtype(T), value(x)),
+    )
+end
 
 Base.convert(::Type{T}, t::T) where {T<:TrackedReal} = t
 Base.convert(::Type{T}, t::T) where {T<:TrackedArray} = t
