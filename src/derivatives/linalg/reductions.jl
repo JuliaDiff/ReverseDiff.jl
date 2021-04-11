@@ -5,6 +5,16 @@
 # basic sum #
 #-----------#
 
+function Base.sum(x::AbstractArray{<:TrackedReal{V,D}}; dims = nothing) where {V,D}
+    tp = tape(x)
+    if dims === nothing
+        return reduce(+, x)
+    else
+        out = track(sum(value(x), dims = dims), D, tp)
+        record!(tp, SpecialInstruction, sum, (x, dims), out)
+    end
+    return out
+end
 function Base.sum(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
     out = track(sum(value(x)), D, tp)
