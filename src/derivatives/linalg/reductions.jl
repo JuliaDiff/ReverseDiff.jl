@@ -5,7 +5,7 @@
 # basic sum #
 #-----------#
 
-function Base.sum(x::AbstractArray{<:TrackedReal{V,D}}; dims=:) where {V,D}
+function Base.sum(x::AbstractArray{<:TrackedReal{V,D,O}}; dims=:) where {V,D,O}
     tp = tape(x)
     out = track(sum(value(x), dims = dims), D, tp)
     record!(tp, SpecialInstruction, sum, (x, dims), out)
@@ -17,9 +17,9 @@ end
     output = instruction.output
     if istracked(input)
         if dims === Colon()
-            increment_deriv!(input, zero(value(input)) .+ deriv(output))
-        else
             increment_deriv!(input, deriv(output))
+        else
+            increment_deriv!(input, zero(value(input)) .+ deriv(output))
         end
     end
     unseed!(output)
