@@ -14,6 +14,7 @@ end
 
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(sum)})
     input, dims = instruction.input
+    pull_value!(input)
     output = instruction.output
     if istracked(input)
         if dims === Colon()
@@ -28,6 +29,7 @@ end
 
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(sum)})
     input, dims = instruction.input
+    pull_value!(input)
     value!(instruction.output, sum(value(input); dims = dims))
     return nothing
 end
