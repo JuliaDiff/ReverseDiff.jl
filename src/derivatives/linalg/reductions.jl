@@ -5,24 +5,30 @@
 # basic sum #
 #-----------#
 
-function Base.sum(x::TrackedArray{V,D}) where {V,D}
+function Base.sum(x::TrackedArray{V,D}; dims=:) where {V,D}
     tp = tape(x)
-    out = track(sum(value(x)), D, tp)
-    record!(tp, SpecialInstruction, sum, x, out)
+    out = track(sum(value(x), dims = dims), D, tp)
+    record!(tp, SpecialInstruction, sum, (x, dims), out)
     return out
 end
 
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(sum)})
-    input = instruction.input
+    input, dims = instruction.input
     output = instruction.output
-    istracked(input) && increment_deriv!(input, deriv(output))
+    if istracked(input)
+        if dims === Colon()
+            increment_deriv!(input, deriv(output))
+        else
+            increment_deriv!(input, zero(value(input)) .+ deriv(output))
+        end
+    end
     unseed!(output)
     return nothing
 end
 
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(sum)})
-    input = instruction.input
-    value!(instruction.output, sum(value(input)))
+    input, dims = instruction.input
+    value!(instruction.output, sum(value(input); dims = dims))
     return nothing
 end
 
