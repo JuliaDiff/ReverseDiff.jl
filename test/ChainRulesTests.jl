@@ -10,6 +10,15 @@ f(x) = sum(4x .+ 1)
 function ChainRules.rrule(::typeof(f), x)
     r = f(x)
     function back(d)
+        #=
+        The proper derivative of `f` is 4, but in order to
+        check if `ChainRules.rrule` had taken over the compuation,
+        we define a rrule that returns 3 as `f`'s derivative.
+
+        After importing this rrule into ReverseDiff, if we get 3
+        rather than 4 when we compute the derivative of `f`, it means
+        the importing mechanism works.
+        =#
         return ChainRules.NoTangent(), fill(3 * d, size(x))
     end
     return r, back
@@ -29,8 +38,6 @@ begin # test ReverseDiff
     const f_tape = ReverseDiff.GradientTape(f, (rand(3, 3),))
     inputs = (rand(3, 3), )
     results = (similar(inputs[1]),)
-    # all_results = map(DiffResults.GradientResult, results)
-    cfg = ReverseDiff.GradientConfig(inputs)
 
     ReverseDiff.gradient!(results, f_tape, inputs)
 
