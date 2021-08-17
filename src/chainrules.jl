@@ -78,6 +78,7 @@ function import_rrules()
         fname, mod = qname(func)
         isletter(String(mod)[1]) || continue
         occursin("#", repr(fname)) && continue
+        in(mod, [:Dates, :SuiteSparse, :SparseArrays]) && continue
         @eval using $mod
         @eval @grad_from_cr $fname
     end
