@@ -247,8 +247,7 @@ The `@grad_from_cr` macro provides a way to import adjoints defined in ChainRule
 macro grad_from_cr(f)
     @gensym tp output_value output back closure cls_args cls_kwargs
     return quote
-        $f(x::Union{ReverseDiff.TrackedReal, ReverseDiff.TrackedArray},
-           args::Vararg{Union{ReverseDiff.TrackedReal, ReverseDiff.TrackedArray}}) = ReverseDiff.track($f, x, args...)
+        $f(args::Vararg{Union{ReverseDiff.TrackedReal, ReverseDiff.TrackedArray}}) = ReverseDiff.track($f, args...)
         function $ReverseDiff.track(::typeof($f), args...; kwargs...)
             $tp = $ReverseDiff.tape(args...)
             $output_value, $back = ChainRules.rrule($f, map(ReverseDiff.value, args)...; kwargs...)

@@ -1,85 +1,42 @@
-using ChainRulesCore, ChainRules
-using SpecialFunctions, NaNMath, DiffRules
 
-const noop = (x) -> x
+FUNCS_FROM_CHAINRULES = [
+    :(Base.FastMath.mul_fast),
+    :(Base.FastMath.sincos_fast),
+    :(Base.FastMath.log10_fast),
+    :(Base.FastMath.rem_fast),
+    :(Base.FastMath.sqrt_fast),
+    :(Base.FastMath.abs_fast),
+    :(Base.FastMath.div_fast),
+    :(Base.FastMath.conj_fast),
+    :(Base.FastMath.exp_fast),
+    :(Base.FastMath.cbrt_fast),
+    :(Base.FastMath.sign_fast),
+    :(Base.FastMath.angle_fast),
+    :(Base.FastMath.atan_fast),
+    :(Base.FastMath.sin_fast),
+    :(Base.FastMath.tan_fast),
+    :(Base.FastMath.exp2_fast),
+    :(Base.FastMath.min_fast),
+    :(Base.FastMath.sinh_fast),
+    :(Base.FastMath.log2_fast),
+    :(Base.FastMath.log1p_fast),
+    :(Base.FastMath.abs2_fast),
+    :(Base.FastMath.cosh_fast),
+    :(Base.FastMath.log_fast),
+    :(Base.FastMath.exp10_fast),
+    :(Base.FastMath.tanh_fast),
+    :(Base.FastMath.sub_fast),
+    :(Base.FastMath.hypot_fast),
+    :(Base.FastMath.add_fast),
+    :(Base.FastMath.cos_fast),
+    :(Base.FastMath.expm1_fast),
+    :(Base.FastMath.acos_fast),
+    :(Base.FastMath.asin_fast),
+    :(Base.FastMath.pow_fast),
+    :(Base.FastMath.max_fast),
+    :(Base.FastMath.inv_fast),
+]
 
-"""
-In ChainRules, we define `rrule` for many functions, hence the function
-`rrule` has many methods.
-
-This function, `ruleof`, takes a method of the `rrule` function, and returns
-the function for which the `rrule` is defined in the input method.
-"""
-function ruleof(method)
-    parameters = if isa(method.sig, DataType)
-        method.sig.parameters
-    elseif method.sig.body |> typeof == DataType
-        method.sig.body.parameters
-    else
-        []
-    end
-    if length(parameters) >= 2
-        type2 = parameters[2]
-        typeof(type2) == DataType && type2.super == Function && return type2.instance
-    end
-
-    # type2 is RuleConfig, use the next parameter
-    if length(parameters) >= 3
-        type3 = parameters[3]
-        typeof(type3) == DataType && type3.super == Function && return type3.instance
-    end
-
-    return noop # return a function to keep type-stable
-end
-
-
-"""
-    qname(Base.Filesystem.isdirpath) -> :(Base.Filesystem.isdirpath)
-
-`qname` takes a function, returns its qualified name.
-"""
-function qname(f)
-    mth = first(methods(f))
-    names = [mth.name]
-    mod = mth.module
-    while true
-        modname = nameof(mod)
-        if names[1] == modname || :Main == modname
-            break
-        end
-        pushfirst!(names, modname)
-        mod = parentmodule(mod)
-    end
-    names
-    expr = names[1]
-    for s in names[2:end]
-        expr = Expr(:., expr, QuoteNode(s))
-    end
-    return expr, names[1]
-end
-
-
-
-function import_rrules()
-    # all the function who has `rrule` in ChainRules.
-    FUNCS_WITH_RRULE = Set([ruleof(m) for m in methods(rrule)])
-
-    # all the function who has special derivative rules in ReverseDiff.
-    FUNCS_IN_RD = Set([eval(Expr(:., m, QuoteNode(f))) for (m, f, a) in DiffRules.diffrules()])
-
-
-    # all the function who has derivative rules provided with `ReverseDiff.@grad`.
-    FUNCS_WITH_GRAD = [Base.cat, Base.hcat, Base.vcat, fill,
-                       _copytranspose, _copyadjoint]
-
-    for func in FUNCS_WITH_RRULE
-        in(func, FUNCS_IN_RD) && continue
-        in(func, FUNCS_WITH_GRAD) && continue
-        fname, mod = qname(func)
-        isletter(String(mod)[1]) || continue
-        occursin("#", repr(fname)) && continue
-        in(mod, [:Dates, :SuiteSparse, :SparseArrays]) && continue
-        @eval using $mod
-        @eval @grad_from_cr $fname
-    end
+for func in FUNCS_FROM_CHAINRULES
+    @eval @grad_from_cr $func
 end
