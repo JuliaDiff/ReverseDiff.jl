@@ -13,6 +13,9 @@ function test_arr2num(f, x, tp; ignore_tape_length = false)
 
     # record
     yt = f(xt)
+    @show f
+    @show x
+    @show tp
     if !ignore_tape_length
         @test length(tp) == 1
     end
