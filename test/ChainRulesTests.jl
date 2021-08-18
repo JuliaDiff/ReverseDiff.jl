@@ -24,7 +24,7 @@ function ChainRules.rrule(::typeof(f), x)
     return r, back
 end
 
-ReverseDiff.@grad_from_cr f
+ReverseDiff.@grad_from_chainrules f
 
 begin # test ChainRules.rrule
     input = rand(3, 3)
@@ -35,7 +35,7 @@ begin # test ChainRules.rrule
 end
 
 begin # test ReverseDiff
-    const f_tape = ReverseDiff.GradientTape(f, (rand(3, 3),))
+    const f_tape = ReverseDiff.GradientTape(x -> f(x) + 2, (rand(3, 3),))
     inputs = (rand(3, 3), )
     results = (similar(inputs[1]),)
 

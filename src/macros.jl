@@ -240,11 +240,12 @@ end
 
 
 """
-    ReverseDiff.@grad_from_cr Base.sin
+    ReverseDiff.@grad_from_chainrules Base.sin
 
-The `@grad_from_cr` macro provides a way to import adjoints defined in ChainRules to ReverseDiff.
+The `@grad_from_chainrules` macro provides a way to import adjoints defined
+in ChainRules to ReverseDiff.
 """
-macro grad_from_cr(f)
+macro grad_from_chainrules(f)
     @gensym tp output_value output back closure cls_args cls_kwargs
     return quote
         $f(args::Vararg{Union{ReverseDiff.TrackedReal, ReverseDiff.TrackedArray}}) = ReverseDiff.track($f, args...)

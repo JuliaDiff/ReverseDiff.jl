@@ -42,7 +42,6 @@ include("api/tape.jl")
 include("api/gradients.jl")
 include("api/jacobians.jl")
 include("api/hessians.jl")
-include("chainrules.jl")
 
 export DiffResults
 
