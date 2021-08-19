@@ -1,5 +1,6 @@
 module ChainRulesTest
 
+using LinearAlgebra
 using ChainRules
 using DiffResults
 using ReverseDiff
@@ -42,6 +43,17 @@ begin # test ReverseDiff
     ReverseDiff.gradient!(results, f_tape, inputs)
 
     @test results[1] == fill(3, size(inputs[1]))
+end
+
+# Functions from ChainRules
+begin
+    inputs = (rand(3, 3), )
+    results = (similar(inputs[1]),)
+
+    g = (x) -> LinearAlgebra.norm1(x)
+    g_tape = ReverseDiff.GradientTape(g, (rand(3, 3),))
+    ReverseDiff.gradient!(results, g_tape, inputs)
+    @test results[1] == fill(1, size(inputs[1]))
 end
 
 end

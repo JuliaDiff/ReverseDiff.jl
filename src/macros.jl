@@ -300,6 +300,12 @@ macro grad_from_chainrules(f)
 end
 
 _add_to_deriv!(d1, d2) = nothing
+function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, t::InplaceableThunk)
+    _add_to_deriv!(d1, t.val)
+end
+function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, t::Thunk)
+    increment_deriv!(d1, unthunk(t))
+end
 function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2)
     increment_deriv!(d1, d2)
 end
