@@ -36,12 +36,17 @@ begin # test ChainRules.rrule
 end
 
 begin # test ReverseDiff
-    const f_tape = ReverseDiff.GradientTape(x -> f(x) + 2, (rand(3, 3),))
     inputs = (rand(3, 3), )
-    results = (similar(inputs[1]),)
 
+    results = (similar(inputs[1]),)
+    const f_tape = ReverseDiff.GradientTape(x -> f(x) + 2, (rand(3, 3),))
     ReverseDiff.gradient!(results, f_tape, inputs)
 
+    @test results[1] == fill(3, size(inputs[1]))
+
+    results = (similar(inputs[1]),)
+    const compiled_tape = ReverseDiff.CompiledTape(f_tape)
+    ReverseDiff.gradient!(results, compiled_tape, inputs)
     @test results[1] == fill(3, size(inputs[1]))
 end
 
