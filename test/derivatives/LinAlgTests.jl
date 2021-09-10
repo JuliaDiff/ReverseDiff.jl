@@ -1,21 +1,20 @@
 module LinAlgTests
 
-using ReverseDiff, ForwardDiff, Test, LinearAlgebra, Statistics,
-    DiffRules
+using ReverseDiff, ForwardDiff, Test, LinearAlgebra, Statistics
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
 x, a, b = rand(3, 3), rand(3, 3), rand(3, 3)
 tp = InstructionTape()
 
-function test_arr2num(f, x, tp; expected_tape_length = -1)
+function test_arr2num(f, x, tp; ignore_tape_length = false)
     xt = track(copy(x), tp)
     y = f(x)
 
     # record
     yt = f(xt)
-    if expected_tape_length > 0
-        @test length(tp) == expected_tape_length
+    if !ignore_tape_length
+        @test length(tp) == 1
     end
     @test abs(yt - y) <= abs(y) * eps(typeof(y))
 
@@ -208,19 +207,17 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     empty!(tp)
 end
 
-# test if adjoint is in DiffRules, true after DiffRules 1.3.0
-adj_grad = in((:Base, :adjoint, 1), DiffRules.diffrules())
-for (f, tape_len) in (
-    (sum, 1),
-    (det, 1),
-    (mean, 1),
-    (y -> dot(vec(y), vec(y)), 1),
-    (y -> vec(y)' * vec(y), adj_grad ? 30 : 1),
-    (y -> vec(y)' * ones(length(y)), adj_grad ? 30 : 1),
-    (y -> ones(length(y))' * vec(y), 1),
+for f in (
+    sum,
+    det,
+    mean,
+    y -> dot(vec(y), vec(y)),
+    y -> vec(y)' * vec(y),
+    y -> vec(y)' * ones(length(y)),
+    y -> ones(length(y))' * vec(y),
 )
     test_println("Array -> Number functions", f)
-    test_arr2num(f, x, tp, expected_tape_length=tape_len)
+    test_arr2num(f, x, tp)
 end
 
 for f in (
@@ -231,7 +228,7 @@ for f in (
 )
     test_println("Array -> Number functions", f)
     # TODO: transpose needs investigation; it is giving an unusually large tape length here
-    test_arr2num(f, x, tp)
+    test_arr2num(f, x, tp, ignore_tape_length=true)
 end
 
 for f in (-, inv)
