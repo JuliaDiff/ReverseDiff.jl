@@ -50,7 +50,18 @@ begin # test ReverseDiff
     @test results[1] == fill(3, size(inputs[1]))
 end
 
-# Functions from ChainRules
+### Functions from ChainRules
+
+# import rrule from ChainRules
+const FUNCS_FROM_CHAINRULES = [
+    :(LinearAlgebra.norm1),
+]
+
+for func in FUNCS_FROM_CHAINRULES
+    @eval ReverseDiff.@grad_from_chainrules $func
+end
+
+# test the imported rrule
 begin
     inputs = (rand(3, 3), )
     results = (similar(inputs[1]),)

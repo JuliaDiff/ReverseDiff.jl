@@ -17,7 +17,7 @@ using StaticArrays
 
 using MacroTools
 
-using ChainRulesCore, ChainRules
+using ChainRulesCore
 
 # Not all operations will be valid over all of these types, but that's okay; such cases
 # will simply error when they hit the original operation in the overloaded definition.
@@ -44,12 +44,7 @@ include("api/tape.jl")
 include("api/gradients.jl")
 include("api/jacobians.jl")
 include("api/hessians.jl")
-include("chainrules.jl")
 
 export DiffResults
-
-function __init__()
-    import_rrules()
-end
 
 end # module
