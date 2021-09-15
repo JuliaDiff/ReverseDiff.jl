@@ -79,7 +79,7 @@ function test_arr2arr(f, a, b, tp)
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
-    
+
     ReverseDiff.value!(at, a)
     empty!(tp)
 
@@ -207,17 +207,17 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     empty!(tp)
 end
 
-for f in (
-    sum,
-    det,
-    mean,
-    y -> dot(vec(y), vec(y)),
-    y -> vec(y)' * vec(y),
-    y -> vec(y)' * ones(length(y)),
-    y -> ones(length(y))' * vec(y),
+for (f, no_tape_len) in (
+    (sum, false),
+    (det, false),
+    (mean, false),
+    (y -> dot(vec(y), vec(y)), false),
+    (y -> vec(y)' * vec(y), true),
+    (y -> vec(y)' * ones(length(y)), true),
+    (y -> ones(length(y))' * vec(y), true),
 )
     test_println("Array -> Number functions", f)
-    test_arr2num(f, x, tp)
+    test_arr2num(f, x, tp, ignore_tape_length=no_tape_len)
 end
 
 for f in (

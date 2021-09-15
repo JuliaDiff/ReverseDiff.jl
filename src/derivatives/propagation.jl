@@ -34,6 +34,8 @@ index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} = CartesianIndex
 @inline increment_deriv!(t::TrackedArray, x::Real, i) = (t.deriv[i] += x; nothing)
 @inline increment_deriv!(t::AbstractArray, x::AbstractArray, i) = increment_deriv!(t[i], x[i])
 @inline increment_deriv!(t::AbstractArray, x::Real, i) = increment_deriv!(t[i], x)
+@inline increment_deriv!(t::Adjoint, x::AbstractArray, i) = increment_deriv!(t.parent[LinearIndices(t.parent)'[i]], x[i])
+@inline increment_deriv!(t::Adjoint, x::Real, i) = increment_deriv!(t.parent[LinearIndices(t.parent)'[i]], x)
 
 function increment_deriv!(t::AbstractArray, x)
     for i in eachindex(t)
@@ -57,6 +59,8 @@ end
 @inline decrement_deriv!(t::TrackedArray, x::Real, i) = (t.deriv[i] -= x; nothing)
 @inline decrement_deriv!(t::AbstractArray, x::AbstractArray, i) = decrement_deriv!(t[i], x[i])
 @inline decrement_deriv!(t::AbstractArray, x::Real, i) = decrement_deriv!(t[i], x)
+@inline decrement_deriv!(t::Adjoint, x::AbstractArray, i) = decrement_deriv!(t.parent[LinearIndices(t.parent)'[i]], x[i])
+@inline decrement_deriv!(t::Adjoint, x::Real, i) = decrement_deriv!(t.parent[LinearIndices(t.parent)'[i]], x)
 
 function decrement_deriv!(t::AbstractArray, x)
     for i in eachindex(t)
