@@ -212,6 +212,8 @@ end
 # JacobianTape #
 ################
 
+LinearAlgebra.lu(x::Adjoint, args...) = LinearAlgebra.lu(Array(x), args...)
+
 """
     ReverseDiff.JacobianTape(f, input, cfg::JacobianConfig = JacobianConfig(input))
 
