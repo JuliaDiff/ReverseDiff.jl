@@ -121,3 +121,31 @@ end
         return (Δs...,)
     end
 end
+
+#########################
+## Adjoint & Transpose ##
+#########################
+
+# issue https://github.com/JuliaDiff/ReverseDiff.jl/issues/183
+Base.@propagate_inbounds function Base.getindex(
+    v::LinearAlgebra.AdjOrTransAbsVec{<:TrackedReal}, i::Int
+)
+    return v.parent[i-1+first(axes(v.parent)[1])]
+end
+Base.@propagate_inbounds function Base.getindex(
+    A::LinearAlgebra.AdjOrTransAbsMat{<:TrackedReal}, i::Int, j::Int
+)
+    return A.parent[j, i]
+end
+Base.@propagate_inbounds function Base.setindex!(
+    v::LinearAlgebra.AdjOrTransAbsVec{<:TrackedReal}, x, i::Int
+)
+    setindex!(v.parent, x, i-1+first(axes(v.parent)[1]))
+    return v
+end
+Base.@propagate_inbounds function Base.setindex!(
+    A::LinearAlgebra.AdjOrTransAbsMat{<:TrackedReal}, x, i::Int, j::Int
+)
+    setindex!(A.parent, x, j, i)
+    return A
+end
