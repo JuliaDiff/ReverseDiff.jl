@@ -239,16 +239,53 @@ macro grad(expr)
 end
 
 
+function funcall_fwd_to_rule(expr)
+    expr.head == :call || error("The rule should be in a format of a function call.")
+    func = expr.args[1]
+    has_tracked_data = false
+
+    args_l = Any[func]
+    args_r = Any[:(ReverseDiff.track)]
+    args_start = 2
+    if (expr.args[2].head == :parameters) # has kw args
+        push!(args_l, expr.args[2])
+        push!(args_r, expr.args[2])
+        args_start = 3
+    end
+    push!(args_r, func)
+    for arg in expr.args[args_start:end]
+        if arg.head == :(::)
+            arg_name = gensym(:arg)
+            arg_ex = :($arg_name::$(arg.args[end]))
+            push!(args_l, arg_ex)
+            push!(args_r, arg_ex)
+            if eval(arg.args[end]) <: TrackedReal || eval(arg.args[end]) <: TrackedArray
+                has_tracked_data = true
+            end
+        else
+            push!(args_l, arg)
+            push!(args_r, arg)
+        end
+    end
+
+    has_tracked_data || error("The rule should have at least one tracked argument.")
+    left = Expr(:call, args_l...)
+    right = Expr(:call, args_r...)
+    return expr.args[1], :($left = $right)
+end
+
 """
-    ReverseDiff.@grad_from_chainrules Base.sin
+    ReverseDiff.@grad_from_chainrules Base.sin(x::TrackedReal)
 
 The `@grad_from_chainrules` macro provides a way to import adjoints defined
 in ChainRules to ReverseDiff.
 """
-macro grad_from_chainrules(f)
+macro grad_from_chainrules(fcall)
     @gensym tp output_value output back closure cls_args cls_kwargs
+    f, fwd_def = funcall_fwd_to_rule(fcall)
+
     return quote
-        $f(args::Vararg{Union{ReverseDiff.TrackedReal, ReverseDiff.TrackedArray}}) = ReverseDiff.track($f, args...)
+        $fwd_def
         function $ReverseDiff.track(::typeof($f), args...; kwargs...)
             $tp = $ReverseDiff.tape(args...)
             $output_value, $back = ChainRules.rrule($f, map(ReverseDiff.value, args)...; kwargs...)

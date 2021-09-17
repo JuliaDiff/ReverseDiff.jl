@@ -25,7 +25,7 @@ function ChainRules.rrule(::typeof(f), x)
     return r, back
 end
 
-ReverseDiff.@grad_from_chainrules f
+ReverseDiff.@grad_from_chainrules f(::ReverseDiff.TrackedArray)
 
 begin # test ChainRules.rrule
     input = rand(3, 3)
@@ -54,7 +54,7 @@ end
 
 # import rrule from ChainRules
 const FUNCS_FROM_CHAINRULES = [
-    :(LinearAlgebra.norm1),
+    :(LinearAlgebra.norm1(::ReverseDiff.TrackedArray)),
 ]
 
 for func in FUNCS_FROM_CHAINRULES
