@@ -277,8 +277,22 @@ end
 """
     ReverseDiff.@grad_from_chainrules Base.sin(x::TrackedReal)
 
-The `@grad_from_chainrules` macro provides a way to import adjoints defined
-in ChainRules to ReverseDiff.
+The `@grad_from_chainrules` macro provides a way to import
+adjoints(rrule) defined in ChainRules to ReverseDiff. One must provide
+a method signature to import the corresponding `rrule`. In the
+provided method signature, one should replace the types of arguments
+to which one wants to take derivatives with respect with
+`ReverseDiff.TrackedReal` and `ReverseDiff.TrackedArray`
+respectively. For example, we can import `rrule` of `f(::Real,
+::Array)` like below:
+
+
+```
+ReverseDiff.@grad_from_chainrules f(x::TrackedReal, ::TrackedArray)
+ReverseDiff.@grad_from_chainrules f(x::TrackedReal, ::Array)
+ReverseDiff.@grad_from_chainrules f(x::Real, ::TrackedArray)
+```
+
 """
 macro grad_from_chainrules(fcall)
     @gensym tp output_value output back closure cls_args cls_kwargs
