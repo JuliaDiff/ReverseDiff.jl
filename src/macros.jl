@@ -269,7 +269,9 @@ function funcall_fwd_to_rule(expr)
             arg_ex = :($arg_name::$(arg.args[end]))
             push!(args_l, arg_ex)
             push!(args_r, arg_name)
-            if arg.args[end] in (:(ReverseDiff.TrackedReal), :(ReverseDiff.TrackedArray))
+            if arg.args[end] in (:(ReverseDiff.TrackedReal), :(ReverseDiff.TrackedArray),
+                                 :(ReverseDiff.TrackedVector), :(ReverseDiff.TrackedMatrix),
+                                 :(ReverseDiff.TrackedVecOrMat))
                 has_tracked_data = true
             end
         else
