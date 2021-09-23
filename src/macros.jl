@@ -238,7 +238,17 @@ macro grad(expr)
     end |> esc
 end
 
+"""
+    funcall_fwd_to_rule(:(fun(::T1, ::T2, args...; kwargs...)))
 
+Function `funcall_fwd_to_rule` tansforms an expression of a method
+signature to an expression of a function definition, which forwards
+the call to the method to `ReverseDiff.track`:
+
+f1(::String, x::TrackedReal) -> f1(arg1::String, arg2::TrackedReal) = ReverseDiff.track(f1, arg1, arg2)
+f2(x::TrackedReal, args...)  -> f2(arg1::TrackedReal, args...) = ReverseDiff.track(f2, arg1, args...)
+...
+"""
 function funcall_fwd_to_rule(expr)
     expr.head == :call || error("The rule should be in a format of a function call.")
     func = expr.args[1]
@@ -247,7 +257,7 @@ function funcall_fwd_to_rule(expr)
     args_l = Any[func]
     args_r = Any[:(ReverseDiff.track)]
     args_start = 2
-    if (expr.args[2].head == :parameters) # has kw args
+    if expr.args[2].head == :parameters # has kw args
         push!(args_l, expr.args[2])
         push!(args_r, expr.args[2])
         args_start = 3
@@ -258,8 +268,8 @@ function funcall_fwd_to_rule(expr)
             arg_name = gensym(:arg)
             arg_ex = :($arg_name::$(arg.args[end]))
             push!(args_l, arg_ex)
-            push!(args_r, arg_ex)
-            if eval(arg.args[end]) <: TrackedReal || eval(arg.args[end]) <: TrackedArray
+            push!(args_r, arg_name)
+            if arg.args[end] in (:(ReverseDiff.TrackedReal), :(ReverseDiff.TrackedArray))
                 has_tracked_data = true
             end
         else
@@ -351,11 +361,8 @@ macro grad_from_chainrules(fcall)
 end
 
 _add_to_deriv!(d1, d2) = nothing
-function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, t::InplaceableThunk)
-    _add_to_deriv!(d1, t.val)
-end
-function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, t::Thunk)
-    increment_deriv!(d1, unthunk(t))
+function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2::AbstractThunk)
+    increment_deriv!(d1, unthunk(d2))
 end
 function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2)
     increment_deriv!(d1, d2)

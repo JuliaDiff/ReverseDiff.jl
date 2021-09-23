@@ -27,25 +27,25 @@ end
 
 ReverseDiff.@grad_from_chainrules f(::ReverseDiff.TrackedArray)
 
-begin # test ChainRules.rrule
+@testset "rrule in ChainRules and ReverseDiff" begin
+    # ChainRules
     input = rand(3, 3)
     output, back = ChainRules.rrule(f, input);
     _, d = back(1)
     @test output == f(input)
     @test d == fill(3, size(input))
-end
 
-begin # test ReverseDiff
+    # ReverseDiff
     inputs = (rand(3, 3), )
 
     results = (similar(inputs[1]),)
-    const f_tape = ReverseDiff.GradientTape(x -> f(x) + 2, (rand(3, 3),))
+    f_tape = ReverseDiff.GradientTape(x -> f(x) + 2, (rand(3, 3),))
     ReverseDiff.gradient!(results, f_tape, inputs)
 
     @test results[1] == fill(3, size(inputs[1]))
 
     results = (similar(inputs[1]),)
-    const compiled_tape = ReverseDiff.CompiledTape(f_tape)
+    compiled_tape = ReverseDiff.CompiledTape(f_tape)
     ReverseDiff.gradient!(results, compiled_tape, inputs)
     @test results[1] == fill(3, size(inputs[1]))
 end
@@ -61,8 +61,7 @@ for func in FUNCS_FROM_CHAINRULES
     @eval ReverseDiff.@grad_from_chainrules $func
 end
 
-# test the imported rrule
-begin
+@testset "test imported rrules" begin
     inputs = (rand(3, 3), )
     results = (similar(inputs[1]),)
 
