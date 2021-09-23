@@ -257,14 +257,14 @@ function funcall_fwd_to_rule(expr)
     args_l = Any[func]
     args_r = Any[:(ReverseDiff.track)]
     args_start = 2
-    if expr.args[2].head == :parameters # has kw args
+    if isa(expr.args[2], Expr) && expr.args[2].head == :parameters # has kw args
         push!(args_l, expr.args[2])
         push!(args_r, expr.args[2])
         args_start = 3
     end
     push!(args_r, func)
     for arg in expr.args[args_start:end]
-        if arg.head == :(::)
+        if isa(arg, Expr) && arg.head == :(::)
             arg_name = gensym(:arg)
             arg_ex = :($arg_name::$(arg.args[end]))
             push!(args_l, arg_ex)
