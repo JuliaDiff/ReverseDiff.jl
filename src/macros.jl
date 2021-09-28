@@ -283,7 +283,7 @@ function funcall_fwd_to_rule(expr)
     has_tracked_data || error("The rule should have at least one tracked argument.")
     left = Expr(:call, args_l...)
     right = Expr(:call, args_r...)
-    return expr.args[1], :($left = $right)
+    return func, :($left = $right)
 end
 
 """
