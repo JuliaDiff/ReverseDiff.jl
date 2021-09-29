@@ -239,51 +239,40 @@ macro grad(expr)
 end
 
 """
-    funcall_fwd_to_rule(:(fun(::T1, ::T2, args...; kwargs...)))
+    _make_fwd_args(func, arg_list)
 
-Function `funcall_fwd_to_rule` tansforms an expression of a method
-signature to an expression of a function definition, which forwards
-the call to the method to `ReverseDiff.track`:
+Function `_make_fwd_args` accepts a function name and an argument
+list, returns a tuple of argument lists whose elements are: 1. the
+`arg_list` untouched, 2. a new argument list with the function as its
+first element and other elements in `arg_list` followed. E.g.:
 
-f1(::String, x::TrackedReal) -> f1(arg1::String, arg2::TrackedReal) = ReverseDiff.track(f1, arg1, arg2)
-f2(x::TrackedReal, args...)  -> f2(arg1::TrackedReal, args...) = ReverseDiff.track(f2, arg1, args...)
-...
+_make_fwd_args(:f, [:(a::String), :(b::TrackedReal)])
+
+returns
+
+[:(a::String), :(b::TrackedReal)], [:f, :(a::String), :(b::TrackedReal)]
+
+It also deals with varargs and variable keyword arguments, and ensures
+that at least one of the argument is tracked.
+
 """
-function funcall_fwd_to_rule(expr)
-    expr.head == :call || error("The rule should be in a format of a function call.")
-    func = expr.args[1]
-    has_tracked_data = false
-
-    args_l = Any[func]
-    args_r = Any[:(ReverseDiff.track)]
-    args_start = 2
-    if isa(expr.args[2], Expr) && expr.args[2].head == :parameters # has kw args
-        push!(args_l, expr.args[2])
-        push!(args_r, expr.args[2])
-        args_start = 3
-    end
-    push!(args_r, func)
-    for arg in expr.args[args_start:end]
-        if isa(arg, Expr) && arg.head == :(::)
-            arg_name = gensym(:arg)
-            arg_ex = :($arg_name::$(arg.args[end]))
-            push!(args_l, arg_ex)
-            push!(args_r, arg_name)
-            if arg.args[end] in (:(ReverseDiff.TrackedReal), :(ReverseDiff.TrackedArray),
-                                 :(ReverseDiff.TrackedVector), :(ReverseDiff.TrackedMatrix),
-                                 :(ReverseDiff.TrackedVecOrMat))
-                has_tracked_data = true
-            end
-        else
-            push!(args_l, arg)
-            push!(args_r, arg)
-        end
+function _make_fwd_args(func, xs_l)
+    has_tracked_data = any(xs_l) do arg
+        isa(arg, Expr) && arg.head == :(::) &&
+            arg.args[end] in (:(ReverseDiff.TrackedReal), :(ReverseDiff.TrackedArray),
+                              :(ReverseDiff.TrackedVector), :(ReverseDiff.TrackedMatrix),
+                              :(ReverseDiff.TrackedVecOrMat))
     end
 
     has_tracked_data || error("The rule should have at least one tracked argument.")
-    left = Expr(:call, args_l...)
-    right = Expr(:call, args_r...)
-    return func, :($left = $right)
+
+    xs_r = copy(xs_l)
+    if isa(xs_r[1], Expr) && xs_r[1].head == :parameters # has kw args
+        insert!(xs_r, 2, func)
+    else
+        insert!(xs_r, 1, func)
+    end
+    return xs_l, xs_r
 end
 
 """
@@ -295,39 +284,43 @@ a method signature to import the corresponding `rrule`. In the
 provided method signature, one should replace the types of arguments
 to which one wants to take derivatives with respect with
 `ReverseDiff.TrackedReal` and `ReverseDiff.TrackedArray`
-respectively. For example, we can import `rrule` of `f(::Real,
-::Array)` like below:
+respectively. For example, we can import `rrule` of `f(x::Real,
+y::Array)` like below:
 
 
 ```
-ReverseDiff.@grad_from_chainrules f(x::TrackedReal, ::TrackedArray)
-ReverseDiff.@grad_from_chainrules f(x::TrackedReal, ::Array)
-ReverseDiff.@grad_from_chainrules f(x::Real, ::TrackedArray)
+ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::TrackedArray)
+ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::Array)
+ReverseDiff.@grad_from_chainrules f(x::Real, y::TrackedArray)
 ```
 
 """
 macro grad_from_chainrules(fcall)
     @gensym tp output_value output back closure cls_args cls_kwargs
-    f, fwd_def = funcall_fwd_to_rule(fcall)
+
+    fcall.head == :call || error("The rule should be in format of a function call.")
+    @capture(fcall, f_(xs__)) # extract information into f and xs
+    xs_l, xs_r = _make_fwd_args(f, xs)
 
     return quote
-        $fwd_def
-        function $ReverseDiff.track(::typeof($f), args...; kwargs...)
-            $tp = $ReverseDiff.tape(args...)
-            $output_value, $back = ChainRules.rrule($f, map(ReverseDiff.value, args)...; kwargs...)
-            $output = $ReverseDiff.track($output_value, $tp)
-            $closure($cls_args...; $cls_kwargs...) = ChainRules.rrule($f, map(ReverseDiff.value, $cls_args)...; $cls_kwargs...)
-            $ReverseDiff.record!(
-                $tp,
-                $ReverseDiff.SpecialInstruction,
-                $f,
-                args,
-                $output,
-                ($back, $closure, kwargs),
-            )
-            return $output
+        $f($(xs_l...)) = $ReverseDiff.track($(xs_r...))
+        if !hasmethod($ReverseDiff.track, Tuple{typeof($f)})
+            function $ReverseDiff.track(::typeof($f), args...; kwargs...)
+                $tp = $ReverseDiff.tape(args...)
+                $output_value, $back = ChainRules.rrule($f, map(ReverseDiff.value, args)...; kwargs...)
+                $output = $ReverseDiff.track($output_value, $tp)
+                $closure($cls_args...; $cls_kwargs...) = ChainRules.rrule($f, map(ReverseDiff.value, $cls_args)...; $cls_kwargs...)
+                $ReverseDiff.record!(
+                    $tp,
+                    $ReverseDiff.SpecialInstruction,
+                    $f,
+                    args,
+                    $output,
+                    ($back, $closure, kwargs),
+                )
+                return $output
+            end
         end
-
         if !hasmethod(
             $ReverseDiff.special_reverse_exec!,
             Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},

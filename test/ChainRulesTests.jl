@@ -25,7 +25,7 @@ function ChainRules.rrule(::typeof(f), x)
     return r, back
 end
 
-ReverseDiff.@grad_from_chainrules f(::ReverseDiff.TrackedArray)
+ReverseDiff.@grad_from_chainrules f(x::ReverseDiff.TrackedArray)
 
 
 g(x, y) = sum(4x .+ 4y)
@@ -97,7 +97,7 @@ end
 
 # import rrule from ChainRules
 const FUNCS_FROM_CHAINRULES = [
-    :(LinearAlgebra.norm1(::ReverseDiff.TrackedArray)),
+    :(LinearAlgebra.norm1(x::ReverseDiff.TrackedArray)),
 ]
 
 for func in FUNCS_FROM_CHAINRULES
