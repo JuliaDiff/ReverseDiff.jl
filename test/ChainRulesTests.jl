@@ -96,13 +96,7 @@ end
 ### Functions from ChainRules
 
 # import rrule from ChainRules
-const FUNCS_FROM_CHAINRULES = [
-    :(LinearAlgebra.norm1(x::ReverseDiff.TrackedArray)),
-]
-
-for func in FUNCS_FROM_CHAINRULES
-    @eval ReverseDiff.@grad_from_chainrules $func
-end
+ReverseDiff.@grad_from_chainrules LinearAlgebra.norm1(x::ReverseDiff.TrackedArray)
 
 @testset "test imported rrules" begin
     inputs = (rand(3, 3), )

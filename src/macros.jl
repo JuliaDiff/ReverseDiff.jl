@@ -288,7 +288,7 @@ respectively. For example, we can import `rrule` of `f(x::Real,
 y::Array)` like below:
 
 
-```
+```julia
 ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::TrackedArray)
 ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::Array)
 ReverseDiff.@grad_from_chainrules f(x::Real, y::TrackedArray)
@@ -307,9 +307,9 @@ macro grad_from_chainrules(fcall)
         if !hasmethod($ReverseDiff.track, Tuple{typeof($f)})
             function $ReverseDiff.track(::typeof($f), args...; kwargs...)
                 $tp = $ReverseDiff.tape(args...)
-                $output_value, $back = ChainRules.rrule($f, map(ReverseDiff.value, args)...; kwargs...)
+                $output_value, $back = $ChainRulesCore.rrule($f, map($ReverseDiff.value, args)...; kwargs...)
                 $output = $ReverseDiff.track($output_value, $tp)
-                $closure($cls_args...; $cls_kwargs...) = ChainRules.rrule($f, map(ReverseDiff.value, $cls_args)...; $cls_kwargs...)
+                $closure($cls_args...; $cls_kwargs...) = $ChainRulesCore.rrule($f, map($ReverseDiff.value, $cls_args)...; $cls_kwargs...)
                 $ReverseDiff.record!(
                     $tp,
                     $ReverseDiff.SpecialInstruction,
