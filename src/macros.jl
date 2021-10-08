@@ -296,63 +296,62 @@ ReverseDiff.@grad_from_chainrules f(x::Real, y::TrackedArray)
 
 """
 macro grad_from_chainrules(fcall)
-    @gensym tp output_value output back closure cls_args cls_kwargs
-
     fcall.head == :call || error("The rule should be in format of a function call.")
     @capture(fcall, f_(xs__)) # extract information into f and xs
+    f = esc(f)
     xs_l, xs_r = _make_fwd_args(f, xs)
 
     return quote
-        $f($(xs_l...)) = $ReverseDiff.track($(xs_r...))
-        if !hasmethod($ReverseDiff.track, Tuple{typeof($f)})
-            function $ReverseDiff.track(::typeof($f), args...; kwargs...)
-                $tp = $ReverseDiff.tape(args...)
-                $output_value, $back = $ChainRulesCore.rrule($f, map($ReverseDiff.value, args)...; kwargs...)
-                $output = $ReverseDiff.track($output_value, $tp)
-                $closure($cls_args...; $cls_kwargs...) = $ChainRulesCore.rrule($f, map($ReverseDiff.value, $cls_args)...; $cls_kwargs...)
-                $ReverseDiff.record!(
-                    $tp,
-                    $ReverseDiff.SpecialInstruction,
+        $f($(xs_l...)) = ReverseDiff.track($(xs_r...))
+        if !hasmethod(ReverseDiff.track, Tuple{typeof($f)})
+            function $(esc(:(ReverseDiff.track)))(::typeof($f), args...; kwargs...)
+                tp = ReverseDiff.tape(args...)
+                output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; kwargs...)
+                output = ReverseDiff.track(output_value, tp)
+                closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule($f, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
+                ReverseDiff.record!(
+                    tp,
+                    ReverseDiff.SpecialInstruction,
                     $f,
                     args,
-                    $output,
-                    ($back, $closure, kwargs),
+                    output,
+                    (back, closure, kwargs),
                 )
-                return $output
+                return output
             end
         end
         if !hasmethod(
-            $ReverseDiff.special_reverse_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+            ReverseDiff.special_reverse_exec!,
+            Tuple{ReverseDiff.SpecialInstruction{typeof($f)}},
         )
-            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function $(esc(:(ReverseDiff.special_reverse_exec!)))(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
                 output = instruction.output
                 input = instruction.input
                 back = instruction.cache[1]
-                back_output = back($ReverseDiff.deriv(output))
+                back_output = back(ReverseDiff.deriv(output))
                 input_derivs = back_output[2:end]
                 @assert input_derivs isa Tuple
-                $ReverseDiff._add_to_deriv!.(input, input_derivs)
-                $ReverseDiff.unseed!(output)
+                ReverseDiff._add_to_deriv!.(input, input_derivs)
+                ReverseDiff.unseed!(output)
                 return nothing
             end
         end
 
         if !hasmethod(
-            $ReverseDiff.special_forward_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+            ReverseDiff.special_forward_exec!,
+            Tuple{ReverseDiff.SpecialInstruction{typeof($f)}},
         )
-            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function $(esc(:(ReverseDiff.special_forward_exec!)))(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
                 output, input = instruction.output, instruction.input
-                $ReverseDiff.pull_value!.(input)
+                ReverseDiff.pull_value!.(input)
                 pullback = instruction.cache[2]
                 kwargs = instruction.cache[3]
                 out_value = pullback(input...; kwargs...)[1]
-                $ReverseDiff.value!(output, out_value)
+                ReverseDiff.value!(output, out_value)
                 return nothing
             end
         end
-    end |> esc
+    end
 end
 
 _add_to_deriv!(d1, d2) = nothing
