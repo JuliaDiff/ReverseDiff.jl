@@ -244,13 +244,16 @@ end
 Function `_make_fwd_args` accepts a function name and an argument
 list, returns a tuple of argument lists whose elements are: 1. the
 `arg_list` untouched, 2. a new argument list with the function as its
-first element and other elements in `arg_list` followed. E.g.:
+first element and other elements in `arg_list` followed, 3. a new
+argument list with all varargs removed. E.g.:
 
-_make_fwd_args(:f, [:(a::String), :(b::TrackedReal)])
+_make_fwd_args(:f, [:(a::String), :(b::TrackedReal), :(args...)])
 
 returns
 
-[:(a::String), :(b::TrackedReal)], [:f, :(a::String), :(b::TrackedReal)]
+([:(a::String), :(b::TrackedReal), :(args...)],
+ [:f, :(a::String), :(b::TrackedReal), :(args...)],
+ [:(a::String), :(b::TrackedReal)])
 
 It also deals with varargs and variable keyword arguments, and ensures
 that at least one of the argument is tracked.
