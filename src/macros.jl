@@ -272,7 +272,12 @@ function _make_fwd_args(func, xs_l)
     else
         insert!(xs_r, 1, func)
     end
-    return xs_l, xs_r
+
+    xs_t = filter(copy(xs_l)) do arg
+        !(isa(arg, Expr) && arg.head in (:parameters, :...))
+    end
+
+    return xs_l, xs_r, xs_t
 end
 
 """
@@ -299,32 +304,32 @@ macro grad_from_chainrules(fcall)
     fcall.head == :call || error("The rule should be in format of a function call.")
     @capture(fcall, f_(xs__)) # extract information into f and xs
     f = esc(f)
-    xs_l, xs_r = _make_fwd_args(f, xs)
+    xs_l, xs_r, xs_t = _make_fwd_args(f, xs)
 
     return quote
         $f($(xs_l...)) = ReverseDiff.track($(xs_r...))
-        if !hasmethod(ReverseDiff.track, Tuple{typeof($f)})
-            function $(esc(:(ReverseDiff.track)))(::typeof($f), args...; kwargs...)
-                tp = ReverseDiff.tape(args...)
-                output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; kwargs...)
-                output = ReverseDiff.track(output_value, tp)
-                closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule($f, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
-                ReverseDiff.record!(
-                    tp,
-                    ReverseDiff.SpecialInstruction,
-                    $f,
-                    args,
-                    output,
-                    (back, closure, kwargs),
-                )
-                return output
-            end
+        function ReverseDiff.track(::typeof($f), $(xs_t...), args...; kwargs...)
+            args = ($(xs_t...), args...)
+            tp = ReverseDiff.tape(args...)
+            output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; kwargs...)
+            output = ReverseDiff.track(output_value, tp)
+            closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule($f, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
+            ReverseDiff.record!(
+                tp,
+                ReverseDiff.SpecialInstruction,
+                $f,
+                args,
+                output,
+                (back, closure, kwargs),
+            )
+            return output
         end
+
         if !hasmethod(
             ReverseDiff.special_reverse_exec!,
             Tuple{ReverseDiff.SpecialInstruction{typeof($f)}},
         )
-            @noinline function $(esc(:(ReverseDiff.special_reverse_exec!)))(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function ReverseDiff.special_reverse_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
                 output = instruction.output
                 input = instruction.input
                 back = instruction.cache[1]
@@ -341,7 +346,7 @@ macro grad_from_chainrules(fcall)
             ReverseDiff.special_forward_exec!,
             Tuple{ReverseDiff.SpecialInstruction{typeof($f)}},
         )
-            @noinline function $(esc(:(ReverseDiff.special_forward_exec!)))(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function ReverseDiff.special_forward_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
                 output, input = instruction.output, instruction.input
                 ReverseDiff.pull_value!.(input)
                 pullback = instruction.cache[2]
