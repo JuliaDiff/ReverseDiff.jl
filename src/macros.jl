@@ -259,9 +259,11 @@ that at least one of the argument is tracked.
 function _make_fwd_args(func, xs_l)
     has_tracked_data = any(xs_l) do arg
         isa(arg, Expr) && arg.head == :(::) &&
-            arg.args[end] in (:(ReverseDiff.TrackedReal), :(ReverseDiff.TrackedArray),
-                              :(ReverseDiff.TrackedVector), :(ReverseDiff.TrackedMatrix),
-                              :(ReverseDiff.TrackedVecOrMat))
+            arg.args[end] in (:(ReverseDiff.TrackedReal), :(TrackedReal),
+                              :(ReverseDiff.TrackedArray), :(TrackedArray),
+                              :(ReverseDiff.TrackedVector), :(TrackedVector),
+                              :(ReverseDiff.TrackedMatrix), :(TrackedMatrix),
+                              :(ReverseDiff.TrackedVecOrMat), :(TrackedVecOrMat))
     end
 
     has_tracked_data || error("The rule should have at least one tracked argument.")

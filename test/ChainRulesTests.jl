@@ -1,6 +1,7 @@
 module ChainRulesTest
 
 using LinearAlgebra
+using ChainRulesCore
 using ChainRules
 using DiffResults
 using ReverseDiff
@@ -8,19 +9,19 @@ using Test
 
 f(x) = sum(4x .+ 1)
 
-function ChainRules.rrule(::typeof(f), x)
+function ChainRulesCore.rrule(::typeof(f), x)
     r = f(x)
     function back(d)
         #=
         The proper derivative of `f` is 4, but in order to
-        check if `ChainRules.rrule` had taken over the compuation,
+        check if `ChainRulesCore.rrule` had taken over the compuation,
         we define a rrule that returns 3 as `f`'s derivative.
 
         After importing this rrule into ReverseDiff, if we get 3
         rather than 4 when we compute the derivative of `f`, it means
         the importing mechanism works.
         =#
-        return ChainRules.NoTangent(), fill(3 * d, size(x))
+        return ChainRulesCore.NoTangent(), fill(3 * d, size(x))
     end
     return r, back
 end
@@ -30,11 +31,11 @@ ReverseDiff.@grad_from_chainrules f(x::ReverseDiff.TrackedArray)
 
 g(x, y) = sum(4x .+ 4y)
 
-function ChainRules.rrule(::typeof(g), x, y)
+function ChainRulesCore.rrule(::typeof(g), x, y)
     r = g(x, y)
     function back(d)
         # same as above, use 3 and 5 as the derivatives
-        return ChainRules.NoTangent(), fill(3 * d, size(x)), fill(5 * d, size(x))
+        return ChainRulesCore.NoTangent(), fill(3 * d, size(x)), fill(5 * d, size(x))
     end
     return r, back
 end
@@ -47,13 +48,13 @@ ReverseDiff.@grad_from_chainrules g(x::ReverseDiff.TrackedArray, y::ReverseDiff.
     ## ChainRules
     # function f
     input = rand(3, 3)
-    output, back = ChainRules.rrule(f, input);
+    output, back = ChainRulesCore.rrule(f, input);
     _, d = back(1)
     @test output == f(input)
     @test d == fill(3, size(input))
     # function g
     inputs = rand(3, 3), rand(3, 3)
-    output, back = ChainRules.rrule(g, inputs...);
+    output, back = ChainRulesCore.rrule(g, inputs...);
     _, d1, d2 = back(1)
     @test output == g(inputs...)
     @test d1 == fill(3, size(inputs[1]))
@@ -127,5 +128,38 @@ end
     @test results[1] == fill(38, size(inputs[1])) # 38 = 3 + 5 * 7
 end
 
+module IsolatedModuleForTestingScoping
+using ChainRulesCore
+using ReverseDiff: @grad_from_chainrules
+
+f(x) = sum(4x .+ 1)
+
+function ChainRulesCore.rrule(::typeof(f), x)
+    r = f(x)
+    function back(d)
+        # return a distinguishable but improper grad
+        return ChainRulesCore.NoTangent(), fill(3 * d, size(x))
+    end
+    return r, back
+end
+
+@grad_from_chainrules f(x::TrackedArray)
+
+module SubModule
+using Test
+using ReverseDiff: TrackedArray, GradientTape, gradient!
+using ..IsolatedModuleForTestingScoping: f
+@testset "rrule in Isolated Scope" begin
+    inputs = (rand(3, 3), )
+
+    results = (similar(inputs[1]),)
+    f_tape = GradientTape(x -> f(x) + 2, (rand(3, 3),))
+    gradient!(results, f_tape, inputs)
+
+    @test results[1] == fill(3, size(inputs[1]))
+end
+
+end # end if SubModule
+end # end of IsolatedModuleForTestingScoping
 
 end
