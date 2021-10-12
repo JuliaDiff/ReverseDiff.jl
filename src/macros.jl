@@ -279,7 +279,7 @@ function _make_fwd_args(func, xs_l)
     end
 
     xs_t = filter(copy(xs_l)) do arg
-        !(isa(arg, Expr) && arg.head in (:parameters, :...))
+        !(isa(arg, Expr) && arg.head == :parameters)
     end
 
     return xs_l, xs_r, xs_t
@@ -313,8 +313,8 @@ macro grad_from_chainrules(fcall)
 
     return quote
         $f($(xs_l...)) = ReverseDiff.track($(xs_r...))
-        function ReverseDiff.track(::typeof($f), $(xs_t...), args...; kwargs...)
-            args = ($(xs_t...), args...)
+        function ReverseDiff.track(::typeof($f), $(xs_t...); kwargs...)
+            args = ($(xs_t...),)
             tp = ReverseDiff.tape(args...)
             output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; kwargs...)
             output = ReverseDiff.track(output_value, tp)
