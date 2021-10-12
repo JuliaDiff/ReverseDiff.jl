@@ -93,6 +93,18 @@ ReverseDiff.@grad_from_chainrules g(x::ReverseDiff.TrackedArray, y::ReverseDiff.
 
 end
 
+### Tape test
+@testset "Tape test: Ensure ordinary call is not tracked" begin
+    tp = ReverseDiff.InstructionTape()
+
+    f(x) = sum(2x .+ g([1, 2], [3, 4]))
+    x = rand(3, 3)
+    xt = ReverseDiff.track(copy(x), tp)
+    # record
+    yt = f(xt)
+    @test length(tp) == 3 # sum, broadcast+, broadcast*, but not `g`
+end
+
 ### Functions with varargs and kwargs
 # Varargs
 f_vararg(x, args...) = sum(4x .+ sum(args))
