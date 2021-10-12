@@ -141,7 +141,7 @@ ReverseDiff.@grad_from_chainrules f_kw(x::ReverseDiff.TrackedArray, args...; k=1
     @test results[1] == fill(3, size(inputs[1]))
 end
 
-## Mix @grad and @grad_from_chainrules
+### Mix @grad and @grad_from_chainrules
 
 h(x) = 10x
 h(x::ReverseDiff.TrackedArray) = ReverseDiff.track(h, x)
@@ -160,6 +160,7 @@ end
     @test results[1] == fill(38, size(inputs[1])) # 38 = 3 + 5 * 7
 end
 
+### Isolated Scope
 module IsolatedModuleForTestingScoping
 using ChainRulesCore
 using ReverseDiff: @grad_from_chainrules
@@ -191,7 +192,7 @@ using ..IsolatedModuleForTestingScoping: f
     @test results[1] == fill(3, size(inputs[1]))
 end
 
-end # end if SubModule
+end # end of SubModule
 end # end of IsolatedModuleForTestingScoping
 
 end
