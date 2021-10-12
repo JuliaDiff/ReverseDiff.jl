@@ -2,7 +2,6 @@ module ChainRulesTest
 
 using LinearAlgebra
 using ChainRulesCore
-using ChainRules
 using DiffResults
 using ReverseDiff
 using Test
@@ -94,19 +93,52 @@ ReverseDiff.@grad_from_chainrules g(x::ReverseDiff.TrackedArray, y::ReverseDiff.
 
 end
 
-### Functions from ChainRules
+### Functions with varargs and kwargs
+# Varargs
+f_vararg(x, args...) = sum(4x .+ sum(args))
 
-# import rrule from ChainRules
-ReverseDiff.@grad_from_chainrules LinearAlgebra.norm1(x::ReverseDiff.TrackedArray)
+function ChainRulesCore.rrule(::typeof(f_vararg), x, args...)
+    r = f_vararg(x, args...)
+    function back(d)
+        return ChainRulesCore.NoTangent(), fill(3 * d, size(x))
+    end
+    return r, back
+end
 
-@testset "test imported rrules" begin
+ReverseDiff.@grad_from_chainrules f_vararg(x::ReverseDiff.TrackedArray, args...)
+
+@testset "Function with Varargs" begin
     inputs = (rand(3, 3), )
-    results = (similar(inputs[1]),)
 
-    g = (x) -> LinearAlgebra.norm1(x)
-    g_tape = ReverseDiff.GradientTape(g, (rand(3, 3),))
-    ReverseDiff.gradient!(results, g_tape, inputs)
-    @test results[1] == fill(1, size(inputs[1]))
+    results = (similar(inputs[1]),)
+    f_tape = ReverseDiff.GradientTape(x -> f_vararg(x, 1, 2, 3) + 2, (rand(3, 3),))
+    ReverseDiff.gradient!(results, f_tape, inputs)
+
+    @test results[1] == fill(3, size(inputs[1]))
+end
+
+
+# Vargs and kwargs
+f_kw(x, args...; k=1, kwargs...) = sum(4x .+ sum(args) .+ (k + kwargs[:j]))
+
+function ChainRulesCore.rrule(::typeof(f_kw), x, args...; k=1, kwargs...)
+    r = f_kw(x, args...; k=k, kwargs...)
+    function back(d)
+        return ChainRulesCore.NoTangent(), fill(3 * d, size(x))
+    end
+    return r, back
+end
+
+ReverseDiff.@grad_from_chainrules f_kw(x::ReverseDiff.TrackedArray, args...; k=1, kwargs...)
+
+@testset "Function with Varargs and kwargs" begin
+    inputs = (rand(3, 3), )
+
+    results = (similar(inputs[1]),)
+    f_tape = ReverseDiff.GradientTape(x -> f_kw(x, 1, 2, 3; k=2, j=3) + 2, (rand(3, 3),))
+    ReverseDiff.gradient!(results, f_tape, inputs)
+
+    @test results[1] == fill(3, size(inputs[1]))
 end
 
 ## Mix @grad and @grad_from_chainrules

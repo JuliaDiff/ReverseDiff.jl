@@ -242,10 +242,12 @@ end
     _make_fwd_args(func, arg_list)
 
 Function `_make_fwd_args` accepts a function name and an argument
-list, returns a tuple of argument lists whose elements are: 1. the
-`arg_list` untouched, 2. a new argument list with the function as its
-first element and other elements in `arg_list` followed, 3. a new
-argument list with all varargs removed. E.g.:
+list, returns a tuple of argument lists whose elements are:
+1. the`arg_list` untouched, 2. a new argument list with the function
+as its first element and other elements in `arg_list` followed, 3. a
+new argument for the definition of function `track`, 4. a new argument
+list with all kwargs removed, 5 the kwargs name if any otherwise an
+empty tuple. E.g.:
 
 _make_fwd_args(:f, [:(a::String), :(b::TrackedReal), :(args...)])
 
@@ -253,14 +255,16 @@ returns
 
 ([:(a::String), :(b::TrackedReal), :(args...)],
  [:f, :(a::String), :(b::TrackedReal), :(args...)],
- [:(a::String), :(b::TrackedReal)])
+ [:(::typeof(f)), :(a::String), :(b::TrackedReal), :(args...)],
+ [:(a::String), :(b::TrackedReal), :(args...)],
+ :kwargs)
 
 It also deals with varargs and variable keyword arguments, and ensures
 that at least one of the argument is tracked.
 
 """
-function _make_fwd_args(func, xs_l)
-    has_tracked_data = any(xs_l) do arg
+function _make_fwd_args(func, args_l)
+    has_tracked_data = any(args_l) do arg
         isa(arg, Expr) && arg.head == :(::) &&
             arg.args[end] in (:(ReverseDiff.TrackedReal), :(TrackedReal),
                               :(ReverseDiff.TrackedArray), :(TrackedArray),
@@ -271,18 +275,24 @@ function _make_fwd_args(func, xs_l)
 
     has_tracked_data || error("The rule should have at least one tracked argument.")
 
-    xs_r = copy(xs_l)
-    if isa(xs_r[1], Expr) && xs_r[1].head == :parameters # has kw args
-        insert!(xs_r, 2, func)
+    kwargs = :(())
+    args_r = copy(args_l)
+    args_track = copy(args_l)
+    if isa(args_r[1], Expr) && args_r[1].head == :parameters # has kw args
+        insert!(args_r, 2, func)
+        insert!(args_track, 2, :(::typeof($func)))
+        kwargs = gensym(:kwargs)
+        args_track[1].args = [:($(kwargs)...)]
     else
-        insert!(xs_r, 1, func)
+        insert!(args_r, 1, func)
+        insert!(args_track, 1, :(::typeof($func)))
     end
 
-    xs_t = filter(copy(xs_l)) do arg
+    args_fixed = filter(copy(args_l)) do arg
         !(isa(arg, Expr) && arg.head == :parameters)
     end
 
-    return xs_l, xs_r, xs_t
+    return args_l, args_r, args_track, args_fixed, kwargs
 end
 
 """
@@ -309,14 +319,14 @@ macro grad_from_chainrules(fcall)
     fcall.head == :call || error("The rule should be in format of a function call.")
     @capture(fcall, f_(xs__)) # extract information into f and xs
     f = esc(f)
-    xs_l, xs_r, xs_t = _make_fwd_args(f, xs)
+    args_l, args_r, args_track, args_fixed, kwargs = _make_fwd_args(f, xs)
 
     return quote
-        $f($(xs_l...)) = ReverseDiff.track($(xs_r...))
-        function ReverseDiff.track(::typeof($f), $(xs_t...); kwargs...)
-            args = ($(xs_t...),)
+        $f($(args_l...)) = ReverseDiff.track($(args_r...))
+        function ReverseDiff.track($(args_track...))
+            args = ($(args_fixed...),)
             tp = ReverseDiff.tape(args...)
-            output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; kwargs...)
+            output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; $kwargs...)
             output = ReverseDiff.track(output_value, tp)
             closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule($f, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
             ReverseDiff.record!(
@@ -325,7 +335,7 @@ macro grad_from_chainrules(fcall)
                 $f,
                 args,
                 output,
-                (back, closure, kwargs),
+                (back, closure, $kwargs),
             )
             return output
         end
