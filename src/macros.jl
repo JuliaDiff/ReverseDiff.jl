@@ -246,8 +246,8 @@ list, returns a tuple of argument lists whose elements are:
 1. the`arg_list` untouched, 2. a new argument list with the function
 as its first element and other elements in `arg_list` followed, 3. a
 new argument for the definition of function `track`, 4. a new argument
-list with all kwargs removed, 5 the kwargs name if any otherwise an
-empty tuple. E.g.:
+list with all kwargs removed, 5, types of the arguments in the 4th
+element, 5 the kwargs name if any otherwise an empty tuple. E.g.:
 
 _make_fwd_args(:f, [:(a::String), :(b::TrackedReal), :(args...)])
 
@@ -257,6 +257,7 @@ returns
  [:f, :(a::String), :(b::TrackedReal), :(args...)],
  [:(::typeof(f)), :(a::String), :(b::TrackedReal), :(args...)],
  [:(a::String), :(b::TrackedReal), :(args...)],
+ [:String, :TrackedReal, :(Vararg{Any})],
  :kwargs)
 
 It also deals with varargs and variable keyword arguments, and ensures
@@ -292,7 +293,18 @@ function _make_fwd_args(func, args_l)
         !(isa(arg, Expr) && arg.head == :parameters)
     end
 
-    return args_l, args_r, args_track, args_fixed, kwargs
+    arg_types = map(args_fixed) do arg
+        if isa(arg, Expr) && arg.head == :(...)
+            :(Vararg{Any})
+        elseif isa(arg, Expr) && arg.head == :(::)
+            arg.args[end]
+        else
+            :Any
+        end
+    end
+
+
+    return args_l, args_r, args_track, args_fixed, arg_types, kwargs
 end
 
 """
@@ -319,7 +331,7 @@ macro grad_from_chainrules(fcall)
     fcall.head == :call || error("The rule should be in format of a function call.")
     @capture(fcall, f_(xs__)) # extract information into f and xs
     f = esc(f)
-    args_l, args_r, args_track, args_fixed, kwargs = _make_fwd_args(f, xs)
+    args_l, args_r, args_track, args_fixed, arg_types, kwargs = _make_fwd_args(f, xs)
 
     return quote
         $f($(args_l...)) = ReverseDiff.track($(args_r...))
@@ -340,36 +352,26 @@ macro grad_from_chainrules(fcall)
             return output
         end
 
-        if !hasmethod(
-            ReverseDiff.special_reverse_exec!,
-            Tuple{ReverseDiff.SpecialInstruction{typeof($f)}},
-        )
-            @noinline function ReverseDiff.special_reverse_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
-                output = instruction.output
-                input = instruction.input
-                back = instruction.cache[1]
-                back_output = back(ReverseDiff.deriv(output))
-                input_derivs = back_output[2:end]
-                @assert input_derivs isa Tuple
-                ReverseDiff._add_to_deriv!.(input, input_derivs)
-                ReverseDiff.unseed!(output)
-                return nothing
-            end
+        @noinline function ReverseDiff.special_reverse_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+            output = instruction.output
+            input = instruction.input
+            back = instruction.cache[1]
+            back_output = back(ReverseDiff.deriv(output))
+            input_derivs = back_output[2:end]
+            @assert input_derivs isa Tuple
+            ReverseDiff._add_to_deriv!.(input, input_derivs)
+            ReverseDiff.unseed!(output)
+            return nothing
         end
 
-        if !hasmethod(
-            ReverseDiff.special_forward_exec!,
-            Tuple{ReverseDiff.SpecialInstruction{typeof($f)}},
-        )
-            @noinline function ReverseDiff.special_forward_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f)})
-                output, input = instruction.output, instruction.input
-                ReverseDiff.pull_value!.(input)
-                pullback = instruction.cache[2]
-                kwargs = instruction.cache[3]
-                out_value = pullback(input...; kwargs...)[1]
-                ReverseDiff.value!(output, out_value)
-                return nothing
-            end
+        @noinline function ReverseDiff.special_forward_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+            output, input = instruction.output, instruction.input
+            ReverseDiff.pull_value!.(input)
+            pullback = instruction.cache[2]
+            kwargs = instruction.cache[3]
+            out_value = pullback(input...; kwargs...)[1]
+            ReverseDiff.value!(output, out_value)
+            return nothing
         end
     end
 end
