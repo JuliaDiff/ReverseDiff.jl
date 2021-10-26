@@ -265,21 +265,10 @@ that at least one of the argument is tracked.
 
 """
 function _make_fwd_args(func, args_l)
-    has_tracked_data = any(args_l) do arg
-        isa(arg, Expr) && arg.head == :(::) &&
-            arg.args[end] in (:(ReverseDiff.TrackedReal), :(TrackedReal),
-                              :(ReverseDiff.TrackedArray), :(TrackedArray),
-                              :(ReverseDiff.TrackedVector), :(TrackedVector),
-                              :(ReverseDiff.TrackedMatrix), :(TrackedMatrix),
-                              :(ReverseDiff.TrackedVecOrMat), :(TrackedVecOrMat))
-    end
-
-    has_tracked_data || error("The rule should have at least one tracked argument.")
-
     kwargs = :(())
     args_r = copy(args_l)
     args_track = copy(args_l)
-    if isa(args_r[1], Expr) && args_r[1].head == :parameters # has kw args
+    if Meta.isexpr(args_r[1], :parameters) # has kw args
         insert!(args_r, 2, func)
         insert!(args_track, 2, :(::typeof($func)))
         kwargs = gensym(:kwargs)
@@ -290,25 +279,24 @@ function _make_fwd_args(func, args_l)
     end
 
     args_fixed = filter(copy(args_l)) do arg
-        !(isa(arg, Expr) && arg.head == :parameters)
+        !Meta.isexpr(arg, :parameters)
     end
 
     arg_types = map(args_fixed) do arg
-        if isa(arg, Expr) && arg.head == :(...)
-            :(Vararg{Any})
-        elseif isa(arg, Expr) && arg.head == :(::)
+        if Meta.isexpr(arg, :(...))
+            Meta.isexpr(arg.args[1], :(::)) ? :(Vararg{$(arg.args[1].args[end])}) : :(Vararg{Any})
+        elseif Meta.isexpr(arg, :(::))
             arg.args[end]
         else
             :Any
         end
     end
 
-
     return args_l, args_r, args_track, args_fixed, arg_types, kwargs
 end
 
 """
-    ReverseDiff.@grad_from_chainrules Base.sin(x::TrackedReal)
+    @grad_from_chainrules f(args...; kwargs...)
 
 The `@grad_from_chainrules` macro provides a way to import
 adjoints(rrule) defined in ChainRules to ReverseDiff. One must provide
@@ -319,17 +307,17 @@ to which one wants to take derivatives with respect with
 respectively. For example, we can import `rrule` of `f(x::Real,
 y::Array)` like below:
 
-
 ```julia
 ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::TrackedArray)
 ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::Array)
 ReverseDiff.@grad_from_chainrules f(x::Real, y::TrackedArray)
 ```
-
 """
 macro grad_from_chainrules(fcall)
-    fcall.head == :call || error("The rule should be in format of a function call.")
-    @capture(fcall, f_(xs__)) # extract information into f and xs
+    Meta.isexpr(fcall, :call) && length(fcall.args) >= 2 ||
+        error("`@grad_from_chainrules` has to be applied to a function signature")
+    f = fcall.args[1]
+    xs = fcall.args[2:end]
     f = esc(f)
     args_l, args_r, args_track, args_fixed, arg_types, kwargs = _make_fwd_args(f, xs)
 
