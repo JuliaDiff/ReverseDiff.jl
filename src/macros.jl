@@ -316,9 +316,8 @@ ReverseDiff.@grad_from_chainrules f(x::Real, y::TrackedArray)
 macro grad_from_chainrules(fcall)
     Meta.isexpr(fcall, :call) && length(fcall.args) >= 2 ||
         error("`@grad_from_chainrules` has to be applied to a function signature")
-    f = fcall.args[1]
+    f = esc(fcall.args[1])
     xs = fcall.args[2:end]
-    f = esc(f)
     args_l, args_r, args_track, args_fixed, arg_types, kwargs = _make_fwd_args(f, xs)
 
     return quote
