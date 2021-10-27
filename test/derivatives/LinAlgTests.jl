@@ -79,7 +79,7 @@ function test_arr2arr(f, a, b, tp)
     ReverseDiff.value!(at, a2)
     ReverseDiff.forward_pass!(tp)
     @test value(ct) == f(a2, b)
-    
+
     ReverseDiff.value!(at, a)
     empty!(tp)
 

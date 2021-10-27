@@ -17,6 +17,8 @@ using StaticArrays
 
 using MacroTools
 
+using ChainRulesCore
+
 # Not all operations will be valid over all of these types, but that's okay; such cases
 # will simply error when they hit the original operation in the overloaded definition.
 const ARRAY_TYPES = (:AbstractArray, :AbstractVector, :AbstractMatrix, :Array, :Vector, :Matrix)

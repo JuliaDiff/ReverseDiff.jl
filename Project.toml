@@ -1,8 +1,9 @@
 name = "ReverseDiff"
 uuid = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
-version = "1.9.0"
+version = "1.10.0"
 
 [deps]
+ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
 DiffRules = "b552c78f-8df3-52c6-915a-8e097449b14b"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
@@ -16,6 +17,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
+ChainRulesCore = "1"
 DiffResults = "1"
 DiffRules = "0.1, 1"
 ForwardDiff = "0.10"

@@ -237,7 +237,136 @@ macro grad(expr)
         end
     end |> esc
 end
+
+"""
+    _make_fwd_args(func, arg_list)
+
+Function `_make_fwd_args` accepts a function name and an argument
+list, returns a tuple of argument lists whose elements are:
+1. the`arg_list` untouched, 2. a new argument list with the function
+as its first element and other elements in `arg_list` followed, 3. a
+new argument for the definition of function `track`, 4. a new argument
+list with all kwargs removed, 5, types of the arguments in the 4th
+element, 5 the kwargs name if any otherwise an empty tuple. E.g.:
+
+_make_fwd_args(:f, [:(a::String), :(b::TrackedReal), :(args...)])
+
+returns
+
+([:(a::String), :(b::TrackedReal), :(args...)],
+ [:f, :(a::String), :(b::TrackedReal), :(args...)],
+ [:(::typeof(f)), :(a::String), :(b::TrackedReal), :(args...)],
+ [:(a::String), :(b::TrackedReal), :(args...)],
+ [:String, :TrackedReal, :(Vararg{Any})],
+ :kwargs)
+
+It also deals with varargs and variable keyword arguments, and ensures
+that at least one of the argument is tracked.
+
+"""
+function _make_fwd_args(func, args_l)
+    kwargs = :(())
+    args_r = copy(args_l)
+    args_track = copy(args_l)
+    if Meta.isexpr(args_r[1], :parameters) # has kw args
+        insert!(args_r, 2, func)
+        insert!(args_track, 2, :(::typeof($func)))
+        kwargs = gensym(:kwargs)
+        args_track[1].args = [:($(kwargs)...)]
+    else
+        insert!(args_r, 1, func)
+        insert!(args_track, 1, :(::typeof($func)))
+    end
+
+    args_fixed = filter(copy(args_l)) do arg
+        !Meta.isexpr(arg, :parameters)
+    end
+
+    arg_types = map(args_fixed) do arg
+        if Meta.isexpr(arg, :(...))
+            Meta.isexpr(arg.args[1], :(::)) ? :(Vararg{$(arg.args[1].args[end])}) : :(Vararg{Any})
+        elseif Meta.isexpr(arg, :(::))
+            arg.args[end]
+        else
+            :Any
+        end
+    end
+
+    return args_l, args_r, args_track, args_fixed, arg_types, kwargs
+end
+
+"""
+    @grad_from_chainrules f(args...; kwargs...)
+
+The `@grad_from_chainrules` macro provides a way to import
+adjoints(rrule) defined in ChainRules to ReverseDiff. One must provide
+a method signature to import the corresponding `rrule`. In the
+provided method signature, one should replace the types of arguments
+to which one wants to take derivatives with respect with
+`ReverseDiff.TrackedReal` and `ReverseDiff.TrackedArray`
+respectively. For example, we can import `rrule` of `f(x::Real,
+y::Array)` like below:
+
+```julia
+ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::TrackedArray)
+ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::Array)
+ReverseDiff.@grad_from_chainrules f(x::Real, y::TrackedArray)
+```
+"""
+macro grad_from_chainrules(fcall)
+    Meta.isexpr(fcall, :call) && length(fcall.args) >= 2 ||
+        error("`@grad_from_chainrules` has to be applied to a function signature")
+    f = esc(fcall.args[1])
+    xs = fcall.args[2:end]
+    args_l, args_r, args_track, args_fixed, arg_types, kwargs = _make_fwd_args(f, xs)
+
+    return quote
+        $f($(args_l...)) = ReverseDiff.track($(args_r...))
+        function ReverseDiff.track($(args_track...))
+            args = ($(args_fixed...),)
+            tp = ReverseDiff.tape(args...)
+            output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; $kwargs...)
+            output = ReverseDiff.track(output_value, tp)
+            closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule($f, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
+            ReverseDiff.record!(
+                tp,
+                ReverseDiff.SpecialInstruction,
+                $f,
+                args,
+                output,
+                (back, closure, $kwargs),
+            )
+            return output
+        end
+
+        @noinline function ReverseDiff.special_reverse_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+            output = instruction.output
+            input = instruction.input
+            back = instruction.cache[1]
+            back_output = back(ReverseDiff.deriv(output))
+            input_derivs = back_output[2:end]
+            @assert input_derivs isa Tuple
+            ReverseDiff._add_to_deriv!.(input, input_derivs)
+            ReverseDiff.unseed!(output)
+            return nothing
+        end
+
+        @noinline function ReverseDiff.special_forward_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+            output, input = instruction.output, instruction.input
+            ReverseDiff.pull_value!.(input)
+            pullback = instruction.cache[2]
+            kwargs = instruction.cache[3]
+            out_value = pullback(input...; kwargs...)[1]
+            ReverseDiff.value!(output, out_value)
+            return nothing
+        end
+    end
+end
+
 _add_to_deriv!(d1, d2) = nothing
+function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2::AbstractThunk)
+    increment_deriv!(d1, unthunk(d2))
+end
 function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2)
     increment_deriv!(d1, d2)
 end
