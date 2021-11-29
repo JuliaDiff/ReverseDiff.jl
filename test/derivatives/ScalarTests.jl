@@ -1,6 +1,14 @@
 module ScalarTests
 
-using ReverseDiff, ForwardDiff, Test, DiffRules, SpecialFunctions, NaNMath
+using ReverseDiff
+
+using DiffRules
+using ForwardDiff
+using LogExpFunctions
+using NaNMath
+using SpecialFunctions
+
+using Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -8,7 +16,7 @@ x, a, b = rand(3)
 tp = InstructionTape()
 int_range = 1:10
 
-function test_forward(f, x, tp::InstructionTape, is_domain_err_func::Bool)
+function test_forward(f, x, tp::InstructionTape, fsym::Symbol)
     xt = ReverseDiff.TrackedReal(x, zero(x), tp)
     y = f(x)
 
@@ -23,7 +31,7 @@ function test_forward(f, x, tp::InstructionTape, is_domain_err_func::Bool)
     @test deriv(xt) == ForwardDiff.derivative(f, x)
 
     # forward
-    x2 = is_domain_err_func ? rand() + 1 : rand()
+    x2 = modify_input(fsym, rand())
     ReverseDiff.value!(xt, x2)
     ReverseDiff.forward_pass!(tp)
     @test value(yt) == f(x2)
@@ -133,15 +141,25 @@ function test_skip(f, a, b, tp)
     @test isempty(tp)
 end
 
-DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
+# ensure that input is in domain of function
+function modify_input(f, x)
+    return if in(f, (:asec, :acsc, :asecd, :acscd, :acosh, :acoth))
+        x .+ one(eltype(x))
+    elseif f === :log1mexp || f === :log2mexp
+        x .- one(eltype(x))
+    else
+        x
+    end
+end
 
-for (M, f, arity) in DiffRules.diffrules()
+for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+    if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
+        continue  # Skip rules for methods not defined in the current scope
+    end
     f === :rem2pi && continue
     if arity == 1
         test_println("forward-mode unary scalar functions", string(M, ".", f))
-        is_domain_err_func = in(f, DOMAIN_ERR_FUNCS)
-        n = is_domain_err_func ? x + 1 : x
-        test_forward(eval(:($M.$f)), n, tp, is_domain_err_func)
+        test_forward(eval(:($M.$f)), modify_input(f, x), tp, f)
     elseif arity == 2
         in(f, SKIPPED_BINARY_SCALAR_TESTS) && continue
         test_println("forward-mode binary scalar functions", f)
@@ -153,7 +171,7 @@ INT_ONLY_FUNCS = (:iseven, :isodd)
 
 for f in ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS
     test_println("SKIPPED_UNARY_SCALAR_FUNCS", f)
-    n = in(f, DOMAIN_ERR_FUNCS) ? x + 1 : x
+    n = modify_input(f, x)
     n = in(f, INT_ONLY_FUNCS) ? ceil(Int, n) : n
     test_skip(eval(f), n, tp)
 end
