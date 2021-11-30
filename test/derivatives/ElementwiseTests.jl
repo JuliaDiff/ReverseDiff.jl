@@ -388,20 +388,10 @@ for f in DiffTests.NUMBER_TO_NUMBER_FUNCS
     test_elementwise(f, ReverseDiff.@forward(f), a, tp)
 end
 
-# ensure that input is in domain of function
-function modify_input(f, x)
-    return if in(f, (:asec, :acsc, :asecd, :acscd, :acosh, :acoth))
-        x .+ one(eltype(x))
-    elseif f === :log1mexp || f === :log2mexp
-        x .- one(eltype(x))
-    else
-        x
-    end
-end
-
 for (M, fsym, arity) in DiffRules.diffrules(; filter_modules=nothing)
+    # ensure that all rules can be tested
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), fsym))
-        continue  # Skip rules for methods not defined in the current scope
+        error("$M.$fsym is not available")
     end
     fsym === :rem2pi && continue
     if arity == 1

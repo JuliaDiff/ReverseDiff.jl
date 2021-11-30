@@ -23,3 +23,16 @@ test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 tracked_is(a, b) = value(a) === value(b) && deriv(a) === deriv(b) && tape(a) === tape(b)
 tracked_is(a::AbstractArray, b::AbstractArray) = all(map(tracked_is, a, b))
 tracked_is(a::Tuple, b::Tuple) = all(map(tracked_is, a, b))
+
+# ensure that input is in domain of function
+# here `x` is a scalar or array generated with `rand(dims...)`, i.e., values of `x`
+# are between 0 and 1
+function modify_input(f, x)
+    return if in(f, (:asec, :acsc, :asecd, :acscd, :acosh, :acoth))
+        x .+ one(eltype(x))
+    elseif f === :log1mexp || f === :log2mexp
+        x .- one(eltype(x))
+    else
+        x
+    end
+end

@@ -141,20 +141,10 @@ function test_skip(f, a, b, tp)
     @test isempty(tp)
 end
 
-# ensure that input is in domain of function
-function modify_input(f, x)
-    return if in(f, (:asec, :acsc, :asecd, :acscd, :acosh, :acoth))
-        x .+ one(eltype(x))
-    elseif f === :log1mexp || f === :log2mexp
-        x .- one(eltype(x))
-    else
-        x
-    end
-end
-
 for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+    # ensure that function is defined
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
-        continue  # Skip rules for methods not defined in the current scope
+        error("$M.$f is not available")
     end
     f === :rem2pi && continue
     if arity == 1
