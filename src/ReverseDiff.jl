@@ -15,6 +15,8 @@ using ForwardDiff
 using ForwardDiff: Dual, Partials
 using StaticArrays
 
+using LogExpFunctions: LogExpFunctions
+
 using MacroTools
 
 using ChainRulesCore

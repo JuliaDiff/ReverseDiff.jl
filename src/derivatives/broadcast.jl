@@ -264,8 +264,11 @@ end
 
 @inline _materialize(f, args) = broadcast(f, args...)
 
-for (M, f, arity) in DiffRules.diffrules()
-    isdefined(ReverseDiff, M) || continue
+for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+    if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
+        @warn "$M.$f is not available and hence rule for it can not be defined"
+        continue  # Skip rules for methods not defined in the current scope
+    end
     if arity == 1
         @eval @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedArray}}) = _materialize(bc.f, bc.args)
     elseif arity == 2
