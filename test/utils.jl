@@ -10,7 +10,7 @@ const COMPILED_TAPE_LIMIT = 5000
 # machinery is currently too dumb to handle them properly.
 const SKIPPED_BINARY_SCALAR_TESTS = Symbol[:hankelh1, :hankelh1x, :hankelh2, :hankelh2x,
                                            :pow, :besselj, :besseli, :bessely, :besselk,
-                                           :polygamma]
+                                           :polygamma, :ldexp]
 
 # make RNG deterministic, and thus make result inaccuracies
 # deterministic so we don't have to retune EPS for arbitrary inputs
