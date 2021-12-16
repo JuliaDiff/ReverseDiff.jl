@@ -1,6 +1,15 @@
 module ElementwiseTests
 
-using ReverseDiff, ForwardDiff, Test, DiffRules, SpecialFunctions, NaNMath, DiffTests
+using ReverseDiff
+
+using DiffRules
+using DiffTests
+using ForwardDiff
+using LogExpFunctions
+using NaNMath
+using SpecialFunctions
+
+using Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -379,16 +388,17 @@ for f in DiffTests.NUMBER_TO_NUMBER_FUNCS
     test_elementwise(f, ReverseDiff.@forward(f), a, tp)
 end
 
-DOMAIN_ERR_FUNCS = (:asec, :acsc, :asecd, :acscd, :acoth, :acosh)
-
-for (M, fsym, arity) in DiffRules.diffrules()
+for (M, fsym, arity) in DiffRules.diffrules(; filter_modules=nothing)
+    # ensure that all rules can be tested
+    if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), fsym))
+        error("$M.$fsym is not available")
+    end
     fsym === :rem2pi && continue
     if arity == 1
         f = eval(:($M.$fsym))
-        is_domain_err_func = in(fsym, DOMAIN_ERR_FUNCS)
         test_println("forward-mode unary scalar functions", f)
-        test_elementwise(f, f, is_domain_err_func ? x .+ 1 : x, tp)
-        test_elementwise(f, f, is_domain_err_func ? a .+ 1 : a, tp)
+        test_elementwise(f, f, modify_input(fsym, x), tp)
+        test_elementwise(f, f, modify_input(fsym, a), tp)
     elseif arity == 2
         in(fsym, SKIPPED_BINARY_SCALAR_TESTS) && continue
         f = eval(:($M.$fsym))

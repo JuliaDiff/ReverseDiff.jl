@@ -2,7 +2,11 @@
 # ForwardOptimize #
 ###################
 
-for (M, f, arity) in DiffRules.diffrules()
+for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+    if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
+        @warn "$M.$f is not available and hence rule for it can not be defined"
+        continue  # Skip rules for methods not defined in the current scope
+    end
     if arity == 1
         @eval @inline $M.$(f)(t::TrackedReal) = ForwardOptimize($M.$(f))(t)
     elseif arity == 2
