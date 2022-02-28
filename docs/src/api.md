@@ -75,3 +75,9 @@ ReverseDiff.HessianConfig
 ReverseDiff.@forward
 ReverseDiff.@skip
 ```
+
+## ChainRules integration
+
+```@docs
+ReverseDiff.@grad_from_chainrules
+```
