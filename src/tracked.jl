@@ -428,9 +428,9 @@ Base.floor(::Type{R}, t::TrackedReal) where {R<:Real} = floor(R, value(t))
 Base.ceil(t::TrackedReal) = ceil(value(t))
 Base.ceil(::Type{R}, t::TrackedReal) where {R<:Real} = ceil(R, value(t))
 
-Base.fld(a::TrackedReal, b::TrackedReal) = fld(value(a), value(b))
+Base.fld(x::T, y::T) where {T<:TrackedReal} = fld(value(x), value(y))
 
-Base.cld(a::TrackedReal, b::TrackedReal) = cld(value(a), value(b))
+Base.cld(x::T, y::T) where {T<:TrackedReal} = cld(value(x), value(y))
 
 if VERSION ≥ v"1.4"
     Base.div(x::TrackedReal, y::TrackedReal, r::RoundingMode) = div(value(x), value(y), r)
