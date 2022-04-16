@@ -703,9 +703,11 @@ empty!(tp)
 ####################
 
 v_int, v_float, d = rand(Int), rand(), rand()
+v_float2, d2 = rand(), rand()
 tp = InstructionTape()
 tr_int = TrackedReal(v_int, d, tp)
 tr_float = TrackedReal(v_float, d, tp)
+tr_float2 = TrackedReal(v_float2, d2, tp)
 
 @test hash(tr_float) === hash(v_float)
 @test hash(tr_float, hash(1)) === hash(v_float, hash(1))
@@ -734,6 +736,26 @@ tr_rand = rand(MersenneTwister(1), TrackedReal{Int,Float64,Nothing})
 
 @test ceil(tr_float) === ceil(v_float)
 @test ceil(Int, tr_float) === ceil(Int, v_float)
+
+@test fld(tr_float, tr_float2) === fld(v_float, v_float2)
+@test fld(tr_float, v_float2) === fld(v_float, v_float2)
+@test fld(v_float, tr_float2) === fld(v_float, v_float2)
+
+@test cld(tr_float, tr_float2) === cld(v_float, v_float2)
+@test cld(tr_float, v_float2) === cld(v_float, v_float2)
+@test cld(v_float, tr_float2) === cld(v_float, v_float2)
+
+@test div(tr_float, tr_float2) === div(v_float, v_float2)
+@test div(v_float, tr_float2) === div(v_float, v_float2)
+@test div(tr_float, v_float2) === div(v_float, v_float2)
+
+if VERSION ≥ v"1.4"
+    for r in (RoundUp, RoundDown)
+        @test div(tr_float, tr_float2, r) === div(v_float, v_float2, r)
+        @test div(v_float, tr_float2, r) === div(v_float, v_float2, r)
+        @test div(tr_float, v_float2, r) === div(v_float, v_float2, r)
+    end
+end
 
 @test trunc(tr_float) === trunc(v_float)
 @test trunc(Int, tr_float) === trunc(Int, v_float)
