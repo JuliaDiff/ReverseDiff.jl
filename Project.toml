@@ -1,6 +1,6 @@
 name = "ReverseDiff"
 uuid = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
-version = "1.13.0"
+version = "1.14.0"
 
 [deps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
@@ -25,7 +25,7 @@ ForwardDiff = "0.10"
 FunctionWrappers = "1"
 LogExpFunctions = "0.3"
 MacroTools = "0.5"
-NaNMath = "0.3"
+NaNMath = "0.3, 1"
 SpecialFunctions = "0.8, 0.9, 0.10, 1.0, 2"
 StaticArrays = "0.10, 0.11, 0.12, 1.0"
 julia = "1"
