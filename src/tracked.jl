@@ -280,7 +280,7 @@ Base.promote_rule(::Type{TrackedReal{V1,D1,O1}}, ::Type{TrackedReal{V2,D2,O2}}) 
 # AbstractArray Interface #
 ###########################
 
-Base.getindex(t::TrackedArray, i::Int) = TrackedReal(value(t)[i], deriv(t)[i], tape(t), i, t)
+Base.getindex(t::TrackedArray, i::Integer) = TrackedReal(value(t)[i], deriv(t)[i], tape(t), i, t)
 
 colon2range(s, i) = i
 colon2range(s, ::Colon) = s
