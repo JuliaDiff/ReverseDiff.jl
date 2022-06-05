@@ -280,8 +280,6 @@ Base.promote_rule(::Type{TrackedReal{V1,D1,O1}}, ::Type{TrackedReal{V2,D2,O2}}) 
 # AbstractArray Interface #
 ###########################
 
-Base.getindex(t::TrackedArray, i::Int) = TrackedReal(value(t)[i], deriv(t)[i], tape(t), i, t)
-
 colon2range(s, i) = i
 colon2range(s, ::Colon) = s
 
@@ -296,10 +294,10 @@ function index_iterable(shape::NTuple{N,Any}, i::NTuple{M,Any}) where {N,M}
 end
 
 for T in (:AbstractRange, :Colon, :(Union{Colon,AbstractRange}))
-    @eval function Base.getindex(t::TrackedArray, i::$(T)...)
+    @eval Base.@propagate_inbounds function Base.getindex(t::TrackedArray, i1::$(T), is::$(T)...)
         tp = tape(t)
-        out = TrackedArray(value(t)[i...], deriv(t)[i...], tp)
-        idx = index_iterable(axes(t), i)
+        out = TrackedArray(value(t)[i1, is...], deriv(t)[i1, is...], tp)
+        idx = index_iterable(axes(t), (i1, is...))
         record!(tp, SpecialInstruction, getindex, (t, idx), out)
         return out
     end
@@ -329,24 +327,25 @@ end
     return nothing
 end
 
-function Base.getindex(t::TrackedArray, inds::AbstractArray{<:CartesianIndex})
+Base.@propagate_inbounds function Base.getindex(t::TrackedArray, inds::AbstractArray{<:CartesianIndex})
     tp = tape(t)
     out = TrackedArray(value(t)[inds], deriv(t)[inds], tp)
     record!(tp, SpecialInstruction, getindex, (t, inds), out)
     return out
 end
-function Base.getindex(t::TrackedArray, i::Int...)
-    ind = LinearIndices(t)[i...]
-    return TrackedReal(value(t)[i...], deriv(t)[i...], tape(t), ind, t)
+Base.@propagate_inbounds function Base.getindex(t::TrackedArray, i1::Integer, is::Integer...)
+    ind = LinearIndices(t)[i1, is...]
+    return TrackedReal(value(t)[i1, is...], deriv(t)[i1, is...], tape(t), ind, t)
 end
-function Base.getindex(t::TrackedArray, _inds::Union{Integer, Colon, AbstractArray{<:Integer}}...)
-    inds = ntuple(Val(length(_inds))) do i
-        _inds[i] isa Colon && return firstindex(t,i):lastindex(t,i)
-        return _inds[i]
+Base.@propagate_inbounds function Base.getindex(t::TrackedArray, _inds1::Union{Integer, Colon, AbstractArray{<:Integer}}, _inds2::Union{Integer, Colon, AbstractArray{<:Integer}}...)
+    inds1 = _inds1 isa Colon ? axes(t, 1) : _inds1
+    inds2 = ntuple(Val(length(_inds2))) do i
+        _inds2[i] isa Colon && return axes(t, i+1)
+        return _inds2[i]
     end
     tp = tape(t)
-    out = TrackedArray(value(t)[inds...], deriv(t)[inds...], tp)
-    record!(tp, SpecialInstruction, (getindex, Val(:generic)), (t, inds), out)
+    out = TrackedArray(value(t)[inds1, inds2...], deriv(t)[inds1, inds2...], tp)
+    record!(tp, SpecialInstruction, (getindex, Val(:generic)), (t, (inds1, inds2...)), out)
     return out
 end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{<:Tuple{typeof(getindex), Val{:generic}}})

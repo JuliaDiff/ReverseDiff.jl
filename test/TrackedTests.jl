@@ -616,7 +616,12 @@ ta = TrackedArray(varr, darr, tp)
 
 @test isa(similar(ta), Matrix{eltype(ta)})
 
-@test samefields(ta[2], TrackedReal(varr[2], darr[2], tp, 2, ta))
+for T in (UInt, Int)
+    @test samefields(ta[T(2)], TrackedReal(varr[2], darr[2], tp, 2, ta))
+    @test samefields(ta[T(2), T(3)], TrackedReal(varr[2, 3], darr[2, 3], tp, 8, ta))
+    S = T === UInt ? Int : UInt
+    @test samefields(ta[S(2), T(3)], TrackedReal(varr[2, 3], darr[2, 3], tp, 8, ta))
+end
 
 ta_sub = ta[:,:]
 idx = ReverseDiff.index_iterable(axes(ta), (:, :))
@@ -630,53 +635,58 @@ instr = tp[1]
 @test instr.cache === nothing
 empty!(tp)
 
-ta_sub = ta[:,1:2]
-idx = ReverseDiff.index_iterable(axes(ta), (:, 1:2))
-@test collect(idx) == [(i, j) for i in 1:3, j in 1:2]
-@test samefields(ta_sub, TrackedArray(varr[:,1:2], darr[:,1:2], tp))
-@test length(tp) == 1
-instr = tp[1]
-@test instr.func === getindex
-@test instr.input === (ta, idx)
-@test samefields(instr.output, TrackedArray(varr[:,1:2], darr[:,1:2], tp))
-@test instr.cache === nothing
-empty!(tp)
+for T in (UInt, Int)
+    ta_sub = ta[:,T(1):T(2)]
+    idx = ReverseDiff.index_iterable(axes(ta), (:, T(1):T(2)))
+    @test collect(idx) == [(i, j) for i in 1:3, j in 1:2]
+    @test samefields(ta_sub, TrackedArray(varr[:,1:2], darr[:,1:2], tp))
+    @test length(tp) == 1
+    instr = tp[1]
+    @test instr.func === getindex
+    @test instr.input === (ta, idx)
+    @test samefields(instr.output, TrackedArray(varr[:,1:2], darr[:,1:2], tp))
+    @test instr.cache === nothing
+    empty!(tp)
 
-ta_sub = ta[2:3,:]
-idx = ReverseDiff.index_iterable(axes(ta), (2:3, :))
-@test collect(idx) == [(i, j) for i in 2:3, j in 1:3]
-@test samefields(ta_sub, TrackedArray(varr[2:3,:], darr[2:3,:], tp))
-@test length(tp) == 1
-instr = tp[1]
-@test instr.func === getindex
-@test instr.input === (ta, idx)
-@test samefields(instr.output, TrackedArray(varr[2:3,:], darr[2:3,:], tp))
-@test instr.cache === nothing
-empty!(tp)
+    ta_sub = ta[T(2):T(3),:]
+    idx = ReverseDiff.index_iterable(axes(ta), (T(2):T(3), :))
+    @test collect(idx) == [(i, j) for i in 2:3, j in 1:3]
+    @test samefields(ta_sub, TrackedArray(varr[2:3,:], darr[2:3,:], tp))
+    @test length(tp) == 1
+    instr = tp[1]
+    @test instr.func === getindex
+    @test instr.input === (ta, idx)
+    @test samefields(instr.output, TrackedArray(varr[2:3,:], darr[2:3,:], tp))
+    @test instr.cache === nothing
+    empty!(tp)
 
-ta_sub = ta[1:2,2:3]
-idx = ReverseDiff.index_iterable(axes(ta), (1:2, 2:3))
-@test collect(idx) == [(i, j) for i in 1:2, j in 2:3]
-@test samefields(ta_sub, TrackedArray(varr[1:2,2:3], darr[1:2,2:3], tp))
-@test length(tp) == 1
-instr = tp[1]
-@test instr.func === getindex
-@test instr.input === (ta, idx)
-@test samefields(instr.output, TrackedArray(varr[1:2,2:3], darr[1:2,2:3], tp))
-@test instr.cache === nothing
-empty!(tp)
+    S = T === UInt ? Int : UInt
+    for U in (S, T)
+        ta_sub = ta[S(1):S(2),T(2):T(3)]
+        idx = ReverseDiff.index_iterable(axes(ta), (S(1):S(2), T(2):T(3)))
+        @test collect(idx) == [(i, j) for i in 1:2, j in 2:3]
+        @test samefields(ta_sub, TrackedArray(varr[1:2,2:3], darr[1:2,2:3], tp))
+        @test length(tp) == 1
+        instr = tp[1]
+        @test instr.func === getindex
+        @test instr.input === (ta, idx)
+        @test samefields(instr.output, TrackedArray(varr[1:2,2:3], darr[1:2,2:3], tp))
+        @test instr.cache === nothing
+        empty!(tp)
+    end
 
-ta_sub = ta[2:6]
-idx = ReverseDiff.index_iterable(axes(ta), (2:6,))
-@test collect(idx) == [(i,) for i in 2:6]
-@test samefields(ta_sub, TrackedArray(varr[2:6], darr[2:6], tp))
-@test length(tp) == 1
-instr = tp[1]
-@test instr.func === getindex
-@test instr.input === (ta, idx)
-@test samefields(instr.output, TrackedArray(varr[2:6], darr[2:6], tp))
-@test instr.cache === nothing
-empty!(tp)
+    ta_sub = ta[T(2):T(6)]
+    idx = ReverseDiff.index_iterable(axes(ta), (T(2):T(6),))
+    @test collect(idx) == [(i,) for i in 2:6]
+    @test samefields(ta_sub, TrackedArray(varr[2:6], darr[2:6], tp))
+    @test length(tp) == 1
+    instr = tp[1]
+    @test instr.func === getindex
+    @test instr.input === (ta, idx)
+    @test samefields(instr.output, TrackedArray(varr[2:6], darr[2:6], tp))
+    @test instr.cache === nothing
+    empty!(tp)
+end
 
 ta_sub = ta[:]
 idx = ReverseDiff.index_iterable(axes(ta), (:,))
