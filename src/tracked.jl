@@ -273,7 +273,7 @@ for R in REAL_TYPES
     @eval Base.promote_rule(::Type{$R}, ::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{promote_type($R,V),D,O}
 end
 
-Base.promote_rule(::Type{TrackedReal{V,D,O}}, ::Type{R}) where {V,D,O,R<:Real}) = TrackedReal{promote_type(R,V),D,O}
+Base.promote_rule(::Type{TrackedReal{V,D,O}}, ::Type{R}) where {V,D,O,R<:Real} = TrackedReal{promote_type(R,V),D,O}
 Base.promote_rule(::Type{TrackedReal{V1,D1,O1}}, ::Type{TrackedReal{V2,D2,O2}}) where {V1,V2,D1,D2,O1,O2} = TrackedReal{promote_type(V1,V2),promote_type(D1,D2),Nothing}
 
 ###########################
