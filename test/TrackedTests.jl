@@ -3,6 +3,8 @@ module TrackedTests
 using ReverseDiff, Test
 using ReverseDiff: TrackedReal, TrackedArray
 
+import ForwardDiff
+
 include(joinpath(dirname(@__FILE__), "utils.jl"))
 
 samefields(a, b) = a === b
@@ -601,8 +603,19 @@ empty!(tp)
 @test convert(typeof(ta), ta) === ta
 @test convert(typeof(ta1), ta1) === ta1
 
+@test promote_type(T, Bool) === T
+@test promote_type(T, Int32) === T
+@test promote_type(T, Int64) === T
+@test promote_type(T, Integer) === TrackedReal{BigInt,Float64,A}
+@test promote_type(T, typeof(ℯ)) === TrackedReal{BigFloat,Float64,A}
+@test promote_type(T, typeof(π)) === TrackedReal{BigFloat,Float64,A}
+@test promote_type(T, Rational{Int}) === TrackedReal{Rational{BigInt},Float64,A}
 @test promote_type(T, BigFloat) === TrackedReal{BigFloat,Float64,A}
+@test promote_type(T, BigInt) === T
 @test promote_type(T, Float64) === TrackedReal{BigFloat,Float64,A}
+@test promote_type(T, AbstractFloat) === TrackedReal{BigFloat,Float64,A}
+@test promote_type(T, Real) === TrackedReal{Real,Float64,A}
+@test promote_type(T, ForwardDiff.Dual{:tag,Float64,1}) === TrackedReal{ForwardDiff.Dual{:tag,BigFloat,1},Float64,A}
 @test promote_type(T, TrackedReal{BigFloat,BigFloat,Nothing}) === TrackedReal{BigFloat,BigFloat,Nothing}
 @test promote_type(T, T) === T
 
