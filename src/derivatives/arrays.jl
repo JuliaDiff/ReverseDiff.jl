@@ -33,7 +33,7 @@ function combinations(xs, n)
 end
 
 for f in [:hcat, :vcat]
-    for i = 0:2, c = combinations([:AbstractVector, :TrackedVector, :AbstractMatrix, :TrackedMatrix, :Number, :TrackedReal], i)
+    for i = 0:2, c = combinations([:AbstractVector, :Vector, :TrackedVector, :AbstractMatrix, :TrackedMatrix, :Number, :TrackedReal], i)
         cnames = map(_ -> gensym(), c)
         @eval begin
             Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedVector) = track($f, $(cnames...), x)
@@ -46,6 +46,7 @@ for f in [:hcat, :vcat]
             :Number,
             :AbstractVecOrMat,
             :(Union{AbstractVector, Number}),
+            :Vector,
         ]
             @eval begin
                 Base.$f($([:($x::$c) for (x, c) in zip(cnames, c)]...), x::TrackedVector, xs::$T...) = track($f, $(cnames...), x, xs...)
