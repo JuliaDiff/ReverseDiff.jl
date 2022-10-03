@@ -270,10 +270,22 @@ Base.convert(::Type{T}, t::T) where {T<:TrackedReal} = t
 Base.convert(::Type{T}, t::T) where {T<:TrackedArray} = t
 
 for R in REAL_TYPES
-    @eval Base.promote_rule(::Type{$R}, ::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{promote_type($R,V),D,O}
+    R === :Dual && continue # ForwardDiff.Dual is handled below 
+    @eval begin
+        if isconcretetype($R) # issue ForwardDiff#322
+            Base.promote_rule(::Type{TrackedReal{V,D,O}}, ::Type{$R}) where {V,D,O} = TrackedReal{promote_type(V,$R),D,O}
+            Base.promote_rule(::Type{$R}, ::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{promote_type($R,V),D,O}
+        else
+            Base.promote_rule(::Type{TrackedReal{V,D,O}}, ::Type{R}) where {V,D,O,R<:$R} = TrackedReal{promote_type(V,R),D,O}
+            Base.promote_rule(::Type{R}, ::Type{TrackedReal{V,D,O}}) where {R<:$R,V,D,O,} = TrackedReal{promote_type(R,V),D,O}
+        end
+    end
 end
 
-Base.promote_rule(::Type{R}, ::Type{TrackedReal{V,D,O}}) where {R<:Real,V,D,O} = TrackedReal{promote_type(R,V),D,O}
+# Avoid method ambiguities for ForwardDiff.Dual
+Base.promote_rule(::Type{TrackedReal{V1,D,O}}, ::Type{Dual{T,V2,N}}) where {V1,D,O,T,V2,N} = TrackedReal{promote_type(V1,Dual{T,V2,N}),D,O}
+Base.promote_rule(::Type{Dual{T,V1,N}}, ::Type{TrackedReal{V2,D,O}}) where {T,V1,N,V2,D,O} = TrackedReal{promote_type(Dual{T,V1,N},V2),D,O}
+
 Base.promote_rule(::Type{TrackedReal{V1,D1,O1}}, ::Type{TrackedReal{V2,D2,O2}}) where {V1,V2,D1,D2,O1,O2} = TrackedReal{promote_type(V1,V2),promote_type(D1,D2),Nothing}
 
 ###########################
