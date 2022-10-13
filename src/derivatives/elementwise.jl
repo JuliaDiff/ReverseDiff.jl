@@ -146,7 +146,6 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             end
             results = $(g)(df, value(x), value(y))
             map!(DiffResult.value, value(out), results)
-            out = track(DiffResults.value.(results), D, tp)
             cache = (results, df, index_bound(x, out), index_bound(y, out))
             record!(tape(y), SpecialInstruction, $(g), (x, y), out, cache)
             return out
