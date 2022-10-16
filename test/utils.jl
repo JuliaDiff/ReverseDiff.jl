@@ -6,11 +6,8 @@ using Random
 
 const COMPILED_TAPE_LIMIT = 5000
 
-# These functions correctly emit NaNs for certain arguments, but ReverseDiff's test
-# machinery is currently too dumb to handle them properly.
-const SKIPPED_BINARY_SCALAR_TESTS = Symbol[:hankelh1, :hankelh1x, :hankelh2, :hankelh2x,
-                                           :pow, :besselj, :besseli, :bessely, :besselk,
-                                           :polygamma, :ldexp]
+# These functions would require special arguments (e.g., integers)
+const SKIPPED_BINARY_SCALAR_TESTS = Symbol[:polygamma, :ldexp, :rem2pi]
 
 # make RNG deterministic, and thus make result inaccuracies
 # deterministic so we don't have to retune EPS for arbitrary inputs
@@ -18,7 +15,7 @@ Random.seed!(1)
 
 test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 
-@inline test_approx(A, B, _atol = 1e-5) = @test isapprox(A, B, atol = _atol)
+@inline test_approx(A, B, _atol = 1e-5; nans::Bool=false) = @test isapprox(A, B; atol = _atol, nans=nans)
 
 tracked_is(a, b) = value(a) === value(b) && deriv(a) === deriv(b) && tape(a) === tape(b)
 tracked_is(a::AbstractArray, b::AbstractArray) = all(map(tracked_is, a, b))

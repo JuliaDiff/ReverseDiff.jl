@@ -55,7 +55,7 @@ function test_forward(f, a, b, tp)
     # reverse
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
-    test_approx(deriv(at), ForwardDiff.derivative(x -> f(x, b), a))
+    test_approx(deriv(at), ForwardDiff.derivative(x -> f(x, b), a); nans=true)
     ReverseDiff.unseed!(at)
 
     # forward
@@ -77,7 +77,7 @@ function test_forward(f, a, b, tp)
     # reverse
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
-    test_approx(deriv(bt), ForwardDiff.derivative(x -> f(a, x), b))
+    test_approx(deriv(bt), ForwardDiff.derivative(x -> f(a, x), b); nans=true)
     ReverseDiff.unseed!(bt)
 
     # forward
@@ -99,8 +99,9 @@ function test_forward(f, a, b, tp)
     # reverse
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
-    test_approx(deriv(at), ForwardDiff.derivative(x -> f(x, b), a))
-    test_approx(deriv(bt), ForwardDiff.derivative(x -> f(a, x), b))
+    grads = ForwardDiff.gradient(x -> f(x[1], x[2]), [a, b])
+    test_approx(deriv(at), grads[1]; nans=true)
+    test_approx(deriv(bt), grads[2]; nans=true)
 
     # forward
     a2 = isa(a, Int) ? rand(int_range) : rand()
@@ -146,12 +147,12 @@ for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         error("$M.$f is not available")
     end
-    f === :rem2pi && continue
+    (M, f) in ReverseDiff.SKIPPED_DIFFRULES && continue
     if arity == 1
         test_println("forward-mode unary scalar functions", string(M, ".", f))
         test_forward(eval(:($M.$f)), modify_input(f, x), tp, f)
     elseif arity == 2
-        in(f, SKIPPED_BINARY_SCALAR_TESTS) && continue
+        f in SKIPPED_BINARY_SCALAR_TESTS && continue
         test_println("forward-mode binary scalar functions", f)
         test_forward(eval(:($M.$f)), a, b, tp)
     end

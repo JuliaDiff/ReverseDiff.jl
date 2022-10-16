@@ -72,6 +72,7 @@ for g! in (:map!, :broadcast!), (M, f, arity) in DiffRules.diffrules(; filter_mo
         @warn "$M.$f is not available and hence rule for it can not be defined"
         continue  # Skip rules for methods not defined in the current scope
     end
+    (M, f) in SKIPPED_DIFFRULES && continue
     if arity == 1
         @eval @inline Base.$(g!)(f::typeof($M.$f), out::TrackedArray, t::TrackedArray) = $(g!)(ForwardOptimize(f), out, t)
     elseif arity == 2
@@ -122,23 +123,53 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             return out
         end
     end
-    for A in ARRAY_TYPES, T in (:TrackedArray, :TrackedReal)
-        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray{S}, x::$(T){X}, y::$A) where {F,S,X}
-            result = DiffResults.GradientResult(SVector(zero(S), zero(S)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
+    for A in ARRAY_TYPES
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::TrackedReal{X,D}, y::$A) where {F,X,D}
+            result = DiffResults.DiffResult(zero(X), zero(D))
+            df = let result=result
+                (vx, vy) -> let vy=vy
+                    ForwardDiff.derivative!(result, s -> f.f(s, vy), vx)
+                end
+            end
             results = $(g)(df, value(x), value(y))
             map!(DiffResult.value, value(out), results)
             cache = (results, df, index_bound(x, out), index_bound(y, out))
-            record!(tape(x, y), SpecialInstruction, $(g), (x, y), out, cache)
+            record!(tape(x), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::$(T){Y}) where {F,Y}
-            result = DiffResults.GradientResult(SVector(zero(S), zero(S)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result,  s -> f.f(s[1], s[2]), SVector(vx, vy))
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::TrackedReal{Y,D}) where {F,Y,D}
+            result = DiffResults.DiffResult(zero(Y), zero(D))
+            df = let result=result
+                (vx, vy) -> let vx=vx
+                    ForwardDiff.derivative!(result, s -> f.f(vx, s), vy)
+                end
+            end
             results = $(g)(df, value(x), value(y))
             map!(DiffResult.value, value(out), results)
             cache = (results, df, index_bound(x, out), index_bound(y, out))
-            record!(tape(x, y), SpecialInstruction, $(g), (x, y), out, cache)
+            record!(tape(y), SpecialInstruction, $(g), (x, y), out, cache)
+            return out
+        end
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::TrackedArray{X}, y::$A) where {F,X}
+            result = DiffResults.GradientResult(SVector(zero(X)))
+            df = (vx, vy) -> let vy=vy
+                ForwardDiff.gradient!(result, s -> f.f(s[1], vy), SVector(vx))
+            end
+            results = $(g)(df, value(x), value(y))
+            map!(DiffResult.value, value(out), results)
+            cache = (results, df, index_bound(x, out), index_bound(y, out))
+            record!(tape(x), SpecialInstruction, $(g), (x, y), out, cache)
+            return out
+        end
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::TrackedArray{Y}) where {F,Y}
+            result = DiffResults.GradientResult(SVector(zero(Y)))
+            df = let vx=vx
+                (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(vx, s[1]), SVector(vy))
+            end
+            results = $(g)(df, value(x), value(y))
+            map!(DiffResult.value, value(out), results)
+            cache = (results, df, index_bound(x, out), index_bound(y, out))
+            record!(tape(y), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
     end
@@ -166,6 +197,7 @@ for g in (:map, :broadcast), (M, f, arity) in DiffRules.diffrules(; filter_modul
     if arity == 1
         @eval @inline Base.$(g)(f::typeof($M.$f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
     elseif arity == 2
+        (M, f) in SKIPPED_DIFFRULES && continue
         # skip these definitions if `f` is one of the functions
         # that will get a manually defined broadcast definition
         # later (see "built-in infix operations" below)
@@ -207,10 +239,14 @@ for g in (:map, :broadcast)
         record!(tp, SpecialInstruction, $(g), x, out, cache)
         return out
     end
-    for A in ARRAY_TYPES, T in (:TrackedArray, :TrackedReal)
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$(T){X,D}, y::$A) where {F,X,D}
-            result = DiffResults.GradientResult(SVector(zero(X), zero(D)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
+    for A in ARRAY_TYPES
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedReal{X,D}, y::$A) where {F,X,D}
+            result = DiffResults.DiffResult(zero(X), zero(D))
+            df = let result=result
+                (vx, vy) -> let vy=vy
+                    ForwardDiff.derivative!(result, s -> f.f(s, vy), vx)
+                end
+            end
             results = $(g)(df, value(x), value(y))
             tp = tape(x)
             out = track(DiffResults.value.(results), D, tp)
@@ -218,9 +254,37 @@ for g in (:map, :broadcast)
             record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$A, y::$(T){Y,D}) where {F,Y,D}
-            result = DiffResults.GradientResult(SVector(zero(Y), zero(D)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$A, y::TrackedReal{Y,D}) where {F,Y,D}
+            result = DiffResults.DiffResult(zero(Y), zero(D))
+            df = let result=result
+                (vx, vy) -> let vx=vx
+                    ForwardDiff.derivative!(result, s -> f.f(vx, s), vy)
+                end
+            end
+            results = $(g)(df, value(x), value(y))
+            tp = tape(y)
+            out = track(DiffResults.value.(results), D, tp)
+            cache = (results, df, index_bound(x, out), index_bound(y, out))
+            record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
+            return out
+        end
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$A) where {F,X,D}
+            result = DiffResults.GradientResult(SVector(zero(X)))
+            df = (vx, vy) -> let vy=vy
+                ForwardDiff.gradient!(result, s -> f.f(s[1], vy), SVector(vx))
+            end
+            results = $(g)(df, value(x), value(y))
+            tp = tape(x)
+            out = track(DiffResults.value.(results), D, tp)
+            cache = (results, df, index_bound(x, out), index_bound(y, out))
+            record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
+            return out
+        end
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$A, y::TrackedArray{Y,D}) where {F,Y,D}
+            result = DiffResults.GradientResult(SVector(zero(Y)))
+            df = (vx, vy) -> let vx=vx
+                ForwardDiff.gradient!(result, s -> f.f(vx, s[1]), SVector(vy))
+            end
             results = $(g)(df, value(x), value(y))
             tp = tape(y)
             out = track(DiffResults.value.(results), D, tp)
@@ -291,8 +355,15 @@ end
         diffresult_increment_deriv!(input, output_deriv, results, 1)
     else
         a, b = input
-        istracked(a) && diffresult_increment_deriv!(a, output_deriv, results, 1)
-        istracked(b) && diffresult_increment_deriv!(b, output_deriv, results, 2)
+        p = 0
+        if istracked(a)
+            p += 1
+            diffresult_increment_deriv!(a, output_deriv, results, p)
+        end
+        if istracked(b)
+            p += 1
+            diffresult_increment_deriv!(b, output_deriv, results, p)
+        end
     end
     unseed!(output)
     return nothing
@@ -311,12 +382,25 @@ end
         end
     else
         a, b = input
+        p = 0
         if size(a) == size(b)
-            istracked(a) && diffresult_increment_deriv!(a, output_deriv, results, 1)
-            istracked(b) && diffresult_increment_deriv!(b, output_deriv, results, 2)
+            if istracked(a)
+                p += 1
+                diffresult_increment_deriv!(a, output_deriv, results, p)
+            end
+            if istracked(b)
+                p += 1
+                diffresult_increment_deriv!(b, output_deriv, results, p)
+            end
         else
-            istracked(a) && diffresult_increment_deriv!(a, output_deriv, results, 1, a_bound)
-            istracked(b) && diffresult_increment_deriv!(b, output_deriv, results, 2, b_bound)
+            if istracked(a)
+                p += 1
+                diffresult_increment_deriv!(a, output_deriv, results, p, a_bound)
+            end
+            if istracked(b)
+                p += 1
+                diffresult_increment_deriv!(b, output_deriv, results, p, b_bound)
+            end
         end
     end
     unseed!(output)

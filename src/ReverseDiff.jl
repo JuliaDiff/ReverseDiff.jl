@@ -29,6 +29,17 @@ const REAL_TYPES = (:Bool, :Integer, :(Irrational{:ℯ}), :(Irrational{:π}), :R
 const SKIPPED_UNARY_SCALAR_FUNCS  = Symbol[:isinf, :isnan, :isfinite, :iseven, :isodd, :isreal, :isinteger]
 const SKIPPED_BINARY_SCALAR_FUNCS = Symbol[:isequal, :isless, :<, :>, :(==), :(!=), :(<=), :(>=)]
 
+# Some functions with derivatives in DiffRules are not supported
+# For instance, ReverseDiff does not support functions with complex results and derivatives
+const SKIPPED_DIFFRULES = Tuple{Symbol,Symbol}[
+    (:SpecialFunctions, :hankelh1),
+    (:SpecialFunctions, :hankelh1x),
+    (:SpecialFunctions, :hankelh2),
+    (:SpecialFunctions, :hankelh2x),
+    (:SpecialFunctions, :besselh),
+    (:SpecialFunctions, :besselhx),
+]
+
 include("tape.jl")
 include("tracked.jl")
 include("macros.jl")
