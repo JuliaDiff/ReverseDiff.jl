@@ -139,7 +139,7 @@ end
 
 ## A generalization of the broadcasting approach in ReverseDiff for general functions
 
-@inline function ∇broadcast(f::F, args::Vararg{<:Any}) where {F}
+@inline function ∇broadcast(f::F, args::Vararg{Any}) where {F}
     inds, targs, untracked = splitargs(args)
     N = length(targs)
     D = promote_type(getouttype.(targs)...)
