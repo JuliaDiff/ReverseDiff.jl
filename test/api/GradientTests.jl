@@ -187,6 +187,12 @@ for f in DiffTests.VECTOR_TO_NUMBER_FUNCS
     test_unary_gradient(f, rand(5))
 end
 
+vec_to_hermitian = (v) -> begin A = I - 2 * v * collect(v'); A = collect(A') * A end;
+for f in (y -> norm(vec_to_hermitian(y)),)
+    test_println("VECTOR_TO_NUMBER_FUNCS", f)
+    test_unary_gradient(f, rand(5))
+end
+
 for f in DiffTests.TERNARY_MATRIX_TO_NUMBER_FUNCS
     test_println("TERNARY_MATRIX_TO_NUMBER_FUNCS", f)
     test_ternary_gradient(f, rand(5, 5), rand(5, 5), rand(5, 5))
