@@ -1,6 +1,6 @@
 module GradientTests
 
-using DiffTests, ForwardDiff, ReverseDiff, Test
+using DiffTests, ForwardDiff, ReverseDiff, Test, LinearAlgebra
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
