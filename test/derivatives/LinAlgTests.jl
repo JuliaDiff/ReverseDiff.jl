@@ -223,11 +223,15 @@ for f in (
     test_arr2num(f, x, tp)
 end
 
-vec_to_hermitian = (v) -> begin A = I - 2 * v * collect(v'); A = collect(A') * A end;
+# PR #227
+function norm_hermitian(v)
+    A = I - 2 * v * v'
+    return norm(A' * A)
+end
 
 for f in (
     y -> vec(y)' * Matrix{Float64}(I, length(y), length(y)) * vec(y),
-    y -> norm(vec_to_hermitian(y)),
+    norm_hermitian,
 )
     test_println("Array -> Number functions", f)
     test_arr2num(f, x, tp, ignore_tape_length=true)
