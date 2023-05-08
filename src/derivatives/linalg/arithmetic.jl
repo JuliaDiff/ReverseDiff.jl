@@ -270,11 +270,13 @@ end
 # a * b
 
 function reverse_mul!(output, output_deriv, a, b, a_tmp, b_tmp)
-    istracked(a) && increment_deriv!(a, mul!(a_tmp, output_deriv, transpose(value(b))))
-    istracked(b) && increment_deriv!(b, mul!(b_tmp, transpose(value(a)), output_deriv))
-end
-function reverse_mul!(output, output_deriv::AbstractMatrix, a, b::AbstractMatrix, a_tmp::AbstractVector, b_tmp)
-    istracked(a) && increment_deriv!(a, mul!(reshape(a_tmp, :, 1), output_deriv, transpose(value(b))))
+    if istracked(a)
+        if a_tmp isa AbstractVector && b isa AbstractMatrix
+            increment_deriv!(a, mul!(reshape(a_tmp, :, 1), output_deriv, transpose(value(b))))
+        else
+            increment_deriv!(a, mul!(a_tmp, output_deriv, transpose(value(b))))
+        end
+    end
     istracked(b) && increment_deriv!(b, mul!(b_tmp, transpose(value(a)), output_deriv))
 end
 

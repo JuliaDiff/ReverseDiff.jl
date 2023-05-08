@@ -188,12 +188,22 @@ for f in DiffTests.VECTOR_TO_NUMBER_FUNCS
 end
 
 # PR #227
-function norm_hermitian(v)
-    A = I - 2 * v * v'
-    return norm(A' * A)
-end
-test_println("VECTOR_TO_NUMBER_FUNCS", norm_hermitian)
-test_unary_gradient(norm_hermitian, rand(5))
+norm_hermitian1(v) = (A = I - 2 * v * v'; norm(A' * A))
+norm_hermitian2(v) = (A = I - 2 * v * transpose(v); norm(transpose(A) * A))
+norm_hermitian3(v) = (A = I - 2 * v * collect(v'); norm(collect(A') * A))
+norm_hermitian4(v) = (A = I - 2 * v * v'; norm(transpose(A) * A))
+norm_hermitian5(v) = (A = I - 2 * v * transpose(v); norm(A' * A))
+
+test_println("VECTOR_TO_NUMBER_FUNCS", norm_hermitian1)
+test_unary_gradient(norm_hermitian1, rand(5))
+test_println("VECTOR_TO_NUMBER_FUNCS", norm_hermitian2)
+test_unary_gradient(norm_hermitian2, rand(5))
+test_println("VECTOR_TO_NUMBER_FUNCS", norm_hermitian3)
+test_unary_gradient(norm_hermitian3, rand(5))
+test_println("VECTOR_TO_NUMBER_FUNCS", norm_hermitian4)
+test_unary_gradient(norm_hermitian4, rand(5))
+test_println("VECTOR_TO_NUMBER_FUNCS", norm_hermitian5)
+test_unary_gradient(norm_hermitian5, rand(5))
 
 for f in DiffTests.TERNARY_MATRIX_TO_NUMBER_FUNCS
     test_println("TERNARY_MATRIX_TO_NUMBER_FUNCS", f)
