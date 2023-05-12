@@ -1,6 +1,6 @@
 module GradientTests
 
-using DiffTests, ForwardDiff, ReverseDiff, Test
+using DiffTests, ForwardDiff, ReverseDiff, Test, LinearAlgebra
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -183,6 +183,20 @@ for f in DiffTests.MATRIX_TO_NUMBER_FUNCS
 end
 
 for f in DiffTests.VECTOR_TO_NUMBER_FUNCS
+    test_println("VECTOR_TO_NUMBER_FUNCS", f)
+    test_unary_gradient(f, rand(5))
+end
+
+# PR #227
+norm_hermitian1(v) = (A = I - 2 * v * v'; norm(A' * A))
+norm_hermitian2(v) = (A = I - 2 * v * transpose(v); norm(transpose(A) * A))
+norm_hermitian3(v) = (A = I - 2 * v * collect(v'); norm(collect(A') * A))
+norm_hermitian4(v) = (A = I - 2 * v * v'; norm(transpose(A) * A))
+norm_hermitian5(v) = (A = I - 2 * v * transpose(v); norm(A' * A))
+norm_hermitian6(v) = (A = (v'v)*I - 2 * v * v'; norm(A' * A))
+
+for f in (norm_hermitian1, norm_hermitian2, norm_hermitian3,
+            norm_hermitian4, norm_hermitian5, norm_hermitian6)
     test_println("VECTOR_TO_NUMBER_FUNCS", f)
     test_unary_gradient(f, rand(5))
 end

@@ -270,7 +270,17 @@ end
 # a * b
 
 function reverse_mul!(output, output_deriv, a, b, a_tmp, b_tmp)
-    istracked(a) && increment_deriv!(a, mul!(a_tmp, output_deriv, transpose(value(b))))
+    if istracked(a)
+        if a_tmp isa AbstractVector && b isa AbstractMatrix
+            # this branch is required for scalar-valued functions that
+            # involve outer-products of vectors, for such functions, the target
+            # a_temp is a vector, but when b is a matrix, we cannot multiply into a vector,
+            # so need to reshape memory to look like matrix (see PositiveFactorizations.jl)
+            increment_deriv!(a, mul!(reshape(a_tmp, :, 1), output_deriv, transpose(value(b))))
+        else
+            increment_deriv!(a, mul!(a_tmp, output_deriv, transpose(value(b))))
+        end
+    end
     istracked(b) && increment_deriv!(b, mul!(b_tmp, transpose(value(a)), output_deriv))
 end
 
@@ -279,8 +289,14 @@ for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
         # a * f(b)
         function reverse_mul!(output, output_deriv, a, b::$F, a_tmp, b_tmp)
             _b = ($f)(b)
-            istracked(a) && increment_deriv!(a, mul!(a_tmp, output_deriv, mulargvalue(b)))
-            istracked(_b) && increment_deriv!(_b, ($f)(mul!(b_tmp, ($f)(output_deriv), value(a))))
+            if istracked(a)
+                if a_tmp isa AbstractVector
+                    increment_deriv!(a, mul!(reshape(a_tmp, :, 1), output_deriv, mulargvalue(_b)))
+                else
+                    increment_deriv!(a, mul!(a_tmp, output_deriv, mulargvalue(b)))
+                end
+            end
+            istracked(_b) && increment_deriv!(_b, ($f)(mul!(($f)(b_tmp), ($f)(output_deriv), value(a))))
         end
            # f(a) * b
         function reverse_mul!(output, output_deriv, a::$F, b, a_tmp, b_tmp)
