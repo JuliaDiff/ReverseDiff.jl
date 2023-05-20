@@ -209,7 +209,7 @@ end
 ### Isolated Scope
 module IsolatedModuleForTestingScoping
 using ChainRulesCore
-using ReverseDiff: @grad_from_chainrules
+using ReverseDiff: ReverseDiff, @grad_from_chainrules
 
 f(x) = sum(4x .+ 1)
 
