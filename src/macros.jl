@@ -317,9 +317,18 @@ macro grad_from_chainrules(fcall)
     Meta.isexpr(fcall, :call) && length(fcall.args) >= 2 ||
         error("`@grad_from_chainrules` has to be applied to a function signature")
     f = esc(fcall.args[1])
-    xs = fcall.args[2:end]
+    xs = map(fcall.args[2:end]) do x
+        if x isa Expr && x.head == :(::)
+            if length(x.args) == 1 # ::T without var name
+                return :($(gensym())::$(esc(x.args[1])))
+            else # x::T
+                return :($(x.args[1])::$(esc(x.args[2])))
+            end
+        else
+            return x
+        end
+    end
     args_l, args_r, args_track, args_fixed, arg_types, kwargs = _make_fwd_args(f, xs)
-
     return quote
         $f($(args_l...)) = ReverseDiff.track($(args_r...))
         function ReverseDiff.track($(args_track...))
