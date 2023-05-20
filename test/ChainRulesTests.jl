@@ -222,7 +222,7 @@ function ChainRulesCore.rrule(::typeof(f), x)
     return r, back
 end
 
-@grad_from_chainrules f(x::TrackedArray)
+@grad_from_chainrules f(x::ReverseDiff.TrackedArray)
 
 module SubModule
 using Test
