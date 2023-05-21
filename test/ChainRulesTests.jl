@@ -6,8 +6,6 @@ using DiffResults
 using ReverseDiff
 using Test
 
-const NoTangent = ChainRulesCore.NoTangent
-
 struct MyStruct end
 f(::MyStruct, x) = sum(4x .+ 1)
 f(x, y::MyStruct) = sum(4x .+ 1)
