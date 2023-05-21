@@ -318,7 +318,7 @@ macro grad_from_chainrules(fcall)
         error("`@grad_from_chainrules` has to be applied to a function signature")
     f = esc(fcall.args[1])
     xs = map(fcall.args[2:end]) do x
-        if x isa Expr && x.head == :(::)
+        if Meta.isexpr(x, :(::))
             if length(x.args) == 1 # ::T without var name
                 return :($(gensym())::$(esc(x.args[1])))
             else # x::T
