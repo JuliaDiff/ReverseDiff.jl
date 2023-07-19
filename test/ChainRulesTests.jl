@@ -6,6 +6,9 @@ using DiffResults
 using ReverseDiff
 using Test
 
+struct MyStruct end
+f(::MyStruct, x) = sum(4x .+ 1)
+f(x, y::MyStruct) = sum(4x .+ 1)
 f(x) = sum(4x .+ 1)
 
 function ChainRulesCore.rrule(::typeof(f), x)
@@ -20,13 +23,29 @@ function ChainRulesCore.rrule(::typeof(f), x)
         rather than 4 when we compute the derivative of `f`, it means
         the importing mechanism works.
         =#
-        return ChainRulesCore.NoTangent(), fill(3 * d, size(x))
+        return NoTangent(), fill(3 * d, size(x))
+    end
+    return r, back
+end
+function ChainRulesCore.rrule(::typeof(f), ::MyStruct, x)
+    r = f(MyStruct(), x)
+    function back(d)
+        return NoTangent(), NoTangent(), fill(3 * d, size(x))
+    end
+    return r, back
+end
+function ChainRulesCore.rrule(::typeof(f), x, ::MyStruct)
+    r = f(x, MyStruct())
+    function back(d)
+        return NoTangent(), fill(3 * d, size(x)), NoTangent()
     end
     return r, back
 end
 
 ReverseDiff.@grad_from_chainrules f(x::ReverseDiff.TrackedArray)
-
+# test arg type hygiene
+ReverseDiff.@grad_from_chainrules f(::MyStruct, x::ReverseDiff.TrackedArray)
+ReverseDiff.@grad_from_chainrules f(x::ReverseDiff.TrackedArray, y::MyStruct)
 
 g(x, y) = sum(4x .+ 4y)
 
@@ -34,7 +53,7 @@ function ChainRulesCore.rrule(::typeof(g), x, y)
     r = g(x, y)
     function back(d)
         # same as above, use 3 and 5 as the derivatives
-        return ChainRulesCore.NoTangent(), fill(3 * d, size(x)), fill(5 * d, size(x))
+        return NoTangent(), fill(3 * d, size(x)), fill(5 * d, size(x))
     end
     return r, back
 end
@@ -93,6 +112,19 @@ ReverseDiff.@grad_from_chainrules g(x::ReverseDiff.TrackedArray, y::ReverseDiff.
 
 end
 
+@testset "custom struct input" begin
+    input = rand(3, 3)
+    output, back = ChainRulesCore.rrule(f, MyStruct(), input);
+    _, _, d = back(1)
+    @test output == f(MyStruct(), input)
+    @test d == fill(3, size(input))
+
+    output, back = ChainRulesCore.rrule(f, input, MyStruct());
+    _, d, _ = back(1)
+    @test output == f(input, MyStruct())
+    @test d == fill(3, size(input))
+end
+
 ### Tape test
 @testset "Tape test: Ensure ordinary call is not tracked" begin
     tp = ReverseDiff.InstructionTape()
@@ -112,7 +144,7 @@ f_vararg(x, args...) = sum(4x .+ sum(args))
 function ChainRulesCore.rrule(::typeof(f_vararg), x, args...)
     r = f_vararg(x, args...)
     function back(d)
-        return ChainRulesCore.NoTangent(), fill(3 * d, size(x))
+        return NoTangent(), fill(3 * d, size(x))
     end
     return r, back
 end
@@ -136,7 +168,7 @@ f_kw(x, args...; k=1, kwargs...) = sum(4x .+ sum(args) .+ (k + kwargs[:j]))
 function ChainRulesCore.rrule(::typeof(f_kw), x, args...; k=1, kwargs...)
     r = f_kw(x, args...; k=k, kwargs...)
     function back(d)
-        return ChainRulesCore.NoTangent(), fill(3 * d, size(x))
+        return NoTangent(), fill(3 * d, size(x))
     end
     return r, back
 end
@@ -175,7 +207,7 @@ end
 ### Isolated Scope
 module IsolatedModuleForTestingScoping
 using ChainRulesCore
-using ReverseDiff: @grad_from_chainrules
+using ReverseDiff: ReverseDiff, @grad_from_chainrules
 
 f(x) = sum(4x .+ 1)
 
@@ -183,12 +215,12 @@ function ChainRulesCore.rrule(::typeof(f), x)
     r = f(x)
     function back(d)
         # return a distinguishable but improper grad
-        return ChainRulesCore.NoTangent(), fill(3 * d, size(x))
+        return NoTangent(), fill(3 * d, size(x))
     end
     return r, back
 end
 
-@grad_from_chainrules f(x::TrackedArray)
+@grad_from_chainrules f(x::ReverseDiff.TrackedArray)
 
 module SubModule
 using Test
