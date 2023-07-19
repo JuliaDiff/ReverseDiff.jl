@@ -322,6 +322,7 @@ macro grad_from_chainrules(fcall)
             if length(x.args) == 1 # ::T without var name
                 return :($(gensym())::$(esc(x.args[1])))
             else # x::T
+                @assert length(x.args) == 2
                 return :($(x.args[1])::$(esc(x.args[2])))
             end
         else
