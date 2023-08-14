@@ -277,4 +277,8 @@ test_println("*(A, B) functions", "*(transpose(a), adjoint(b))")
 test_arr2arr(*, transpose(a), adjoint(b), tp)
 test_arr2arr_inplace(mul!, *, x, transpose(a), adjoint(b), tp)
 
+# Prevent regression on https://github.com/JuliaDiff/ReverseDiff.jl/issues/235
+A = [1 2; 3 4]; x = [5, 6];
+@test ReverseDiff.gradient(y -> sum(y'*A), x) == [3, 7]
+
 end # module

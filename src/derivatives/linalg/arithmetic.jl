@@ -301,7 +301,7 @@ for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
            # f(a) * b
         function reverse_mul!(output, output_deriv, a::$F, b, a_tmp, b_tmp)
             _a = ($f)(a)
-            istracked(_a) && increment_deriv!(_a, ($f)(mul!(a_tmp, output_deriv, value(b))))
+            istracked(_a) && increment_deriv!(_a, ($f)(mul!(a_tmp, output_deriv, ($f)(value(b)))))
             istracked(b) && increment_deriv!(b, mul!(b_tmp, ($f)(mulargvalue(a)), ($f)(output_deriv)))
         end
         # f(a) * f(b)
