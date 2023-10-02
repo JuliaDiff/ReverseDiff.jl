@@ -12,7 +12,6 @@ makedocs(;
         "Limitation of ReverseDiff" => "limits.md",
         "API" => "api.md",
     ],
-    strict=true,
     checkdocs=:exports,
 )
 
