@@ -31,6 +31,7 @@ for Instr in (SpecialInstruction, ScalarInstruction)
     @test tp[1].input[2] == y
     @test tp[1].output === z
     @test tp[1].cache === c
+    @test startswith(string(tp), "1-element InstructionTape:")
 
     ReverseDiff.record!(NULL_TAPE, Instr, +, (x, y, k), z, c)
     @test isempty(NULL_TAPE)
