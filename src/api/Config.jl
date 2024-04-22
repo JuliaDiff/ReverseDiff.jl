@@ -32,9 +32,11 @@ the target function's output.
 
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 """
-GradientConfig(input::AbstractArray{T}, tp::InstructionTape = InstructionTape()) where {T} = GradientConfig(input, T, tp)
+GradientConfig(input::AbstractArray{T}, tp::InstructionTape = InstructionTape()) where {T} =
+    GradientConfig(input, T, tp)
 
-GradientConfig(input::Tuple, tp::InstructionTape = InstructionTape()) = GradientConfig(input, eltype(first(input)), tp)
+GradientConfig(input::Tuple, tp::InstructionTape = InstructionTape()) =
+    GradientConfig(input, eltype(first(input)), tp)
 
 """
     ReverseDiff.GradientConfig(input, ::Type{D}, tp::InstructionTape = InstructionTape())
@@ -42,11 +44,19 @@ GradientConfig(input::Tuple, tp::InstructionTape = InstructionTape()) = Gradient
 Like `GradientConfig(input, tp)`, except the provided type `D` is assumed to be the element
 type of the target function's output.
 """
-function GradientConfig(input::Tuple, ::Type{D}, tp::InstructionTape = InstructionTape()) where D
+function GradientConfig(
+    input::Tuple,
+    ::Type{D},
+    tp::InstructionTape = InstructionTape(),
+) where {D}
     return _GradientConfig(map(x -> track(similar(x), D, tp), input), tp)
 end
 
-function GradientConfig(input::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where D
+function GradientConfig(
+    input::AbstractArray,
+    ::Type{D},
+    tp::InstructionTape = InstructionTape(),
+) where {D}
     return _GradientConfig(track(similar(input), D, tp), tp)
 end
 
@@ -63,7 +73,8 @@ struct JacobianConfig{I,O} <: AbstractConfig
 end
 
 # "private" convienence constructor
-_JacobianConfig(input::I, output::O, tape::InstructionTape) where {I,O} = JacobianConfig{I,O}(input, output, tape)
+_JacobianConfig(input::I, output::O, tape::InstructionTape) where {I,O} =
+    JacobianConfig{I,O}(input, output, tape)
 
 """
     ReverseDiff.JacobianConfig(input, tp::InstructionTape = InstructionTape())
@@ -99,14 +110,22 @@ stored or modified in any way.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
-function JacobianConfig(output::AbstractArray{D}, input::Tuple, tp::InstructionTape = InstructionTape()) where D
+function JacobianConfig(
+    output::AbstractArray{D},
+    input::Tuple,
+    tp::InstructionTape = InstructionTape(),
+) where {D}
     cfg_input = map(x -> track(similar(x), D, tp), input)
     cfg_output = track!(similar(output, TrackedReal{D,D,Nothing}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
 end
 
 # we dispatch on V<:Real here because InstructionTape is actually also an AbstractArray
-function JacobianConfig(output::AbstractArray{D}, input::AbstractArray{V}, tp::InstructionTape = InstructionTape()) where {D,V<:Real}
+function JacobianConfig(
+    output::AbstractArray{D},
+    input::AbstractArray{V},
+    tp::InstructionTape = InstructionTape(),
+) where {D,V<:Real}
     cfg_input = track(similar(input), D, tp)
     cfg_output = track!(similar(output, TrackedReal{D,D,Nothing}), output, tp)
     return _JacobianConfig(cfg_input, cfg_output, tp)
@@ -117,7 +136,8 @@ end
 
 A convenience method for `JacobianConfig(DiffResults.value(result), input, tp)`.
 """
-JacobianConfig(result::DiffResult, input, tp::InstructionTape) = JacobianConfig(DiffResults.value(result), input, tp)
+JacobianConfig(result::DiffResult, input, tp::InstructionTape) =
+    JacobianConfig(DiffResults.value(result), input, tp)
 
 #################
 # HessianConfig #
@@ -139,7 +159,11 @@ Note that `input` is only used for type and shape information; it is not stored 
 in any way. It is assumed that the element type of `input` is same as the element type of
 the target function's output.
 """
-function HessianConfig(input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
+function HessianConfig(
+    input::AbstractArray,
+    gtp::InstructionTape = InstructionTape(),
+    jtp::InstructionTape = InstructionTape(),
+)
     return HessianConfig(input, eltype(input), gtp, jtp)
 end
 
@@ -149,7 +173,12 @@ end
 Like `HessianConfig(input, tp)`, except the provided type `D` is assumed to be the element
 type of the target function's output.
 """
-function HessianConfig(input::AbstractArray, ::Type{D}, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape()) where D
+function HessianConfig(
+    input::AbstractArray,
+    ::Type{D},
+    gtp::InstructionTape = InstructionTape(),
+    jtp::InstructionTape = InstructionTape(),
+) where {D}
     jcfg = JacobianConfig(input, D, jtp)
     gcfg = GradientConfig(jcfg.input, gtp)
     return HessianConfig(gcfg, jcfg)
@@ -164,7 +193,12 @@ buffers.
 Note that `result` and `input` are only used for type and shape information; they are not
 stored or modified in any way.
 """
-function HessianConfig(result::DiffResult, input::AbstractArray, gtp::InstructionTape = InstructionTape(), jtp::InstructionTape = InstructionTape())
+function HessianConfig(
+    result::DiffResult,
+    input::AbstractArray,
+    gtp::InstructionTape = InstructionTape(),
+    jtp::InstructionTape = InstructionTape(),
+)
     jcfg = JacobianConfig(DiffResults.gradient(result), input, jtp)
     gcfg = GradientConfig(jcfg.input, gtp)
     return HessianConfig(gcfg, jcfg)

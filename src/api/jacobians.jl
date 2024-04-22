@@ -71,7 +71,13 @@ end
 Exactly like `ReverseDiff.jacobian!(result, f, input, cfg)`, except the target function has the
 form `f!(output::AbstractArray{<:Real}, input::AbstractArray{<:Real}...)`.
 """
-function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
+function jacobian!(
+    result,
+    f!,
+    output,
+    input,
+    cfg::JacobianConfig = JacobianConfig(output, input),
+)
     tape = JacobianTape(f!, output, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     jacobian!(result, tape, input)

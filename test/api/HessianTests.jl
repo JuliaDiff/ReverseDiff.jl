@@ -13,7 +13,12 @@ hess_test_approx(a, b) = test_approx(a, b, 1e-4)
 
 function test_unary_hessian(f, x)
     test = DiffResults.HessianResult(x)
-    ForwardDiff.hessian!(test, f, x, ForwardDiff.HessianConfig(f, test, x, ForwardDiff.Chunk{1}()))
+    ForwardDiff.hessian!(
+        test,
+        f,
+        x,
+        ForwardDiff.HessianConfig(f, test, x, ForwardDiff.Chunk{1}()),
+    )
 
     # without HessianConfig
 

@@ -5,7 +5,12 @@
 # derivative (input is an scalar, output is an array/scalar) #
 #------------------------------------------------------------#
 
-function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, input::TrackedReal, tape)
+function seeded_reverse_pass!(
+    result::AbstractArray,
+    output::AbstractArray,
+    input::TrackedReal,
+    tape,
+)
     result_vector = reshape(result, length(output))
     for i in eachindex(output)
         result_vector[i] = seeded_reverse_pass!(output[i], input, tape)
@@ -41,7 +46,12 @@ end
 # jacobian (input and output are both arrays) #
 #---------------------------------------------#
 
-function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, input::TrackedArray, tape)
+function seeded_reverse_pass!(
+    result::AbstractArray,
+    output::AbstractArray,
+    input::TrackedArray,
+    tape,
+)
     result_matrix = reshape(result, length(output), length(input))
     input_deriv = deriv(input)
     pull_value!(output)
@@ -57,7 +67,12 @@ function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, inpu
     return result
 end
 
-function seeded_reverse_pass!(result::DiffResult, output::AbstractArray, input::TrackedArray, tape)
+function seeded_reverse_pass!(
+    result::DiffResult,
+    output::AbstractArray,
+    input::TrackedArray,
+    tape,
+)
     seeded_reverse_pass!(DiffResults.jacobian(result), output, input, tape)
     extract_result_value!(result, output)
     return result
@@ -143,9 +158,11 @@ fill_zeros!(result::AbstractArray) = fill!(result, zero(eltype(result)))
 # result construction #
 #######################
 
-construct_result(output::AbstractArray, input::Tuple) = map(x -> construct_result(output, x), input)
+construct_result(output::AbstractArray, input::Tuple) =
+    map(x -> construct_result(output, x), input)
 
-construct_result(output::AbstractArray, input::TrackedArray) = similar(deriv(input), length(output), length(input))
+construct_result(output::AbstractArray, input::TrackedArray) =
+    similar(deriv(input), length(output), length(input))
 
 construct_result(input::TrackedArray) = similar(deriv(input))
 

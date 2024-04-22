@@ -17,11 +17,13 @@ for T in (:GradientTape, :JacobianTape, :HessianTape)
             output::O
             tape::InstructionTape
             # disable default outer constructor
-            $(T){F,I,O}(func, input, output, tape) where {F,I,O} = new{F,I,O}(func, input, output, tape)
+            $(T){F,I,O}(func, input, output, tape) where {F,I,O} =
+                new{F,I,O}(func, input, output, tape)
         end
 
         # "private" convienence constructor
-        $(_T)(func::F, input::I, output::O, tape::InstructionTape) where {F,I,O} = $(T){F,I,O}(func, input, output, tape)
+        $(_T)(func::F, input::I, output::O, tape::InstructionTape) where {F,I,O} =
+            $(T){F,I,O}(func, input, output, tape)
 
         Base.length(t::$T) = length(t.tape)
 
@@ -54,8 +56,8 @@ end
 
 struct CompiledTape{T<:AbstractTape} <: AbstractTape
     tape::T
-    forward_exec::Vector{FunctionWrapper{Nothing, Tuple{}}}
-    reverse_exec::Vector{FunctionWrapper{Nothing, Tuple{}}}
+    forward_exec::Vector{FunctionWrapper{Nothing,Tuple{}}}
+    reverse_exec::Vector{FunctionWrapper{Nothing,Tuple{}}}
 end
 
 """
@@ -69,7 +71,7 @@ is stored as a vector of non-concrete AbstractInstruction elements, so calling
 dispatch. Instead, we can create a ForwardExecutor and a FunctionWrapper for
 each instruction and store those in a concretely-typed Vector.
 """
-struct ForwardExecutor{I <: AbstractInstruction}
+struct ForwardExecutor{I<:AbstractInstruction}
     instruction::I
 end
 
@@ -86,7 +88,7 @@ is stored as a vector of non-concrete AbstractInstruction elements, so calling
 dispatch. Instead, we can create a ReverseExecutor and a FunctionWrapper for
 each instruction and store those in a concretely-typed Vector.
 """
-struct ReverseExecutor{I <: AbstractInstruction}
+struct ReverseExecutor{I<:AbstractInstruction}
     instruction::I
 end
 
@@ -98,18 +100,25 @@ end
 Construct a compiled type by wrapping the `forward_exec!` and `reverse_exec!`
 methods on each instruction in the tape.
 """
-function CompiledTape(t::T) where T<:AbstractTape
-    CompiledTape{T}(t,
-        [FunctionWrapper{Nothing, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
-        [FunctionWrapper{Nothing, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
-        )
+function CompiledTape(t::T) where {T<:AbstractTape}
+    CompiledTape{T}(
+        t,
+        [
+            FunctionWrapper{Nothing,Tuple{}}(ForwardExecutor(instruction)) for
+            instruction in t.tape
+        ],
+        [
+            FunctionWrapper{Nothing,Tuple{}}(ReverseExecutor(t.tape[i])) for
+            i = length(t.tape):-1:1
+        ],
+    )
 end
 
 Base.show(io::IO, t::CompiledTape) = print(io, typeof(t).name, "($(t.tape.func))")
 
 const CompiledGradient{T<:GradientTape} = CompiledTape{T}
 const CompiledJacobian{T<:JacobianTape} = CompiledTape{T}
-const CompiledHessian{T<:HessianTape}   = CompiledTape{T}
+const CompiledHessian{T<:HessianTape} = CompiledTape{T}
 
 Base.length(ct::CompiledTape) = length(ct.tape)
 
@@ -149,31 +158,37 @@ function compile(t::AbstractTape)
 end
 
 function compile_gradient(f, args...)
-    Base.depwarn("`ReverseDiff.compile_gradient(f, args...)` is deprecated" *
-                 ", use `ReverseDiff.compile(ReverseDiff.GradientTape(f, args...))`"*
-                 "instead. Then, you can execute the returned CompiledTape `t` by calling"*
-                 " `ReverseDiff.gradient!(result, t, input)`.",
-                 :compile_gradient)
+    Base.depwarn(
+        "`ReverseDiff.compile_gradient(f, args...)` is deprecated" *
+        ", use `ReverseDiff.compile(ReverseDiff.GradientTape(f, args...))`" *
+        "instead. Then, you can execute the returned CompiledTape `t` by calling" *
+        " `ReverseDiff.gradient!(result, t, input)`.",
+        :compile_gradient,
+    )
     tape = compile(GradientTape(f, args...))
     return (result, input) -> gradient!(result, tape, input)
 end
 
 function compile_jacobian(f, args...)
-    Base.depwarn("`ReverseDiff.compile_jacobian(f, args...)` is deprecated" *
-                 ", use `ReverseDiff.compile(ReverseDiff.JacobianTape(f, args...))`"*
-                 "instead. Then, you can execute the returned CompiledTape `t` by calling"*
-                 " `ReverseDiff.jacobian!(result, t, input)`.",
-                 :compile_jacobian)
+    Base.depwarn(
+        "`ReverseDiff.compile_jacobian(f, args...)` is deprecated" *
+        ", use `ReverseDiff.compile(ReverseDiff.JacobianTape(f, args...))`" *
+        "instead. Then, you can execute the returned CompiledTape `t` by calling" *
+        " `ReverseDiff.jacobian!(result, t, input)`.",
+        :compile_jacobian,
+    )
     tape = compile(JacobianTape(f, args...))
     return (result, input) -> jacobian!(result, tape, input)
 end
 
 function compile_hessian(f, args...)
-    Base.depwarn("`ReverseDiff.compile_hessian(f, args...)` is deprecated" *
-                 ", use `ReverseDiff.compile(ReverseDiff.HessianTape(f, args...))`"*
-                 "instead. Then, you can execute the returned CompiledTape `t` by calling"*
-                 " `ReverseDiff.hessian!(result, t, input)`.",
-                 :compile_hessian)
+    Base.depwarn(
+        "`ReverseDiff.compile_hessian(f, args...)` is deprecated" *
+        ", use `ReverseDiff.compile(ReverseDiff.HessianTape(f, args...))`" *
+        "instead. Then, you can execute the returned CompiledTape `t` by calling" *
+        " `ReverseDiff.hessian!(result, t, input)`.",
+        :compile_hessian,
+    )
     tape = compile(HessianTape(f, args...))
     return (result, input) -> hessian!(result, tape, input)
 end
@@ -250,14 +265,24 @@ element type and shape as `input`.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
-function JacobianTape(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
+function JacobianTape(
+    f!,
+    output,
+    input,
+    cfg::JacobianConfig = JacobianConfig(output, input),
+)
     track!(cfg.output, output, cfg.tape)
     track!(cfg.input, input)
     f!(cfg.output, cfg.input)
     return _JacobianTape(f!, cfg.input, cfg.output, cfg.tape)
 end
 
-function JacobianTape(f!, output, input::Tuple, cfg::JacobianConfig = JacobianConfig(output, input))
+function JacobianTape(
+    f!,
+    output,
+    input::Tuple,
+    cfg::JacobianConfig = JacobianConfig(output, input),
+)
     track!(cfg.output, output, cfg.tape)
     for i in eachindex(input)
         track!(cfg.input[i], input[i])

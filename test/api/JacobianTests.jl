@@ -6,7 +6,12 @@ include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
 function test_unary_jacobian(f, x)
     test_val = f(x)
-    test = ForwardDiff.jacobian!(DiffResults.JacobianResult(test_val, x), f, x, ForwardDiff.JacobianConfig(f, x))
+    test = ForwardDiff.jacobian!(
+        DiffResults.JacobianResult(test_val, x),
+        f,
+        x,
+        ForwardDiff.JacobianConfig(f, x),
+    )
 
     # without JacobianConfig
 
@@ -83,7 +88,7 @@ function test_unary_jacobian(f!, y, x)
 
     out = similar(DiffResults.jacobian(test))
     ReverseDiff.jacobian!(out, f!, y, x)
-    test_approx(y,   DiffResults.value(test))
+    test_approx(y, DiffResults.value(test))
     test_approx(out, DiffResults.jacobian(test))
     copyto!(y, y_original)
 
@@ -99,13 +104,13 @@ function test_unary_jacobian(f!, y, x)
     cfg = ReverseDiff.JacobianConfig(y, x)
 
     out = ReverseDiff.jacobian(f!, y, x, cfg)
-    test_approx(y,   DiffResults.value(test))
+    test_approx(y, DiffResults.value(test))
     test_approx(out, DiffResults.jacobian(test))
     copyto!(y, y_original)
 
     out = similar(DiffResults.jacobian(test))
     ReverseDiff.jacobian!(out, f!, y, x, cfg)
-    test_approx(y,   DiffResults.value(test))
+    test_approx(y, DiffResults.value(test))
     test_approx(out, DiffResults.jacobian(test))
     copyto!(y, y_original)
 
@@ -297,8 +302,14 @@ for f in DiffTests.BINARY_MATRIX_TO_MATRIX_FUNCS
 
     # with JacobianTape
 
-    ra = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(x -> f(x, b), y), rand(eltype(a), size(a)))
-    rb = ReverseDiff.JacobianTape(y -> ReverseDiff.jacobian(x -> f(a, x), y), rand(eltype(b), size(b)))
+    ra = ReverseDiff.JacobianTape(
+        y -> ReverseDiff.jacobian(x -> f(x, b), y),
+        rand(eltype(a), size(a)),
+    )
+    rb = ReverseDiff.JacobianTape(
+        y -> ReverseDiff.jacobian(x -> f(a, x), y),
+        rand(eltype(b), size(b)),
+    )
     Ja = ReverseDiff.jacobian!(ra, a)
     Jb = ReverseDiff.jacobian!(rb, b)
     test_approx(Ja, test_a)

@@ -1,0 +1,51 @@
+name: format-pr
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        branch:
+          - master
+
+    steps:
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: '1.9'
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+
+      - name: Install JuliaFormatter.jl
+        shell: julia --color=yes {0}
+        run: |
+          import Pkg
+          Pkg.add("JuliaFormatter")
+
+      - name: Format code
+        shell: julia --color=yes {0}
+        run: |
+          using JuliaFormatter
+          format(".")
+
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: Format code
+          title: 'Format code of branch "${{ matrix.branch }}"'
+          branch: format-${{ matrix.branch }}
+          delete-branch: true
+          labels: format
+          reviewers: mofeing
+
+      - name: Check outputs
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"

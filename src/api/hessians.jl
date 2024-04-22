@@ -36,23 +36,38 @@ it stores the resulting Hessian in `result` rather than allocating new memory.
 If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
 `∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
 """
-function hessian!(result, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
+function hessian!(
+    result,
+    f,
+    input::AbstractArray,
+    cfg::HessianConfig = HessianConfig(input),
+)
     ∇f = x -> gradient(f, x, cfg.gradient_config)
     jacobian!(result, ∇f, input, cfg.jacobian_config)
     return result
 end
 
-function hessian!(result::DiffResult, f, input::AbstractArray,
-                  cfg::HessianConfig = HessianConfig(result, input))
-    ∇f! = (y, x) -> begin
-        gradient_result = DiffResult(zero(eltype(y)), y)
-        gradient!(gradient_result, f, x, cfg.gradient_config)
-        result = DiffResults.value!(result, value(DiffResults.value(gradient_result)))
-        return y
-    end
-    jacobian!(DiffResults.hessian(result), ∇f!,
-              DiffResults.gradient(result), input,
-              cfg.jacobian_config)
+function hessian!(
+    result::DiffResult,
+    f,
+    input::AbstractArray,
+    cfg::HessianConfig = HessianConfig(result, input),
+)
+    ∇f! =
+        (y, x) -> begin
+            gradient_result = DiffResult(zero(eltype(y)), y)
+            gradient!(gradient_result, f, x, cfg.gradient_config)
+            result =
+                DiffResults.value!(result, value(DiffResults.value(gradient_result)))
+            return y
+        end
+    jacobian!(
+        DiffResults.hessian(result),
+        ∇f!,
+        DiffResults.gradient(result),
+        input,
+        cfg.jacobian_config,
+    )
     return result
 end
 
@@ -83,15 +98,26 @@ it stores the resulting Hessian in `result` rather than allocating new memory.
 If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
 `∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
 """
-function hessian!(result::AbstractArray, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
+function hessian!(
+    result::AbstractArray,
+    tape::Union{HessianTape,CompiledHessian},
+    input::AbstractArray,
+)
     seeded_forward_pass!(tape, input)
     seeded_reverse_pass!(result, tape)
     return result
 end
 
-function hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
+function hessian!(
+    result::DiffResult,
+    tape::Union{HessianTape,CompiledHessian},
+    input::AbstractArray,
+)
     seeded_forward_pass!(tape, input)
-    seeded_reverse_pass!(DiffResult(DiffResults.gradient(result), DiffResults.hessian(result)), tape)
+    seeded_reverse_pass!(
+        DiffResult(DiffResults.gradient(result), DiffResults.hessian(result)),
+        tape,
+    )
     result = DiffResults.value!(result, func_hook(tape)(input))
     return result
 end

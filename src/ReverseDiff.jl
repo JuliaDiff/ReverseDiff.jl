@@ -23,11 +23,25 @@ using ChainRulesCore
 
 # Not all operations will be valid over all of these types, but that's okay; such cases
 # will simply error when they hit the original operation in the overloaded definition.
-const ARRAY_TYPES = (:AbstractArray, :AbstractVector, :AbstractMatrix, :Array, :Vector, :Matrix)
-const REAL_TYPES = (:Bool, :Integer, :(Irrational{:ℯ}), :(Irrational{:π}), :Rational, :BigFloat, :BigInt, :AbstractFloat, :Real, :Dual)
+const ARRAY_TYPES =
+    (:AbstractArray, :AbstractVector, :AbstractMatrix, :Array, :Vector, :Matrix)
+const REAL_TYPES = (
+    :Bool,
+    :Integer,
+    :(Irrational{:ℯ}),
+    :(Irrational{:π}),
+    :Rational,
+    :BigFloat,
+    :BigInt,
+    :AbstractFloat,
+    :Real,
+    :Dual,
+)
 
-const SKIPPED_UNARY_SCALAR_FUNCS  = Symbol[:isinf, :isnan, :isfinite, :iseven, :isodd, :isreal, :isinteger]
-const SKIPPED_BINARY_SCALAR_FUNCS = Symbol[:isequal, :isless, :<, :>, :(==), :(!=), :(<=), :(>=)]
+const SKIPPED_UNARY_SCALAR_FUNCS =
+    Symbol[:isinf, :isnan, :isfinite, :iseven, :isodd, :isreal, :isinteger]
+const SKIPPED_BINARY_SCALAR_FUNCS =
+    Symbol[:isequal, :isless, :<, :>, :(==), :(!=), :(<=), :(>=)]
 
 # Some functions with derivatives in DiffRules are not supported
 # For instance, ReverseDiff does not support functions with complex results and derivatives

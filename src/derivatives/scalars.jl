@@ -2,7 +2,7 @@
 # ForwardOptimize #
 ###################
 
-for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+for (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         @warn "$M.$f is not available and hence rule for it can not be defined"
         continue  # Skip rules for methods not defined in the current scope
@@ -11,7 +11,8 @@ for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
     if arity == 1
         @eval @inline $M.$(f)(t::TrackedReal) = ForwardOptimize($M.$(f))(t)
     elseif arity == 2
-        @eval @inline $M.$(f)(a::TrackedReal, b::TrackedReal) = ForwardOptimize($M.$(f))(a, b)
+        @eval @inline $M.$(f)(a::TrackedReal, b::TrackedReal) =
+            ForwardOptimize($M.$(f))(a, b)
         for R in REAL_TYPES
             @eval begin
                 @inline $M.$(f)(a::TrackedReal, b::$R) = ForwardOptimize($M.$(f))(a, b)
@@ -49,7 +50,9 @@ end
 # reverse #
 ###########
 
-@noinline function scalar_reverse_exec!(instruction::ScalarInstruction{F,I,O,C}) where {F,I,O,C}
+@noinline function scalar_reverse_exec!(
+    instruction::ScalarInstruction{F,I,O,C},
+) where {F,I,O,C}
     f = instruction.func
     input = instruction.input
     output = instruction.output
@@ -77,7 +80,9 @@ end
 # forward #
 ###########
 
-@noinline function scalar_forward_exec!(instruction::ScalarInstruction{F,I,O,C}) where {F,I,O,C}
+@noinline function scalar_forward_exec!(
+    instruction::ScalarInstruction{F,I,O,C},
+) where {F,I,O,C}
     f = instruction.func
     input = instruction.input
     output = instruction.output
@@ -105,7 +110,8 @@ end
     pull_value!(b)
     if istracked(a) && istracked(b)
         result2 = DiffResults.GradientResult(SVector(zero(valtype(O)), zero(valtype(O))))
-        result2 = ForwardDiff.gradient!(result2, x -> f(x[1], x[2]), SVector(value(a), value(b)))
+        result2 =
+            ForwardDiff.gradient!(result2, x -> f(x[1], x[2]), SVector(value(a), value(b)))
         value!(output, DiffResults.value(result2))
         cache[] = DiffResults.gradient(result2)
     else
