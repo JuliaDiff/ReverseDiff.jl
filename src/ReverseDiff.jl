@@ -29,8 +29,7 @@ const ARRAY_TYPES = (
 const REAL_TYPES = (
     :Bool,
     :Integer,
-    :(Irrational{:ℯ}),
-    :(Irrational{:π}),
+    :AbstractIrrational,
     :Rational,
     :BigFloat,
     :BigInt,
