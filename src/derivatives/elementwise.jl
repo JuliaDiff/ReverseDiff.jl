@@ -87,7 +87,7 @@ end
 #----------#
 
 for g! in (:map!, :broadcast!),
-    (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
+    (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
 
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         @warn "$M.$f is not available and hence rule for it can not be defined"
@@ -100,65 +100,38 @@ for g! in (:map!, :broadcast!),
     elseif arity == 2
         @eval begin
             @inline Base.$(g!)(
-                f::typeof($M.$f),
-                out::TrackedArray,
-                x::TrackedArray,
-                y::TrackedArray,
+                f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::TrackedArray
             ) = $(g!)(ForwardOptimize(f), out, x, y)
             @inline Base.$(g!)(
-                f::typeof($M.$f),
-                out::TrackedArray,
-                x::TrackedArray,
-                y::TrackedReal,
+                f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::TrackedReal
             ) = $(g!)(ForwardOptimize(f), out, x, y)
             @inline Base.$(g!)(
-                f::typeof($M.$f),
-                out::TrackedArray,
-                x::TrackedReal,
-                y::TrackedArray,
+                f::typeof($M.$f), out::TrackedArray, x::TrackedReal, y::TrackedArray
             ) = $(g!)(ForwardOptimize(f), out, x, y)
         end
         for A in ARRAY_TYPES
             @eval begin
                 @inline Base.$(g!)(
-                    f::typeof($M.$f),
-                    out::TrackedArray,
-                    x::$A,
-                    y::TrackedArray,
+                    f::typeof($M.$f), out::TrackedArray, x::$A, y::TrackedArray
                 ) = $(g!)(ForwardOptimize(f), out, x, y)
                 @inline Base.$(g!)(
-                    f::typeof($M.$f),
-                    out::TrackedArray,
-                    x::TrackedArray,
-                    y::$A,
+                    f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::$A
                 ) = $(g!)(ForwardOptimize(f), out, x, y)
                 @inline Base.$(g!)(
-                    f::typeof($M.$f),
-                    out::TrackedArray,
-                    x::$A,
-                    y::TrackedReal,
+                    f::typeof($M.$f), out::TrackedArray, x::$A, y::TrackedReal
                 ) = $(g!)(ForwardOptimize(f), out, x, y)
                 @inline Base.$(g!)(
-                    f::typeof($M.$f),
-                    out::TrackedArray,
-                    x::TrackedReal,
-                    y::$A,
+                    f::typeof($M.$f), out::TrackedArray, x::TrackedReal, y::$A
                 ) = $(g!)(ForwardOptimize(f), out, x, y)
             end
         end
         for R in REAL_TYPES
             @eval begin
                 @inline Base.$(g!)(
-                    f::typeof($M.$f),
-                    out::TrackedArray,
-                    x::$R,
-                    y::TrackedArray,
+                    f::typeof($M.$f), out::TrackedArray, x::$R, y::TrackedArray
                 ) = $(g!)(ForwardOptimize(f), out, x, y)
                 @inline Base.$(g!)(
-                    f::typeof($M.$f),
-                    out::TrackedArray,
-                    x::TrackedArray,
-                    y::$R,
+                    f::typeof($M.$f), out::TrackedArray, x::TrackedArray, y::$R
                 ) = $(g!)(ForwardOptimize(f), out, x, y)
             end
         end
@@ -170,9 +143,7 @@ end
 
 for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
     @eval function Base.$(g!)(
-        f::ForwardOptimize{F},
-        out::TrackedArray{S},
-        x::TrackedArray{X},
+        f::ForwardOptimize{F}, out::TrackedArray{S}, x::TrackedArray{X}
     ) where {F,S,X}
         result = DiffResults.DiffResult(zero(S), zero(S))
         df = v -> ForwardDiff.derivative!(result, f.f, v)
@@ -185,10 +156,7 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
     for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
         (TX == TY == :TrackedReal) && continue
         @eval function Base.$(g!)(
-            f::ForwardOptimize{F},
-            out::TrackedArray{S},
-            x::$(TX){X},
-            y::$(TY){Y},
+            f::ForwardOptimize{F}, out::TrackedArray{S}, x::$(TX){X}, y::$(TY){Y}
         ) where {F,S,X,Y}
             result = DiffResults.GradientResult(SVector(zero(S), zero(S)))
             df =
@@ -203,10 +171,7 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
     end
     for A in ARRAY_TYPES
         @eval function Base.$(g!)(
-            f::ForwardOptimize{F},
-            out::TrackedArray,
-            x::TrackedReal{X,D},
-            y::$A,
+            f::ForwardOptimize{F}, out::TrackedArray, x::TrackedReal{X,D}, y::$A
         ) where {F,X,D}
             result = DiffResults.DiffResult(zero(X), zero(D))
             df = let result = result
@@ -221,10 +186,7 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             return out
         end
         @eval function Base.$(g!)(
-            f::ForwardOptimize{F},
-            out::TrackedArray,
-            x::$A,
-            y::TrackedReal{Y,D},
+            f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::TrackedReal{Y,D}
         ) where {F,Y,D}
             result = DiffResults.DiffResult(zero(Y), zero(D))
             df = let result = result
@@ -239,10 +201,7 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             return out
         end
         @eval function Base.$(g!)(
-            f::ForwardOptimize{F},
-            out::TrackedArray,
-            x::TrackedArray{X},
-            y::$A,
+            f::ForwardOptimize{F}, out::TrackedArray, x::TrackedArray{X}, y::$A
         ) where {F,X}
             result = DiffResults.GradientResult(SVector(zero(X)))
             df =
@@ -256,10 +215,7 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             return out
         end
         @eval function Base.$(g!)(
-            f::ForwardOptimize{F},
-            out::TrackedArray,
-            x::$A,
-            y::TrackedArray{Y},
+            f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::TrackedArray{Y}
         ) where {F,Y}
             result = DiffResults.GradientResult(SVector(zero(Y)))
             df = let vx = vx
@@ -277,16 +233,10 @@ end
 for R in REAL_TYPES
     @eval begin
         @inline Base.broadcast!(
-            f::ForwardOptimize{F},
-            out::TrackedArray,
-            x::TrackedArray,
-            y::$R,
+            f::ForwardOptimize{F}, out::TrackedArray, x::TrackedArray, y::$R
         ) where {F} = broadcast!(ForwardOptimize(t -> f.f(t, y)), out, x)
         @inline Base.broadcast!(
-            f::ForwardOptimize{F},
-            out::TrackedArray,
-            x::$R,
-            y::TrackedArray,
+            f::ForwardOptimize{F}, out::TrackedArray, x::$R, y::TrackedArray
         ) where {F} = broadcast!(ForwardOptimize(t -> f.f(x, t)), out, y)
     end
 end
@@ -298,9 +248,7 @@ end
 # dispatch #
 #----------#
 
-for g in (:map, :broadcast),
-    (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
-
+for g in (:map, :broadcast), (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         @warn "$M.$f is not available and hence rule for it can not be defined"
         continue  # Skip rules for methods not defined in the current scope
@@ -362,9 +310,7 @@ for g in (:map, :broadcast)
     end
     for A in ARRAY_TYPES
         @eval function Base.$(g)(
-            f::ForwardOptimize{F},
-            x::TrackedReal{X,D},
-            y::$A,
+            f::ForwardOptimize{F}, x::TrackedReal{X,D}, y::$A
         ) where {F,X,D}
             result = DiffResults.DiffResult(zero(X), zero(D))
             df = let result = result
@@ -380,9 +326,7 @@ for g in (:map, :broadcast)
             return out
         end
         @eval function Base.$(g)(
-            f::ForwardOptimize{F},
-            x::$A,
-            y::TrackedReal{Y,D},
+            f::ForwardOptimize{F}, x::$A, y::TrackedReal{Y,D}
         ) where {F,Y,D}
             result = DiffResults.DiffResult(zero(Y), zero(D))
             df = let result = result
@@ -398,9 +342,7 @@ for g in (:map, :broadcast)
             return out
         end
         @eval function Base.$(g)(
-            f::ForwardOptimize{F},
-            x::TrackedArray{X,D},
-            y::$A,
+            f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$A
         ) where {F,X,D}
             result = DiffResults.GradientResult(SVector(zero(X)))
             df =
@@ -415,9 +357,7 @@ for g in (:map, :broadcast)
             return out
         end
         @eval function Base.$(g)(
-            f::ForwardOptimize{F},
-            x::$A,
-            y::TrackedArray{Y,D},
+            f::ForwardOptimize{F}, x::$A, y::TrackedArray{Y,D}
         ) where {F,Y,D}
             result = DiffResults.GradientResult(SVector(zero(Y)))
             df =
@@ -436,9 +376,7 @@ for g in (:map, :broadcast)
     for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
         TX == :TrackedReal && TY == :TrackedReal && continue
         @eval function Base.$(g)(
-            f::ForwardOptimize{F},
-            x::$(TX){X,D},
-            y::$(TY){Y,D},
+            f::ForwardOptimize{F}, x::$(TX){X,D}, y::$(TY){Y,D}
         ) where {F,X,Y,D}
             result = DiffResults.GradientResult(SVector(zero(D), zero(D)))
             df =
@@ -457,14 +395,10 @@ end
 for R in REAL_TYPES
     @eval begin
         @inline Base.broadcast(
-            f::ForwardOptimize{F},
-            x::TrackedArray{X,D},
-            y::$R,
+            f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$R
         ) where {F,X,D} = broadcast(ForwardOptimize(t -> f.f(t, y)), x)
         @inline Base.broadcast(
-            f::ForwardOptimize{F},
-            x::$R,
-            y::TrackedArray{Y,D},
+            f::ForwardOptimize{F}, x::$R, y::TrackedArray{Y,D}
         ) where {F,Y,D} = broadcast(ForwardOptimize(t -> f.f(x, t)), y)
     end
 end
@@ -476,7 +410,7 @@ end
 for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
     @eval begin
         @noinline function special_forward_exec!(
-            instruction::SpecialInstruction{typeof($g)},
+            instruction::SpecialInstruction{typeof($g)}
         )
             input, output = instruction.input, instruction.output
             results, df, _, _ = instruction.cache
@@ -581,19 +515,13 @@ for (F, broadcast_f) in (
 )
     @eval begin
         @inline Base.broadcast(
-            ::$F,
-            x::TrackedArray{X,D},
-            y::TrackedArray{Y,D},
+            ::$F, x::TrackedArray{X,D}, y::TrackedArray{Y,D}
         ) where {X,Y,D} = $(broadcast_f)(x, y, D)
         @inline Base.broadcast(
-            ::$F,
-            x::TrackedReal{X,D},
-            y::TrackedArray{Y,D},
+            ::$F, x::TrackedReal{X,D}, y::TrackedArray{Y,D}
         ) where {X,Y,D} = $(broadcast_f)(x, y, D)
         @inline Base.broadcast(
-            ::$F,
-            x::TrackedArray{X,D},
-            y::TrackedReal{Y,D},
+            ::$F, x::TrackedArray{X,D}, y::TrackedReal{Y,D}
         ) where {X,Y,D} = $(broadcast_f)(x, y, D)
     end
     for A in ARRAY_TYPES
@@ -630,7 +558,7 @@ function broadcast_plus(x, y, ::Type{D}) where {D}
 end
 
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(+)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(+)}}
 )
     a, b = instruction.input
     output = instruction.output
@@ -641,7 +569,7 @@ end
 end
 
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(+)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(+)}}
 )
     a, b = instruction.input
     output = instruction.output
@@ -665,7 +593,7 @@ function broadcast_minus(x, y, ::Type{D}) where {D}
 end
 
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(-)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(-)}}
 )
     a, b = instruction.input
     output = instruction.output
@@ -676,7 +604,7 @@ end
 end
 
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(-)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(-)}}
 )
     a, b = instruction.input
     output = instruction.output
@@ -700,7 +628,7 @@ function broadcast_mul(x, y, ::Type{D}) where {D}
 end
 
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(*)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(*)}}
 )
     a, b = instruction.input
     output = instruction.output
@@ -711,7 +639,7 @@ end
 end
 
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(*)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(*)}}
 )
     a, b = instruction.input
     output = instruction.output
@@ -735,8 +663,9 @@ denom_partials_kernel(n::Real, d::Real) = -(n / (d * d))
 denom_partials(n::Real, d::Real) = Ref(denom_partials_kernel(n, d))
 denom_partials(n, d) = broadcast(denom_partials_kernel, n, d)
 denom_partials!(out::Ref, n, d) = (out[] = denom_partials_kernel(n, d); nothing)
-denom_partials!(out::AbstractArray, n, d) =
+function denom_partials!(out::AbstractArray, n, d)
     (broadcast!(denom_partials_kernel, out, n, d); nothing)
+end
 
 rdiv_cache(x, y) = (numer_partials(value(y)), denom_partials(value(x), value(y)))
 
@@ -757,7 +686,7 @@ function broadcast_rdiv(x, y, ::Type{D}) where {D}
 end
 
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}}
 )
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
@@ -772,7 +701,7 @@ end
 end
 
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}}
 )
     a, b = instruction.input
     output = instruction.output
@@ -807,7 +736,7 @@ function broadcast_ldiv(x, y, ::Type{D}) where {D}
 end
 
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}}
 )
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
@@ -822,7 +751,7 @@ end
 end
 
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}}
 )
     a, b = instruction.input
     output = instruction.output
@@ -844,15 +773,17 @@ base_partials_kernel(b::Real, e::Real) = e * b^(e - 1)
 base_partials(b::Real, e::Real) = Ref(base_partials_kernel(b, e))
 base_partials(b, e) = broadcast(base_partials_kernel, b, e)
 base_partials!(out::Ref, b, e) = (out[] = base_partials_kernel(b, e); nothing)
-base_partials!(out::AbstractArray, b, e) =
+function base_partials!(out::AbstractArray, b, e)
     (broadcast!(base_partials_kernel, out, b, e); nothing)
+end
 
 exp_partials_kernel(b::Real, e::Real) = log(b) * b^e
 exp_partials(b::Real, e::Real) = Ref(exp_partials_kernel(b, e))
 exp_partials(b, e) = broadcast(exp_partials_kernel, b, e)
 exp_partials!(out::Ref, b, e) = (out[] = exp_partials_kernel(b, e); nothing)
-exp_partials!(out::AbstractArray, b, e) =
+function exp_partials!(out::AbstractArray, b, e)
     (broadcast!(exp_partials_kernel, out, b, e); nothing)
+end
 
 function pow_cache(x, y)
     pow_x = istracked(x) ? base_partials(value(x), value(y)) : value(x)
@@ -877,7 +808,7 @@ function broadcast_pow(x, y, ::Type{D}) where {D}
 end
 
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(^)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(^)}}
 )
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
@@ -892,7 +823,7 @@ end
 end
 
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(^)}},
+    instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(^)}}
 )
     a, b = instruction.input
     output = instruction.output

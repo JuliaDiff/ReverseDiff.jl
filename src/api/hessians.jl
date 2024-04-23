@@ -17,7 +17,7 @@ If possible, it is highly recommended to use `ReverseDiff.HessianTape` to prerec
 Otherwise, this method will have to re-record `f`'s execution trace for every subsequent
 call.
 """
-function hessian(f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
+function hessian(f, input::AbstractArray, cfg::HessianConfig=HessianConfig(input))
     ∇f = x -> gradient(f, x, cfg.gradient_config)
     return jacobian(∇f, input, cfg.jacobian_config)
 end
@@ -36,12 +36,7 @@ it stores the resulting Hessian in `result` rather than allocating new memory.
 If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
 `∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
 """
-function hessian!(
-    result,
-    f,
-    input::AbstractArray,
-    cfg::HessianConfig = HessianConfig(input),
-)
+function hessian!(result, f, input::AbstractArray, cfg::HessianConfig=HessianConfig(input))
     ∇f = x -> gradient(f, x, cfg.gradient_config)
     jacobian!(result, ∇f, input, cfg.jacobian_config)
     return result
@@ -51,14 +46,13 @@ function hessian!(
     result::DiffResult,
     f,
     input::AbstractArray,
-    cfg::HessianConfig = HessianConfig(result, input),
+    cfg::HessianConfig=HessianConfig(result, input),
 )
     ∇f! =
         (y, x) -> begin
             gradient_result = DiffResult(zero(eltype(y)), y)
             gradient!(gradient_result, f, x, cfg.gradient_config)
-            result =
-                DiffResults.value!(result, value(DiffResults.value(gradient_result)))
+            result = DiffResults.value!(result, value(DiffResults.value(gradient_result)))
             return y
         end
     jacobian!(
@@ -99,9 +93,7 @@ If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the g
 `∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
 """
 function hessian!(
-    result::AbstractArray,
-    tape::Union{HessianTape,CompiledHessian},
-    input::AbstractArray,
+    result::AbstractArray, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray
 )
     seeded_forward_pass!(tape, input)
     seeded_reverse_pass!(result, tape)
@@ -109,14 +101,11 @@ function hessian!(
 end
 
 function hessian!(
-    result::DiffResult,
-    tape::Union{HessianTape,CompiledHessian},
-    input::AbstractArray,
+    result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray
 )
     seeded_forward_pass!(tape, input)
     seeded_reverse_pass!(
-        DiffResult(DiffResults.gradient(result), DiffResults.hessian(result)),
-        tape,
+        DiffResult(DiffResults.gradient(result), DiffResults.hessian(result)), tape
     )
     result = DiffResults.value!(result, func_hook(tape)(input))
     return result

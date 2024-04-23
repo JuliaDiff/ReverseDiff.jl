@@ -61,8 +61,7 @@ end
 ReverseDiff.@grad_from_chainrules g(x::ReverseDiff.TrackedArray, y)
 ReverseDiff.@grad_from_chainrules g(x, y::ReverseDiff.TrackedArray)
 ReverseDiff.@grad_from_chainrules g(
-    x::ReverseDiff.TrackedArray,
-    y::ReverseDiff.TrackedArray,
+    x::ReverseDiff.TrackedArray, y::ReverseDiff.TrackedArray
 )
 
 @testset "rrule in ChainRules and ReverseDiff" begin
@@ -80,7 +79,6 @@ ReverseDiff.@grad_from_chainrules g(
     @test output == g(inputs...)
     @test d1 == fill(3, size(inputs[1]))
     @test d2 == fill(5, size(inputs[2]))
-
 
     ## ReverseDiff
     #function f
@@ -112,7 +110,6 @@ ReverseDiff.@grad_from_chainrules g(
     ReverseDiff.gradient!(results, compiled_tape, inputs)
     @test results[1] == fill(3, size(inputs[1]))
     @test results[2] == fill(5, size(inputs[2]))
-
 end
 
 @testset "custom struct input" begin
@@ -164,31 +161,24 @@ ReverseDiff.@grad_from_chainrules f_vararg(x::ReverseDiff.TrackedArray, args...)
     @test results[1] == fill(3, size(inputs[1]))
 end
 
-
 # Vargs and kwargs
-f_kw(x, args...; k = 1, kwargs...) = sum(4x .+ sum(args) .+ (k + kwargs[:j]))
+f_kw(x, args...; k=1, kwargs...) = sum(4x .+ sum(args) .+ (k + kwargs[:j]))
 
-function ChainRulesCore.rrule(::typeof(f_kw), x, args...; k = 1, kwargs...)
-    r = f_kw(x, args...; k = k, kwargs...)
+function ChainRulesCore.rrule(::typeof(f_kw), x, args...; k=1, kwargs...)
+    r = f_kw(x, args...; k=k, kwargs...)
     function back(d)
         return NoTangent(), fill(3 * d, size(x))
     end
     return r, back
 end
 
-ReverseDiff.@grad_from_chainrules f_kw(
-    x::ReverseDiff.TrackedArray,
-    args...;
-    k = 1,
-    kwargs...,
-)
+ReverseDiff.@grad_from_chainrules f_kw(x::ReverseDiff.TrackedArray, args...; k=1, kwargs...)
 
 @testset "Function with Varargs and kwargs" begin
     inputs = (rand(3, 3),)
 
     results = (similar(inputs[1]),)
-    f_tape =
-        ReverseDiff.GradientTape(x -> f_kw(x, 1, 2, 3; k = 2, j = 3) + 2, (rand(3, 3),))
+    f_tape = ReverseDiff.GradientTape(x -> f_kw(x, 1, 2, 3; k=2, j=3) + 2, (rand(3, 3),))
     ReverseDiff.gradient!(results, f_tape, inputs)
 
     @test results[1] == fill(3, size(inputs[1]))
@@ -215,37 +205,37 @@ end
 
 ### Isolated Scope
 module IsolatedModuleForTestingScoping
-using ChainRulesCore
-using ReverseDiff: ReverseDiff, @grad_from_chainrules
+    using ChainRulesCore
+    using ReverseDiff: ReverseDiff, @grad_from_chainrules
 
-f(x) = sum(4x .+ 1)
+    f(x) = sum(4x .+ 1)
 
-function ChainRulesCore.rrule(::typeof(f), x)
-    r = f(x)
-    function back(d)
-        # return a distinguishable but improper grad
-        return NoTangent(), fill(3 * d, size(x))
+    function ChainRulesCore.rrule(::typeof(f), x)
+        r = f(x)
+        function back(d)
+            # return a distinguishable but improper grad
+            return NoTangent(), fill(3 * d, size(x))
+        end
+        return r, back
     end
-    return r, back
-end
 
-@grad_from_chainrules f(x::ReverseDiff.TrackedArray)
+    @grad_from_chainrules f(x::ReverseDiff.TrackedArray)
 
-module SubModule
-using Test
-using ReverseDiff: TrackedArray, GradientTape, gradient!
-using ..IsolatedModuleForTestingScoping: f
-@testset "rrule in Isolated Scope" begin
-    inputs = (rand(3, 3),)
+    module SubModule
+        using Test
+        using ReverseDiff: TrackedArray, GradientTape, gradient!
+        using ..IsolatedModuleForTestingScoping: f
+        @testset "rrule in Isolated Scope" begin
+            inputs = (rand(3, 3),)
 
-    results = (similar(inputs[1]),)
-    f_tape = GradientTape(x -> f(x) + 2, (rand(3, 3),))
-    gradient!(results, f_tape, inputs)
+            results = (similar(inputs[1]),)
+            f_tape = GradientTape(x -> f(x) + 2, (rand(3, 3),))
+            gradient!(results, f_tape, inputs)
 
-    @test results[1] == fill(3, size(inputs[1]))
-end
+            @test results[1] == fill(3, size(inputs[1]))
+        end
 
-end # end of SubModule
+    end # end of SubModule
 end # end of IsolatedModuleForTestingScoping
 
 end

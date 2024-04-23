@@ -22,10 +22,10 @@ const SKIPPED_BINARY_SCALAR_TESTS = Symbol[:polygamma, :ldexp, :rem2pi]
 # deterministic so we don't have to retune EPS for arbitrary inputs
 Random.seed!(1)
 
-test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
+test_println(kind, f, pad="  ") = println(pad, "testing $(kind): `$(f)`...")
 
-@inline test_approx(A, B, _atol = 1e-5; nans::Bool = false) =
-    @test isapprox(A, B; atol = _atol, nans = nans)
+@inline test_approx(A, B, _atol=1e-5; nans::Bool=false) =
+    @test isapprox(A, B; atol=_atol, nans=nans)
 
 tracked_is(a, b) = value(a) === value(b) && deriv(a) === deriv(b) && tape(a) === tape(b)
 tracked_is(a::AbstractArray, b::AbstractArray) = all(map(tracked_is, a, b))

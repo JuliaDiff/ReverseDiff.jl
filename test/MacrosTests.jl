@@ -52,7 +52,7 @@ function test_forward(f, x, tp)
     @test instruction.input === xt
     @test instruction.output === yt
     @test instruction.cache[] === partials(dual, 1)
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_forward(f, a, b, tp)
@@ -91,7 +91,7 @@ function test_forward(f, a, b, tp)
     @test instruction.input === (at, bt)
     @test instruction.output === tc
     @test instruction.cache[] === SVector(partials(dual)...)
-    empty!(tp)
+    return empty!(tp)
 end
 
 for f in (ReverseDiff.@forward(f0), f1, f2, f3, f4, ReverseDiff.@forward(-))
@@ -199,7 +199,7 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     @grad function f1(x::AbstractVector)
         global custom_grad_called = true
         xv = ReverseDiff.value(x)
-        dot(xv, xv), Δ -> (Δ * 2 * xv,)
+        return dot(xv, xv), Δ -> (Δ * 2 * xv,)
     end
 
     custom_grad_called = false
@@ -216,7 +216,7 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
         global custom_grad_called = true
         Av = ReverseDiff.value(A)
         xv = ReverseDiff.value(x)
-        Av * xv, Δ -> (Δ * xv', Av' * Δ)
+        return Av * xv, Δ -> (Δ * xv', Av' * Δ)
     end
 
     custom_grad_called = false
@@ -237,29 +237,29 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     @test g1 == g2
     @test custom_grad_called
 
-    f3(A; dims) = sum(A, dims = dims)
-    f3(A::TrackedMatrix; dims) = ReverseDiff.track(f3, A; dims = dims)
+    f3(A; dims) = sum(A; dims=dims)
+    f3(A::TrackedMatrix; dims) = ReverseDiff.track(f3, A; dims=dims)
     @grad function f3(A::AbstractMatrix; dims)
         global custom_grad_called = true
         Av = ReverseDiff.value(A)
-        sum(Av, dims = dims), Δ -> (zero(Av) .+ Δ,)
+        return sum(Av; dims=dims), Δ -> (zero(Av) .+ Δ,)
     end
     custom_grad_called = false
-    g1 = ReverseDiff.gradient(A -> sum(f3(A, dims = 1)), A)
-    g2 = ReverseDiff.gradient(A -> sum(sum(A, dims = 1)), A)
+    g1 = ReverseDiff.gradient(A -> sum(f3(A; dims=1)), A)
+    g2 = ReverseDiff.gradient(A -> sum(sum(A; dims=1)), A)
     @test g1 == g2
     @test custom_grad_called
 
-    f4(::typeof(log), A; dims) = sum(log, A, dims = dims)
-    f4(::typeof(log), A::TrackedMatrix; dims) = ReverseDiff.track(f4, log, A; dims = dims)
+    f4(::typeof(log), A; dims) = sum(log, A; dims=dims)
+    f4(::typeof(log), A::TrackedMatrix; dims) = ReverseDiff.track(f4, log, A; dims=dims)
     @grad function f4(::typeof(log), A::AbstractMatrix; dims)
         global custom_grad_called = true
         Av = ReverseDiff.value(A)
-        sum(log, Av, dims = dims), Δ -> (nothing, 1 ./ Av .* Δ)
+        return sum(log, Av; dims=dims), Δ -> (nothing, 1 ./ Av .* Δ)
     end
     custom_grad_called = false
-    g1 = ReverseDiff.gradient(A -> sum(f4(log, A, dims = 1)), A)
-    g2 = ReverseDiff.gradient(A -> sum(sum(log, A, dims = 1)), A)
+    g1 = ReverseDiff.gradient(A -> sum(f4(log, A; dims=1)), A)
+    g2 = ReverseDiff.gradient(A -> sum(sum(log, A; dims=1)), A)
     @test g1 == g2
     @test custom_grad_called
 
@@ -268,7 +268,7 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     @grad function f5(x::Real)
         global custom_grad_called = true
         xv = ReverseDiff.value(x)
-        log(xv), Δ -> (1 / xv * Δ,)
+        return log(xv), Δ -> (1 / xv * Δ,)
     end
     custom_grad_called = false
     g1 = ReverseDiff.gradient(x -> f5(x[1]) * f5(x[2]) + exp(x[3]), x)
@@ -281,7 +281,7 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     @grad function f6(x::TrackedArray{T}) where {T<:AbstractFloat}
         global custom_grad_called = true
         xv = ReverseDiff.value(x)
-        sum(xv), Δ -> (one.(xv) .* Δ,)
+        return sum(xv), Δ -> (one.(xv) .* Δ,)
     end
 
     custom_grad_called = false
@@ -304,7 +304,7 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     @grad function f7(x::TrackedReal{T}...) where {T<:AbstractFloat}
         global custom_grad_called = true
         xv = ReverseDiff.value.(x)
-        +(xv...), Δ -> one.(xv) .* Δ
+        return +(xv...), Δ -> one.(xv) .* Δ
     end
     custom_grad_called = false
     g1 = ReverseDiff.gradient(x -> f7(x...), x)
@@ -317,11 +317,11 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     @grad function f8(A::AbstractMatrix; kwargs...)
         global custom_grad_called = true
         Av = ReverseDiff.value(A)
-        sum(Av; kwargs...), Δ -> (zero(Av) .+ Δ,)
+        return sum(Av; kwargs...), Δ -> (zero(Av) .+ Δ,)
     end
     custom_grad_called = false
-    g1 = ReverseDiff.gradient(A -> sum(f8(A, dims = 1)), A)
-    g2 = ReverseDiff.gradient(A -> sum(sum(A, dims = 1)), A)
+    g1 = ReverseDiff.gradient(A -> sum(f8(A; dims=1)), A)
+    g2 = ReverseDiff.gradient(A -> sum(sum(A; dims=1)), A)
     @test g1 == g2
     @test custom_grad_called
 
@@ -330,7 +330,7 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     @grad function f9(x::AbstractVector{<:TrackedReal})
         global custom_grad_called = true
         xv = ReverseDiff.value(x)
-        f9(xv), Δ -> ((2 * Δ) .* xv,)
+        return f9(xv), Δ -> ((2 * Δ) .* xv,)
     end
     custom_grad_called = false
     g1 = ReverseDiff.gradient(A) do x

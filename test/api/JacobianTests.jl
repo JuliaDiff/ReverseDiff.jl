@@ -7,10 +7,7 @@ include(joinpath(dirname(@__FILE__), "../utils.jl"))
 function test_unary_jacobian(f, x)
     test_val = f(x)
     test = ForwardDiff.jacobian!(
-        DiffResults.JacobianResult(test_val, x),
-        f,
-        x,
-        ForwardDiff.JacobianConfig(f, x),
+        DiffResults.JacobianResult(test_val, x), f, x, ForwardDiff.JacobianConfig(f, x)
     )
 
     # without JacobianConfig
@@ -303,12 +300,10 @@ for f in DiffTests.BINARY_MATRIX_TO_MATRIX_FUNCS
     # with JacobianTape
 
     ra = ReverseDiff.JacobianTape(
-        y -> ReverseDiff.jacobian(x -> f(x, b), y),
-        rand(eltype(a), size(a)),
+        y -> ReverseDiff.jacobian(x -> f(x, b), y), rand(eltype(a), size(a))
     )
     rb = ReverseDiff.JacobianTape(
-        y -> ReverseDiff.jacobian(x -> f(a, x), y),
-        rand(eltype(b), size(b)),
+        y -> ReverseDiff.jacobian(x -> f(a, x), y), rand(eltype(b), size(b))
     )
     Ja = ReverseDiff.jacobian!(ra, a)
     Jb = ReverseDiff.jacobian!(rb, b)

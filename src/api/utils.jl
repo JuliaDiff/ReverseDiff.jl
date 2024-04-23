@@ -6,10 +6,7 @@
 #------------------------------------------------------------#
 
 function seeded_reverse_pass!(
-    result::AbstractArray,
-    output::AbstractArray,
-    input::TrackedReal,
-    tape,
+    result::AbstractArray, output::AbstractArray, input::TrackedReal, tape
 )
     result_vector = reshape(result, length(output))
     for i in eachindex(output)
@@ -47,10 +44,7 @@ end
 #---------------------------------------------#
 
 function seeded_reverse_pass!(
-    result::AbstractArray,
-    output::AbstractArray,
-    input::TrackedArray,
-    tape,
+    result::AbstractArray, output::AbstractArray, input::TrackedArray, tape
 )
     result_matrix = reshape(result, length(output), length(input))
     input_deriv = deriv(input)
@@ -68,10 +62,7 @@ function seeded_reverse_pass!(
 end
 
 function seeded_reverse_pass!(
-    result::DiffResult,
-    output::AbstractArray,
-    input::TrackedArray,
-    tape,
+    result::DiffResult, output::AbstractArray, input::TrackedArray, tape
 )
     seeded_reverse_pass!(DiffResults.jacobian(result), output, input, tape)
     extract_result_value!(result, output)
@@ -158,11 +149,13 @@ fill_zeros!(result::AbstractArray) = fill!(result, zero(eltype(result)))
 # result construction #
 #######################
 
-construct_result(output::AbstractArray, input::Tuple) =
-    map(x -> construct_result(output, x), input)
+function construct_result(output::AbstractArray, input::Tuple)
+    return map(x -> construct_result(output, x), input)
+end
 
-construct_result(output::AbstractArray, input::TrackedArray) =
-    similar(deriv(input), length(output), length(input))
+function construct_result(output::AbstractArray, input::TrackedArray)
+    return similar(deriv(input), length(output), length(input))
+end
 
 construct_result(input::TrackedArray) = similar(deriv(input))
 

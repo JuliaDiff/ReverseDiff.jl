@@ -124,8 +124,7 @@ function test_ternary_gradient(f, a, b, c)
     # with GradientTape
 
     tp = ReverseDiff.GradientTape(
-        f,
-        (rand(eltype(a), size(a)), rand(eltype(b), size(b)), rand(eltype(c), size(c))),
+        f, (rand(eltype(a), size(a)), rand(eltype(b), size(b)), rand(eltype(c), size(c)))
     )
 
     ∇a, ∇b, ∇c = ReverseDiff.gradient!(tp, (a, b, c))

@@ -59,13 +59,15 @@ end
 
 ####################################################################
 
-rosenbrock(x) = sum(
-    map(
-        ReverseDiff.@forward((i, j) -> (1 - j)^2 + 100 * (i - j^2)^2),
-        x[2:end],
-        x[1:end-1],
-    ),
-)
+function rosenbrock(x)
+    return sum(
+        map(
+            ReverseDiff.@forward((i, j) -> (1 - j)^2 + 100 * (i - j^2)^2),
+            x[2:end],
+            x[1:(end - 1)],
+        ),
+    )
+end
 
 # function rosenbrock(x)
 #     i = x[2:end]
@@ -110,15 +112,15 @@ grad_benchmark_driver!(out, ackley, x)
 function generate_matrix_test(n)
     return x -> begin
         @assert length(x) == 2n^2 + n
-        a = reshape(x[1:n^2], n, n)
-        b = reshape(x[n^2+1:2n^2], n, n)
+        a = reshape(x[1:(n^2)], n, n)
+        b = reshape(x[(n^2 + 1):(2n^2)], n, n)
         return trace(log.((a * b) + a - b))
     end
 end
 
 n = 100
 matrix_test = generate_matrix_test(n)
-x = collect(1.0:(2n^2+n))
+x = collect(1.0:(2n^2 + n))
 out = zeros(x)
 grad_benchmark_driver!(out, matrix_test, x)
 

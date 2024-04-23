@@ -37,7 +37,7 @@ function test_forward(f, x, tp::InstructionTape, fsym::Symbol)
     @test value(yt) == f(x2)
     ReverseDiff.value!(xt, x)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_forward(f, a, b, tp)
@@ -55,7 +55,7 @@ function test_forward(f, a, b, tp)
     # reverse
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
-    test_approx(deriv(at), ForwardDiff.derivative(x -> f(x, b), a); nans = true)
+    test_approx(deriv(at), ForwardDiff.derivative(x -> f(x, b), a); nans=true)
     ReverseDiff.unseed!(at)
 
     # forward
@@ -77,7 +77,7 @@ function test_forward(f, a, b, tp)
     # reverse
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
-    test_approx(deriv(bt), ForwardDiff.derivative(x -> f(a, x), b); nans = true)
+    test_approx(deriv(bt), ForwardDiff.derivative(x -> f(a, x), b); nans=true)
     ReverseDiff.unseed!(bt)
 
     # forward
@@ -100,8 +100,8 @@ function test_forward(f, a, b, tp)
     ReverseDiff.seed!(ct)
     ReverseDiff.reverse_pass!(tp)
     grads = ForwardDiff.gradient(x -> f(x[1], x[2]), [a, b])
-    test_approx(deriv(at), grads[1]; nans = true)
-    test_approx(deriv(bt), grads[2]; nans = true)
+    test_approx(deriv(at), grads[1]; nans=true)
+    test_approx(deriv(bt), grads[2]; nans=true)
 
     # forward
     a2 = isa(a, Int) ? rand(int_range) : rand()
@@ -113,7 +113,7 @@ function test_forward(f, a, b, tp)
     ReverseDiff.value!(bt, a)
     ReverseDiff.value!(bt, b)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_skip(f, x, tp)
@@ -142,7 +142,7 @@ function test_skip(f, a, b, tp)
     @test isempty(tp)
 end
 
-for (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
+for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
     # ensure that function is defined
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         error("$M.$f is not available")

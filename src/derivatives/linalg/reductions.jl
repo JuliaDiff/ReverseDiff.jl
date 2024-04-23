@@ -96,8 +96,9 @@ function record_dot(x, y, ::Type{D}) where {D}
     return out
 end
 
-LinearAlgebra.dot(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} =
-    record_dot(x, y, D)
+function LinearAlgebra.dot(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D}
+    return record_dot(x, y, D)
+end
 
 for A in ARRAY_TYPES
     @eval LinearAlgebra.dot(x::TrackedArray{X,D}, y::$A) where {X,D} = record_dot(x, y, D)

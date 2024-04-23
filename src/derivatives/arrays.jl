@@ -16,8 +16,8 @@ end
 ## any & all ##
 ###############
 
-Base.any(f::Function, x::TrackedArray; dims = :) = any(f, value(x), dims = dims)
-Base.all(f::Function, x::TrackedArray; dims = :) = all(f, value(x), dims = dims)
+Base.any(f::Function, x::TrackedArray; dims=:) = any(f, value(x); dims=dims)
+Base.all(f::Function, x::TrackedArray; dims=:) = all(f, value(x); dims=dims)
 
 #########
 ## cat ##
@@ -26,11 +26,11 @@ Base.all(f::Function, x::TrackedArray; dims = :) = all(f, value(x), dims = dims)
 function combinations(xs, n)
     n < 1 && return [[]]
     cs = combinations(xs, n - 1)
-    [[x, c...] for x in xs, c in cs]
+    return [[x, c...] for x in xs, c in cs]
 end
 
 for f in [:hcat, :vcat]
-    for i = 0:2,
+    for i in 0:2,
         c in combinations(
             [
                 :AbstractVector,
@@ -86,9 +86,9 @@ end
         start = 0
         Δs = map(xs) do xsi
             if xsi isa Number
-                d = Δ[start+1]
+                d = Δ[start + 1]
             else
-                d = Δ[start+1:start+size(xsi, 1), :]
+                d = Δ[(start + 1):(start + size(xsi, 1)), :]
             end
             start += size(xsi, 1)
             d
@@ -105,12 +105,12 @@ end
         start = 0
         Δs = map(xs) do xsi
             d = if ndims(xsi) == 0
-                Δ[start+1]
+                Δ[start + 1]
             elseif ndims(xsi) == 1
-                Δ[:, start+1]
+                Δ[:, start + 1]
             else
-                i = map(_ -> :, size(xsi)) |> Base.tail |> Base.tail
-                Δ[:, start+1:start+size(xsi, 2), i...]
+                i = Base.tail(Base.tail(map(_ -> :, size(xsi))))
+                Δ[:, (start + 1):(start + size(xsi, 2)), i...]
             end
             start += size(xsi, 2)
             d
@@ -120,23 +120,23 @@ end
     return out_value, back
 end
 
-for i = 0:2, c in combinations([:AbstractArray, :TrackedArray, :Number, :TrackedReal], i)
+for i in 0:2, c in combinations([:AbstractArray, :TrackedArray, :Number, :TrackedReal], i)
     cnames = map(_ -> gensym(), c)
     @eval Base.cat(
         $([:($x::$c) for (x, c) in zip(cnames, c)]...),
         x::Union{TrackedArray,TrackedReal},
         xs::Union{AbstractArray,Number}...;
         dims,
-    ) = track(cat, $(cnames...), x, xs...; dims = dims)
+    ) = track(cat, $(cnames...), x, xs...; dims=dims)
 end
 @grad function cat(Xs::Union{Number,AbstractArray}...; dims)
     Xs_value = value.(Xs)
-    return cat(Xs_value...; dims = dims),
+    return cat(Xs_value...; dims=dims),
     Δ -> begin
         start = ntuple(i -> 0, Val(ndims(Δ)))
         Δs = map(Xs) do xs
             if xs isa Number
-                d = Δ[start+1]
+                d = Δ[start + 1]
                 start = start .+ 1
             else
                 dim_xs = 1:ndims(xs)
@@ -145,7 +145,11 @@ end
                     Val(ndims(Δ)),
                 )
                 xs_in_Δ = ntuple(
-                    i -> till_xs[i] > 0 ? (start[i]+1:start[i]+till_xs[i]) : Colon(),
+                    i -> if till_xs[i] > 0
+                        ((start[i] + 1):(start[i] + till_xs[i]))
+                    else
+                        Colon()
+                    end,
                     Val(ndims(Δ)),
                 )
                 d = reshape(Δ[xs_in_Δ...], size(xs))

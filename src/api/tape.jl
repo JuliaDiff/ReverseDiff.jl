@@ -17,8 +17,9 @@ for T in (:GradientTape, :JacobianTape, :HessianTape)
             output::O
             tape::InstructionTape
             # disable default outer constructor
-            $(T){F,I,O}(func, input, output, tape) where {F,I,O} =
-                new{F,I,O}(func, input, output, tape)
+            function $(T){F,I,O}(func, input, output, tape) where {F,I,O}
+                return new{F,I,O}(func, input, output, tape)
+            end
         end
 
         # "private" convienence constructor
@@ -101,7 +102,7 @@ Construct a compiled type by wrapping the `forward_exec!` and `reverse_exec!`
 methods on each instruction in the tape.
 """
 function CompiledTape(t::T) where {T<:AbstractTape}
-    CompiledTape{T}(
+    return CompiledTape{T}(
         t,
         [
             FunctionWrapper{Nothing,Tuple{}}(ForwardExecutor(instruction)) for
@@ -109,7 +110,7 @@ function CompiledTape(t::T) where {T<:AbstractTape}
         ],
         [
             FunctionWrapper{Nothing,Tuple{}}(ReverseExecutor(t.tape[i])) for
-            i = length(t.tape):-1:1
+            i in length(t.tape):-1:1
         ],
     )
 end
@@ -132,14 +133,14 @@ function forward_pass!(compiled_tape::CompiledTape)
     for wrapper in compiled_tape.forward_exec
         wrapper()
     end
-    nothing
+    return nothing
 end
 
 function reverse_pass!(compiled_tape::CompiledTape)
     for wrapper in compiled_tape.reverse_exec
         wrapper()
     end
-    nothing
+    return nothing
 end
 
 """
@@ -209,13 +210,13 @@ element type and shape as `input`.
 
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 """
-function GradientTape(f, input, cfg::GradientConfig = GradientConfig(input))
+function GradientTape(f, input, cfg::GradientConfig=GradientConfig(input))
     track!(cfg.input, input)
     tracked_ouput = f(cfg.input)
     return _GradientTape(f, cfg.input, tracked_ouput, cfg.tape)
 end
 
-function GradientTape(f, input::Tuple, cfg::GradientConfig = GradientConfig(input))
+function GradientTape(f, input::Tuple, cfg::GradientConfig=GradientConfig(input))
     for i in eachindex(cfg.input)
         track!(cfg.input[i], input[i])
     end
@@ -239,13 +240,13 @@ element type and shape as `input`.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
-function JacobianTape(f, input, cfg::JacobianConfig = JacobianConfig(input))
+function JacobianTape(f, input, cfg::JacobianConfig=JacobianConfig(input))
     track!(cfg.input, input)
     tracked_ouput = f(cfg.input)
     return _JacobianTape(f, cfg.input, tracked_ouput, cfg.tape)
 end
 
-function JacobianTape(f, input::Tuple, cfg::JacobianConfig = JacobianConfig(input))
+function JacobianTape(f, input::Tuple, cfg::JacobianConfig=JacobianConfig(input))
     for i in eachindex(cfg.input)
         track!(cfg.input[i], input[i])
     end
@@ -265,12 +266,7 @@ element type and shape as `input`.
 
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
-function JacobianTape(
-    f!,
-    output,
-    input,
-    cfg::JacobianConfig = JacobianConfig(output, input),
-)
+function JacobianTape(f!, output, input, cfg::JacobianConfig=JacobianConfig(output, input))
     track!(cfg.output, output, cfg.tape)
     track!(cfg.input, input)
     f!(cfg.output, cfg.input)
@@ -278,10 +274,7 @@ function JacobianTape(
 end
 
 function JacobianTape(
-    f!,
-    output,
-    input::Tuple,
-    cfg::JacobianConfig = JacobianConfig(output, input),
+    f!, output, input::Tuple, cfg::JacobianConfig=JacobianConfig(output, input)
 )
     track!(cfg.output, output, cfg.tape)
     for i in eachindex(input)
@@ -307,7 +300,7 @@ element type and shape as `input`.
 
 See `ReverseDiff.hessian` for a description of acceptable types for `input`.
 """
-function HessianTape(f, input, cfg::HessianConfig = HessianConfig(input))
+function HessianTape(f, input, cfg::HessianConfig=HessianConfig(input))
     gcfg = cfg.gradient_config
     jcfg = cfg.jacobian_config
     ht = _HessianTape(f, jcfg.input, similar(deriv(gcfg.input)), jcfg.tape)

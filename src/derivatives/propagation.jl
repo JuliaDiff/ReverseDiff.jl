@@ -24,15 +24,17 @@ efficiency.
 
 index_bound(x::Any, ::AbstractArray{T,N}) where {T,N} = nothing
 
-index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} =
-    CartesianIndex{N}(ntuple(i -> size(x, i), Val(N)))
+function index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N}
+    return CartesianIndex{N}(ntuple(i -> size(x, i), Val(N)))
+end
 
 ###################
 # increment_deriv #
 ###################
 
-@inline increment_deriv!(t::TrackedArray, x::AbstractArray, i) =
-    (t.deriv[i] += x[i]; nothing)
+@inline increment_deriv!(t::TrackedArray, x::AbstractArray, i) = (
+    t.deriv[i] += x[i]; nothing
+)
 @inline increment_deriv!(t::TrackedArray, x::Real, i) = (t.deriv[i] += x; nothing)
 @inline increment_deriv!(t::AbstractArray, x::AbstractArray, i) =
     increment_deriv!(t[i], x[i])
@@ -56,8 +58,9 @@ end
 # decrement_deriv #
 ###################
 
-@inline decrement_deriv!(t::TrackedArray, x::AbstractArray, i) =
-    (t.deriv[i] -= x[i]; nothing)
+@inline decrement_deriv!(t::TrackedArray, x::AbstractArray, i) = (
+    t.deriv[i] -= x[i]; nothing
+)
 @inline decrement_deriv!(t::TrackedArray, x::Real, i) = (t.deriv[i] -= x; nothing)
 @inline decrement_deriv!(t::AbstractArray, x::AbstractArray, i) =
     decrement_deriv!(t[i], x[i])
@@ -82,19 +85,14 @@ end
 ###############################
 
 @inline getpartial(
-    r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}},
-    p,
+    r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p
 ) where {V,D<:AbstractArray} = DiffResults.derivative(r)[p]
 @inline getpartial(
-    r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}},
-    p,
+    r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p
 ) where {V,D<:Number} = DiffResults.derivative(r)
 
 function diffresult_increment_deriv!(
-    input::AbstractArray,
-    x::AbstractArray,
-    results,
-    p::Int,
+    input::AbstractArray, x::AbstractArray, results, p::Int
 )
     for i in eachindex(x)
         increment_deriv!(input, x[i] * getpartial(results[i], p), i)
@@ -103,11 +101,7 @@ function diffresult_increment_deriv!(
 end
 
 function diffresult_increment_deriv!(
-    input::AbstractArray,
-    x::AbstractArray,
-    results,
-    p::Int,
-    bound::CartesianIndex,
+    input::AbstractArray, x::AbstractArray, results, p::Int, bound::CartesianIndex
 )
     for i in CartesianIndices(size(x))
         increment_deriv!(input, x[i] * getpartial(results[i], p), min(bound, i))
@@ -116,11 +110,7 @@ function diffresult_increment_deriv!(
 end
 
 function diffresult_increment_deriv!(
-    input::TrackedReal,
-    x::AbstractArray,
-    results,
-    p::Int,
-    ::Nothing,
+    input::TrackedReal, x::AbstractArray, results, p::Int, ::Nothing
 )
     pull_deriv!(input)
     input_deriv = input.deriv
@@ -140,9 +130,7 @@ end
 #------------------#
 
 function broadcast_increment_deriv!(
-    input::AbstractArray,
-    x::AbstractArray,
-    bound::CartesianIndex,
+    input::AbstractArray, x::AbstractArray, bound::CartesianIndex
 )
     for i in CartesianIndices(size(x))
         increment_deriv!(input, x[i], min(bound, i))
@@ -216,11 +204,7 @@ function broadcast_increment_deriv!(
 end
 
 function broadcast_increment_deriv!(
-    input::TrackedReal,
-    x::AbstractArray,
-    partial::Real,
-    ::Nothing,
-    ::Nothing,
+    input::TrackedReal, x::AbstractArray, partial::Real, ::Nothing, ::Nothing
 )
     pull_deriv!(input)
     input_deriv = input.deriv
@@ -237,9 +221,7 @@ end
 ##############################
 
 function broadcast_decrement_deriv!(
-    input::AbstractArray,
-    x::AbstractArray,
-    bound::CartesianIndex,
+    input::AbstractArray, x::AbstractArray, bound::CartesianIndex
 )
     for i in CartesianIndices(size(x))
         decrement_deriv!(input, x[i], min(bound, i))
@@ -263,9 +245,7 @@ end
 ##############################
 
 function reduction_increment_deriv!(
-    input::AbstractArray,
-    x::AbstractArray,
-    bound::CartesianIndex,
+    input::AbstractArray, x::AbstractArray, bound::CartesianIndex
 )
     for i in CartesianIndices(size(input))
         increment_deriv!(input, x[min(bound, i)], i)

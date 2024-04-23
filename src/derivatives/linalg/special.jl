@@ -34,7 +34,7 @@ end
         input_deriv = deriv(input)
         inv_input_value = inv(value(input))
         k = deriv(output) * value(output)
-        for i = 1:size(input_deriv, 1), j = 1:size(input_deriv, 2)
+        for i in 1:size(input_deriv, 1), j in 1:size(input_deriv, 2)
             input_deriv[i, j] += k * inv_input_value[j, i]
         end
     end

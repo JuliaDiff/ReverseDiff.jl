@@ -50,21 +50,27 @@ mutable struct TrackedReal{V<:Real,D<:Real,O} <: Real
     tape::InstructionTape
     index::Int
     origin::O
-    TrackedReal{V,D,O}(value, deriv, tape, index, origin) where {V,D,O} =
-        new{V,D,O}(value, deriv, tape, index, origin)
-    TrackedReal{V,D,O}(value, deriv, tape) where {V,D,O} =
-        new{V,D,O}(value, deriv, tape, NULL_INDEX)
-    TrackedReal{V,D,O}(value, deriv) where {V,D,O} =
-        new{V,D,O}(value, deriv, NULL_TAPE, NULL_INDEX)
-    TrackedReal{V,D,O}(value) where {V,D,O} =
-        new{V,D,O}(value, zero(D), NULL_TAPE, NULL_INDEX)
+    function TrackedReal{V,D,O}(value, deriv, tape, index, origin) where {V,D,O}
+        return new{V,D,O}(value, deriv, tape, index, origin)
+    end
+    function TrackedReal{V,D,O}(value, deriv, tape) where {V,D,O}
+        return new{V,D,O}(value, deriv, tape, NULL_INDEX)
+    end
+    function TrackedReal{V,D,O}(value, deriv) where {V,D,O}
+        return new{V,D,O}(value, deriv, NULL_TAPE, NULL_INDEX)
+    end
+    function TrackedReal{V,D,O}(value) where {V,D,O}
+        return new{V,D,O}(value, zero(D), NULL_TAPE, NULL_INDEX)
+    end
 end
 
-TrackedReal(v::V, a::D, tp::InstructionTape, i::Int, o::O) where {V,D,O} =
-    TrackedReal{V,D,O}(v, a, tp, i, o)
+function TrackedReal(v::V, a::D, tp::InstructionTape, i::Int, o::O) where {V,D,O}
+    return TrackedReal{V,D,O}(v, a, tp, i, o)
+end
 
-TrackedReal(v::V, a::D, tp::InstructionTape = NULL_TAPE) where {V,D} =
-    TrackedReal{V,D,Nothing}(v, a, tp)
+function TrackedReal(v::V, a::D, tp::InstructionTape=NULL_TAPE) where {V,D}
+    return TrackedReal{V,D,Nothing}(v, a, tp)
+end
 
 # we define these special cases so that the "constructor <--> convert" pun holds for `TrackedReal`
 # this is Jarett's favorite piece of code. A true work of art.
@@ -79,9 +85,7 @@ struct TrackedArray{V,D,N,VA,DA} <:
     deriv::DA
     tape::InstructionTape
     function TrackedArray{V,D,N,VA,DA}(
-        value::AbstractArray{V,N},
-        deriv::AbstractArray{D,N},
-        tape::InstructionTape,
+        value::AbstractArray{V,N}, deriv::AbstractArray{D,N}, tape::InstructionTape
     ) where {V,D,N,VA,DA}
         @assert IndexStyle(value) === IndexLinear()
         @assert size(value) === size(deriv)
@@ -90,9 +94,7 @@ struct TrackedArray{V,D,N,VA,DA} <:
 end
 
 function TrackedArray(
-    value::AbstractArray{V,N},
-    deriv::AbstractArray{D,N},
-    tape::InstructionTape,
+    value::AbstractArray{V,N}, deriv::AbstractArray{D,N}, tape::InstructionTape
 ) where {V,D,N}
     return TrackedArray{V,D,N,typeof(value),typeof(deriv)}(value, deriv, tape)
 end
@@ -204,8 +206,9 @@ pull_deriv!(x::AbstractArray) = (istracked(x) && foreach(pull_deriv!, x); nothin
 
 push_deriv!(x) = nothing
 push_deriv!(t::TrackedArray) = nothing
-push_deriv!(t::TrackedReal) =
+function push_deriv!(t::TrackedReal)
     (hasorigin(t) && (t.origin.deriv[t.index] = deriv(t)); nothing)
+end
 push_deriv!(x::AbstractArray) = (istracked(x) && foreach(push_deriv!, x); nothing)
 
 # seed/unseed #
@@ -287,29 +290,44 @@ for R in REAL_TYPES
     R === :Dual && continue # ForwardDiff.Dual is handled below 
     @eval begin
         if isconcretetype($R) # issue ForwardDiff#322
-            Base.promote_rule(::Type{TrackedReal{V,D,O}}, ::Type{$R}) where {V,D,O} =
-                TrackedReal{promote_type(V, $R),D,O}
-            Base.promote_rule(::Type{$R}, ::Type{TrackedReal{V,D,O}}) where {V,D,O} =
-                TrackedReal{promote_type($R, V),D,O}
+            function Base.promote_rule(::Type{TrackedReal{V,D,O}}, ::Type{$R}) where {V,D,O}
+                return TrackedReal{promote_type(V, $R),D,O}
+            end
+            function Base.promote_rule(::Type{$R}, ::Type{TrackedReal{V,D,O}}) where {V,D,O}
+                return TrackedReal{promote_type($R, V),D,O}
+            end
         else
-            Base.promote_rule(::Type{TrackedReal{V,D,O}}, ::Type{R}) where {V,D,O,R<:$R} =
-                TrackedReal{promote_type(V, R),D,O}
-            Base.promote_rule(::Type{R}, ::Type{TrackedReal{V,D,O}}) where {R<:$R,V,D,O} =
-                TrackedReal{promote_type(R, V),D,O}
+            function Base.promote_rule(
+                ::Type{TrackedReal{V,D,O}}, ::Type{R}
+            ) where {V,D,O,R<:$R}
+                return TrackedReal{promote_type(V, R),D,O}
+            end
+            function Base.promote_rule(
+                ::Type{R}, ::Type{TrackedReal{V,D,O}}
+            ) where {R<:$R,V,D,O}
+                return TrackedReal{promote_type(R, V),D,O}
+            end
         end
     end
 end
 
 # Avoid method ambiguities for ForwardDiff.Dual
-Base.promote_rule(::Type{TrackedReal{V1,D,O}}, ::Type{Dual{T,V2,N}}) where {V1,D,O,T,V2,N} =
-    TrackedReal{promote_type(V1, Dual{T,V2,N}),D,O}
-Base.promote_rule(::Type{Dual{T,V1,N}}, ::Type{TrackedReal{V2,D,O}}) where {T,V1,N,V2,D,O} =
-    TrackedReal{promote_type(Dual{T,V1,N}, V2),D,O}
+function Base.promote_rule(
+    ::Type{TrackedReal{V1,D,O}}, ::Type{Dual{T,V2,N}}
+) where {V1,D,O,T,V2,N}
+    return TrackedReal{promote_type(V1, Dual{T,V2,N}),D,O}
+end
+function Base.promote_rule(
+    ::Type{Dual{T,V1,N}}, ::Type{TrackedReal{V2,D,O}}
+) where {T,V1,N,V2,D,O}
+    return TrackedReal{promote_type(Dual{T,V1,N}, V2),D,O}
+end
 
-Base.promote_rule(
-    ::Type{TrackedReal{V1,D1,O1}},
-    ::Type{TrackedReal{V2,D2,O2}},
-) where {V1,V2,D1,D2,O1,O2} = TrackedReal{promote_type(V1, V2),promote_type(D1, D2),Nothing}
+function Base.promote_rule(
+    ::Type{TrackedReal{V1,D1,O1}}, ::Type{TrackedReal{V2,D2,O2}}
+) where {V1,V2,D1,D2,O1,O2}
+    return TrackedReal{promote_type(V1, V2),promote_type(D1, D2),Nothing}
+end
 
 ###########################
 # AbstractArray Interface #
@@ -330,9 +348,7 @@ end
 
 for T in (:AbstractRange, :Colon, :(Union{Colon,AbstractRange}))
     @eval Base.@propagate_inbounds function Base.getindex(
-        t::TrackedArray,
-        i1::$(T),
-        is::$(T)...,
+        t::TrackedArray, i1::$(T), is::$(T)...
     )
         tp = tape(t)
         out = TrackedArray(value(t)[i1, is...], deriv(t)[i1, is...], tp)
@@ -349,7 +365,7 @@ end
     output_deriv = deriv(output)
     i = 0
     for idx in indices
-        input_deriv[CartesianIndex(idx)] += output_deriv[i+=1]
+        input_deriv[CartesianIndex(idx)] += output_deriv[i += 1]
     end
     unseed!(output)
     return nothing
@@ -361,14 +377,13 @@ end
     output_value = value(instruction.output)
     i = 0
     for idx in indices
-        output_value[i+=1] = input_value[CartesianIndex(idx)]
+        output_value[i += 1] = input_value[CartesianIndex(idx)]
     end
     return nothing
 end
 
 Base.@propagate_inbounds function Base.getindex(
-    t::TrackedArray,
-    inds::AbstractArray{<:CartesianIndex},
+    t::TrackedArray, inds::AbstractArray{<:CartesianIndex}
 )
     tp = tape(t)
     out = TrackedArray(value(t)[inds], deriv(t)[inds], tp)
@@ -376,9 +391,7 @@ Base.@propagate_inbounds function Base.getindex(
     return out
 end
 Base.@propagate_inbounds function Base.getindex(
-    t::TrackedArray,
-    i1::Integer,
-    is::Integer...,
+    t::TrackedArray, i1::Integer, is::Integer...
 )
     ind = LinearIndices(t)[i1, is...]
     return TrackedReal(value(t)[i1, is...], deriv(t)[i1, is...], tape(t), ind, t)
@@ -399,7 +412,7 @@ Base.@propagate_inbounds function Base.getindex(
     return out
 end
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{<:Tuple{typeof(getindex),Val{:generic}}},
+    instruction::SpecialInstruction{<:Tuple{typeof(getindex),Val{:generic}}}
 )
     input, inds = instruction.input
     output = instruction.output
@@ -409,13 +422,13 @@ end
     i = 0
     for _idx in cinds
         idx = CartesianIndex(map(getindex, inds, Tuple(_idx)))
-        input_deriv[idx] += output_deriv[i+=1]
+        input_deriv[idx] += output_deriv[i += 1]
     end
     unseed!(output)
     return nothing
 end
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{<:Tuple{typeof(getindex),Val{:generic}}},
+    instruction::SpecialInstruction{<:Tuple{typeof(getindex),Val{:generic}}}
 )
     input, inds = instruction.input
     input_value = value(input)
@@ -424,7 +437,7 @@ end
     i = 0
     for cind in cinds
         idx = CartesianIndex(map(getindex, inds, Tuple(cind)))
-        output_value[i+=1] = input_value[idx]
+        output_value[i += 1] = input_value[idx]
     end
     return nothing
 end
@@ -437,11 +450,13 @@ Base.size(t::TrackedArray) = size(value(t))
 
 Base.copy(t::TrackedArray) = t
 
-Base.similar(t::TrackedArray, args::Union{Integer,AbstractUnitRange}...) =
-    similar(value(t), eltype(t), args...)
+function Base.similar(t::TrackedArray, args::Union{Integer,AbstractUnitRange}...)
+    return similar(value(t), eltype(t), args...)
+end
 
-Base.similar(t::TrackedArray, T::Type, args::Union{Integer,AbstractUnitRange}...) =
-    similar(value(t), T, args...)
+function Base.similar(t::TrackedArray, T::Type, args::Union{Integer,AbstractUnitRange}...)
+    return similar(value(t), T, args...)
+end
 
 reshape_body = :(TrackedArray(reshape(value(t), dims), reshape(deriv(t), dims), tape(t)))
 @eval Base.reshape(t::TrackedArray, dims::Val{N}) where {N} = $reshape_body
@@ -473,8 +488,9 @@ Base.one(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(one(V))
 Base.zero(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(zero(V))
 
 Base.rand(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(rand(V))
-Base.rand(rng::Random.AbstractRNG, ::Type{TrackedReal{V,D,O}}) where {V,D,O} =
-    TrackedReal{V,D,O}(rand(rng, V))
+function Base.rand(rng::Random.AbstractRNG, ::Type{TrackedReal{V,D,O}}) where {V,D,O}
+    return TrackedReal{V,D,O}(rand(rng, V))
+end
 
 Base.eps(t::TrackedReal) = eps(value(t))
 Base.eps(::Type{T}) where {T<:TrackedReal} = eps(valtype(T))
@@ -510,24 +526,24 @@ Base.rtoldefault(::Type{T}) where {T<:TrackedReal} = sqrt(eps(T))
 # track/track! #
 ################
 
-track(x::Real, tp::InstructionTape = InstructionTape()) = track(x, typeof(x), tp)
+track(x::Real, tp::InstructionTape=InstructionTape()) = track(x, typeof(x), tp)
 
-track(x::AbstractArray, tp::InstructionTape = InstructionTape()) = track(x, eltype(x), tp)
+track(x::AbstractArray, tp::InstructionTape=InstructionTape()) = track(x, eltype(x), tp)
 
-track(x::Real, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} =
-    TrackedReal(x, zero(D), tp)
+function track(x::Real, ::Type{D}, tp::InstructionTape=InstructionTape()) where {D}
+    return TrackedReal(x, zero(D), tp)
+end
 
-track(x::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} =
-    TrackedArray(x, fill!(similar(x, D), zero(D)), tp)
+function track(x::AbstractArray, ::Type{D}, tp::InstructionTape=InstructionTape()) where {D}
+    return TrackedArray(x, fill!(similar(x, D), zero(D)), tp)
+end
 
 track!(t::TrackedArray, x::AbstractArray) = (value!(t, x); unseed!(t); t)
 
 track!(t::TrackedReal, x::Real) = (value!(t, x); unseed!(t); t)
 
 function track!(
-    t::AbstractArray{TrackedReal{D,D,Nothing}},
-    x::AbstractArray,
-    tp::InstructionTape,
+    t::AbstractArray{TrackedReal{D,D,Nothing}}, x::AbstractArray, tp::InstructionTape
 ) where {D}
     for i in eachindex(t)
         t[i] = track(x[i], D, tp)
@@ -539,11 +555,13 @@ end
 # Pretty Printing #
 ###################
 
-idstr(x) = string(objectid(x), base = 62)[1:3]
+idstr(x) = string(objectid(x); base=62)[1:3]
 
 function Base.show(io::IO, t::TrackedReal)
     tape_id = hastape(t) ? idstr(t.tape) : "---"
     origin_id = hasorigin(t) ? "$(t.index), $(idstr(t.origin))" : "---"
     id = idstr(t)
-    print(io, "TrackedReal<$(id)>($(value(t)), $(deriv(t)), $(tape_id), $(origin_id))")
+    return print(
+        io, "TrackedReal<$(id)>($(value(t)), $(deriv(t)), $(tape_id), $(origin_id))"
+    )
 end

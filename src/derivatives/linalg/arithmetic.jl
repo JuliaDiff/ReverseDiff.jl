@@ -205,26 +205,20 @@ for S1 in (:TrackedArray, :TrackedVector, :TrackedMatrix)
             ) where {X,Y,D} = record_mul(x, y, D)
 
             LinearAlgebra.:*(
-                x::Transpose{<:TrackedReal,<:$(S1){X,D}},
-                y::$(S2){Y,D},
+                x::Transpose{<:TrackedReal,<:$(S1){X,D}}, y::$(S2){Y,D}
             ) where {X,Y,D} = record_mul(x, y, D)
             LinearAlgebra.:*(
-                x::$(S1){X,D},
-                y::Transpose{<:TrackedReal,<:$(S2){Y,D}},
+                x::$(S1){X,D}, y::Transpose{<:TrackedReal,<:$(S2){Y,D}}
             ) where {X,Y,D} = record_mul(x, y, D)
             LinearAlgebra.:*(
-                x::Adjoint{<:TrackedReal,<:$(S1){X,D}},
-                y::$(S2){Y,D},
+                x::Adjoint{<:TrackedReal,<:$(S1){X,D}}, y::$(S2){Y,D}
             ) where {X,Y,D} = record_mul(x, y, D)
             LinearAlgebra.:*(
-                x::$(S1){X,D},
-                y::Adjoint{<:TrackedReal,<:$(S2){Y,D}},
+                x::$(S1){X,D}, y::Adjoint{<:TrackedReal,<:$(S2){Y,D}}
             ) where {X,Y,D} = record_mul(x, y, D)
 
             LinearAlgebra.mul!(
-                out::TrackedArray{V,D},
-                x::$(S1){X,D},
-                y::$(S2){Y,D},
+                out::TrackedArray{V,D}, x::$(S1){X,D}, y::$(S2){Y,D}
             ) where {V,X,Y,D} = record_mul!(out, x, y)
 
             LinearAlgebra.mul!(
@@ -348,14 +342,14 @@ function reverse_mul!(output, output_deriv, a, b, a_tmp, b_tmp)
             # a_temp is a vector, but when b is a matrix, we cannot multiply into a vector,
             # so need to reshape memory to look like matrix (see PositiveFactorizations.jl)
             increment_deriv!(
-                a,
-                mul!(reshape(a_tmp, :, 1), output_deriv, transpose(value(b))),
+                a, mul!(reshape(a_tmp, :, 1), output_deriv, transpose(value(b)))
             )
         else
             increment_deriv!(a, mul!(a_tmp, output_deriv, transpose(value(b))))
         end
     end
-    istracked(b) && increment_deriv!(b, mul!(b_tmp, transpose(value(a)), output_deriv))
+    return istracked(b) &&
+        increment_deriv!(b, mul!(b_tmp, transpose(value(a)), output_deriv))
 end
 
 for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
@@ -366,14 +360,13 @@ for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
             if istracked(a)
                 if a_tmp isa AbstractVector
                     increment_deriv!(
-                        a,
-                        mul!(reshape(a_tmp, :, 1), output_deriv, mulargvalue(_b)),
+                        a, mul!(reshape(a_tmp, :, 1), output_deriv, mulargvalue(_b))
                     )
                 else
                     increment_deriv!(a, mul!(a_tmp, output_deriv, mulargvalue(b)))
                 end
             end
-            istracked(_b) &&
+            return istracked(_b) &&
                 increment_deriv!(_b, ($f)(mul!(($f)(b_tmp), ($f)(output_deriv), value(a))))
         end
         # f(a) * b
@@ -381,7 +374,7 @@ for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
             _a = ($f)(a)
             istracked(_a) &&
                 increment_deriv!(_a, ($f)(mul!(a_tmp, output_deriv, ($f)(value(b)))))
-            istracked(b) &&
+            return istracked(b) &&
                 increment_deriv!(b, mul!(b_tmp, ($f)(mulargvalue(a)), ($f)(output_deriv)))
         end
         # f(a) * f(b)
@@ -389,12 +382,10 @@ for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
             _a = ($f)(a)
             _b = ($f)(b)
             istracked(_a) && increment_deriv!(
-                _a,
-                ($f)(mul!(a_tmp, ($f)(mulargvalue(b)), ($f)(output_deriv))),
+                _a, ($f)(mul!(a_tmp, ($f)(mulargvalue(b)), ($f)(output_deriv)))
             )
-            istracked(_b) && increment_deriv!(
-                _b,
-                ($f)(mul!(b_tmp, ($f)(output_deriv), ($f)(mulargvalue(a)))),
+            return istracked(_b) && increment_deriv!(
+                _b, ($f)(mul!(b_tmp, ($f)(output_deriv), ($f)(mulargvalue(a))))
             )
         end
     end
@@ -409,8 +400,7 @@ function reverse_mul!(output, output_deriv, a::Adjoint, b::Transpose, a_tmp, b_t
         reverse_mul!(output, output_deriv, transpose(_a), b, a_tmp, b_tmp)
     elseif istracked(_b)
         increment_deriv!(
-            _b,
-            transpose(mul!(b_tmp, adjoint(output_deriv), adjoint(mulargvalue(a)))),
+            _b, transpose(mul!(b_tmp, adjoint(output_deriv), adjoint(mulargvalue(a))))
         )
     end
 end
@@ -424,8 +414,7 @@ function reverse_mul!(output, output_deriv, a::Transpose, b::Adjoint, a_tmp, b_t
         reverse_mul!(output, output_deriv, a, transpose(_b), a_tmp, b_tmp)
     elseif istracked(_a)
         increment_deriv!(
-            _a,
-            transpose(mul!(a_tmp, adjoint(mulargvalue(b)), adjoint(output_deriv))),
+            _a, transpose(mul!(a_tmp, adjoint(mulargvalue(b)), adjoint(output_deriv)))
         )
     end
 end

@@ -16,7 +16,7 @@ end
     @test any(iszero, track([ones(2); 0.0]))
 end
 
-function testcat(f, args::Tuple, type, kwargs = NamedTuple())
+function testcat(f, args::Tuple, type, kwargs=NamedTuple())
     x = f(track.(args)...; kwargs...)
     @test x isa type
     @test value(x) == f(args...; kwargs...)
@@ -55,10 +55,10 @@ function unpack(sizes, vecx)
     start = 0
     out = map(sizes) do s
         if s === ()
-            x = vecx[start+1]
+            x = vecx[start + 1]
             start += 1
         else
-            x = reshape(vecx[start+1:start+prod(s)], s)
+            x = reshape(vecx[(start + 1):(start + prod(s))], s)
             start += prod(s)
         end
     end
@@ -71,21 +71,21 @@ end
     a = rand(3, 3, 3)
     n = rand()
 
-    testcat(cat, (n,), TrackedVector, (dims = 1,))
-    testcat(cat, (n, n), TrackedVector, (dims = 1,))
-    testcat(cat, (n, n), TrackedMatrix, (dims = 2,))
-    testcat(cat, (v, n), TrackedVector, (dims = 1,))
-    testcat(cat, (n, v), TrackedVector, (dims = 1,))
+    testcat(cat, (n,), TrackedVector, (dims=1,))
+    testcat(cat, (n, n), TrackedVector, (dims=1,))
+    testcat(cat, (n, n), TrackedMatrix, (dims=2,))
+    testcat(cat, (v, n), TrackedVector, (dims=1,))
+    testcat(cat, (n, v), TrackedVector, (dims=1,))
 
-    testcat(cat, (v, v), TrackedVector, (dims = 1,))
-    testcat(cat, (v, v), TrackedMatrix, (dims = 2,))
-    testcat(cat, (v, m), TrackedMatrix, (dims = 2,))
-    testcat(cat, (m, v), TrackedMatrix, (dims = 2,))
+    testcat(cat, (v, v), TrackedVector, (dims=1,))
+    testcat(cat, (v, v), TrackedMatrix, (dims=2,))
+    testcat(cat, (v, m), TrackedMatrix, (dims=2,))
+    testcat(cat, (m, v), TrackedMatrix, (dims=2,))
 
-    testcat(cat, (a, a), TrackedArray, (dims = 1,))
-    testcat(cat, (a, a), TrackedArray, (dims = 2,))
-    testcat(cat, (a, a), TrackedArray, (dims = 3,))
-    testcat(cat, (a, m), TrackedArray, (dims = 3,))
+    testcat(cat, (a, a), TrackedArray, (dims=1,))
+    testcat(cat, (a, a), TrackedArray, (dims=2,))
+    testcat(cat, (a, a), TrackedArray, (dims=3,))
+    testcat(cat, (a, m), TrackedArray, (dims=3,))
 
     testcat(vcat, (n,), TrackedVector)
     testcat(vcat, (n, n), TrackedVector)

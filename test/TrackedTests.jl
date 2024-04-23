@@ -3,7 +3,7 @@ module TrackedTests
 using ReverseDiff, Test
 using ReverseDiff: TrackedReal, TrackedArray
 
-import ForwardDiff
+using ForwardDiff: ForwardDiff
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
 
@@ -173,8 +173,9 @@ null_tape_items = (
     TrackedReal(1, 1),
     TrackedArray(rand(1), rand(1), ReverseDiff.NULL_TAPE),
 )
-tape_items =
-    ([3, TrackedReal(1, 1, tp)], TrackedReal(1, 1, tp), TrackedArray(rand(1), rand(1), tp))
+tape_items = (
+    [3, TrackedReal(1, 1, tp)], TrackedReal(1, 1, tp), TrackedArray(rand(1), rand(1), tp)
+)
 
 for i in null_tape_items
     @test ReverseDiff.tape(i) === ReverseDiff.NULL_TAPE
@@ -628,9 +629,9 @@ empty!(tp)
 @test promote_type(T, AbstractFloat) === TrackedReal{BigFloat,Float64,A}
 @test promote_type(T, Real) === TrackedReal{Real,Float64,A}
 @test promote_type(T, ForwardDiff.Dual{:tag,Float64,1}) ===
-      TrackedReal{ForwardDiff.Dual{:tag,BigFloat,1},Float64,A}
+    TrackedReal{ForwardDiff.Dual{:tag,BigFloat,1},Float64,A}
 @test promote_type(T, TrackedReal{BigFloat,BigFloat,Nothing}) ===
-      TrackedReal{BigFloat,BigFloat,Nothing}
+    TrackedReal{BigFloat,BigFloat,Nothing}
 @test promote_type(T, T) === T
 
 ###########################
@@ -652,7 +653,7 @@ end
 
 ta_sub = ta[:, :]
 idx = ReverseDiff.index_iterable(axes(ta), (:, :))
-@test collect(idx) == [(i, j) for i = 1:3, j = 1:3]
+@test collect(idx) == [(i, j) for i in 1:3, j in 1:3]
 @test samefields(ta_sub, ta)
 @test length(tp) == 1
 instr = tp[1]
@@ -665,7 +666,7 @@ empty!(tp)
 for T in (UInt, Int)
     ta_sub = ta[:, T(1):T(2)]
     idx = ReverseDiff.index_iterable(axes(ta), (:, T(1):T(2)))
-    @test collect(idx) == [(i, j) for i = 1:3, j = 1:2]
+    @test collect(idx) == [(i, j) for i in 1:3, j in 1:2]
     @test samefields(ta_sub, TrackedArray(varr[:, 1:2], darr[:, 1:2], tp))
     @test length(tp) == 1
     instr = tp[1]
@@ -677,7 +678,7 @@ for T in (UInt, Int)
 
     ta_sub = ta[T(2):T(3), :]
     idx = ReverseDiff.index_iterable(axes(ta), (T(2):T(3), :))
-    @test collect(idx) == [(i, j) for i = 2:3, j = 1:3]
+    @test collect(idx) == [(i, j) for i in 2:3, j in 1:3]
     @test samefields(ta_sub, TrackedArray(varr[2:3, :], darr[2:3, :], tp))
     @test length(tp) == 1
     instr = tp[1]
@@ -691,7 +692,7 @@ for T in (UInt, Int)
     for U in (S, T)
         ta_sub = ta[S(1):S(2), T(2):T(3)]
         idx = ReverseDiff.index_iterable(axes(ta), (S(1):S(2), T(2):T(3)))
-        @test collect(idx) == [(i, j) for i = 1:2, j = 2:3]
+        @test collect(idx) == [(i, j) for i in 1:2, j in 2:3]
         @test samefields(ta_sub, TrackedArray(varr[1:2, 2:3], darr[1:2, 2:3], tp))
         @test length(tp) == 1
         instr = tp[1]
@@ -704,7 +705,7 @@ for T in (UInt, Int)
 
     ta_sub = ta[T(2):T(6)]
     idx = ReverseDiff.index_iterable(axes(ta), (T(2):T(6),))
-    @test collect(idx) == [(i,) for i = 2:6]
+    @test collect(idx) == [(i,) for i in 2:6]
     @test samefields(ta_sub, TrackedArray(varr[2:6], darr[2:6], tp))
     @test length(tp) == 1
     instr = tp[1]
@@ -717,7 +718,7 @@ end
 
 ta_sub = ta[:]
 idx = ReverseDiff.index_iterable(axes(ta), (:,))
-@test collect(idx) == [(i, j) for i = 1:3, j = 1:3]
+@test collect(idx) == [(i, j) for i in 1:3, j in 1:3]
 @test samefields(ta_sub, TrackedArray(varr[:], darr[:], tp))
 @test length(tp) == 1
 instr = tp[1]
@@ -820,12 +821,10 @@ tp = InstructionTape()
 @test samefields(ReverseDiff.track(v, Int, tp), TrackedReal(v, zero(Int), tp))
 
 @test samefields(
-    ReverseDiff.track(varr, tp),
-    TrackedArray(varr, fill!(similar(varr), 0), tp),
+    ReverseDiff.track(varr, tp), TrackedArray(varr, fill!(similar(varr), 0), tp)
 )
 @test samefields(
-    ReverseDiff.track(varr, Int, tp),
-    TrackedArray(varr, fill(0, size(varr)), tp),
+    ReverseDiff.track(varr, Int, tp), TrackedArray(varr, fill(0, size(varr)), tp)
 )
 
 tr = TrackedReal(v, d, tp)

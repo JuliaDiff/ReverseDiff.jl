@@ -44,15 +44,16 @@ recur_value(xs) = xs
 recur_value(xs::Union{TrackedReal,TrackedArray}) = recur_value(value(xs))
 
 function broadcast_rebuild(bc::Broadcasted)
-    broadcasted(bc.f, broadcast_rebuild.(bc.args)...)
+    return broadcasted(bc.f, broadcast_rebuild.(bc.args)...)
 end
 
 getstyle(::Broadcasted{Style}) where {Style} = Style
 remove_not_tracked(f) = f
 remove_not_tracked(f::NotTracked) = f.f
 remove_not_tracked(f::Base.RefValue{<:NotTracked}) = Ref(remove_not_tracked(f[]))
-remove_not_tracked(f::Base.RefValue{<:NotTracked{<:AbstractArray}}) =
-    remove_not_tracked(f[])
+function remove_not_tracked(f::Base.RefValue{<:NotTracked{<:AbstractArray}})
+    return remove_not_tracked(f[])
+end
 function remove_not_tracked(b::Broadcasted{style}) where {style}
     return Broadcasted{style}(remove_not_tracked(b.f), remove_not_tracked.(b.args), b.axes)
 end
@@ -110,15 +111,12 @@ deref(x) = x
 deref(x::Base.RefValue) = x[]
 
 @generated function splatcall(
-    f,
-    x::SVector{N},
-    utargs::T,
-    ::Val{tinds},
+    f, x::SVector{N}, utargs::T, ::Val{tinds}
 ) where {N,T<:Tuple,tinds}
     args = []
     ti = 1
     uti = 1
-    for i = 1:(N+length(T.types))
+    for i in 1:(N + length(T.types))
         if i in tinds
             push!(args, :(deref(x[$ti])))
             ti += 1
@@ -136,10 +134,10 @@ end
 @generated function splitargs(args::T) where {T<:Tuple}
     N = length(T.types)
     RealOrArray = Union{Real,AbstractArray}
-    inds = [i for i = 1:N if T.types[i] <: RealOrArray]
+    inds = [i for i in 1:N if T.types[i] <: RealOrArray]
     indsval = :(Val{$(Expr(:tuple, [:($i) for i in inds]...))}())
     maybetracked = Expr(:tuple, [:(args[$i]) for i in inds]...)
-    untracked = Expr(:tuple, [:(args[$i]) for i = 1:N if !(i in inds)]...)
+    untracked = Expr(:tuple, [:(args[$i]) for i in 1:N if !(i in inds)]...)
     return :($indsval, $maybetracked, $untracked)
 end
 
@@ -152,9 +150,7 @@ end
     result = DiffResults.GradientResult(zero(SVector{N,D}))
     function df(x...)
         return ForwardDiff.gradient!(
-            result,
-            s -> splatcall(f, s, untracked, inds),
-            SVector(x),
+            result, s -> splatcall(f, s, untracked, inds), SVector(x)
         )
     end
     results = broadcast(df, value.(targs)...)
@@ -167,7 +163,7 @@ end
     return out
 end
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{typeof(∇broadcast)},
+    instruction::SpecialInstruction{typeof(∇broadcast)}
 )
     input = instruction.input
     output = instruction.output
@@ -185,14 +181,11 @@ end
 
 @generated function _br_add_to_deriv!(xs::T, o, r) where {T<:Tuple}
     N = length(T.types)
-    return Expr(:block, [:(_br_add_to_deriv!(xs[$i], o, r, Val($i))) for i = 1:N]...)
+    return Expr(:block, [:(_br_add_to_deriv!(xs[$i], o, r, Val($i))) for i in 1:N]...)
 end
 _br_add_to_deriv!(_, _, _, _) = nothing
 function _br_add_to_deriv!(
-    x::Union{TrackedReal,TrackedArray},
-    out_deriv,
-    results,
-    ::Val{i},
+    x::Union{TrackedReal,TrackedArray}, out_deriv, results, ::Val{i}
 ) where {i}
     return istracked(x) && diffresult_increment_deriv!(x, out_deriv, results, i)
 end
@@ -200,23 +193,18 @@ end
 @generated function _br_add_to_deriv!(xs::T, o, r, bounds) where {T<:Tuple}
     N = length(T.types)
     return Expr(
-        :block,
-        [:(_br_add_to_deriv!(xs[$i], o, r, Val($i), bounds[$i])) for i = 1:N]...,
+        :block, [:(_br_add_to_deriv!(xs[$i], o, r, Val($i), bounds[$i])) for i in 1:N]...
     )
 end
 _br_add_to_deriv!(_, _, _, _, _) = nothing
 function _br_add_to_deriv!(
-    x::Union{TrackedReal,TrackedArray},
-    out_deriv,
-    results,
-    ::Val{i},
-    bound,
+    x::Union{TrackedReal,TrackedArray}, out_deriv, results, ::Val{i}, bound
 ) where {i}
     return istracked(x) && diffresult_increment_deriv!(x, out_deriv, results, i, bound)
 end
 
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{typeof(∇broadcast)},
+    instruction::SpecialInstruction{typeof(∇broadcast)}
 )
     input, output = instruction.input, instruction.output
     results, df, _ = instruction.cache
@@ -232,10 +220,15 @@ end
 
 trim(x, Δ) = reshape(Δ, ntuple(i -> size(Δ, i), Val(ndims(x))))
 
-unbroadcast(x::AbstractArray, Δ) =
-    size(x) == size(Δ) ? Δ :
-    length(x) == length(Δ) ? trim(x, Δ) :
-    trim(x, sum(Δ, dims = ntuple(i -> size(x, i) == 1 ? i : ndims(Δ) + 1, Val(ndims(Δ)))))
+function unbroadcast(x::AbstractArray, Δ)
+    return if size(x) == size(Δ)
+        Δ
+    elseif length(x) == length(Δ)
+        trim(x, Δ)
+    else
+        trim(x, sum(Δ; dims=ntuple(i -> size(x, i) == 1 ? i : ndims(Δ) + 1, Val(ndims(Δ)))))
+    end
+end
 
 unbroadcast(x::Number, Δ) = sum(Δ)
 unbroadcast(x::Base.RefValue, _) = nothing
@@ -248,7 +241,7 @@ function _deriv(f, G, ::Val{i}, args::Vararg{Any,N}) where {N,i}
     return f(dargs...).partials[1] * G
 end
 @generated function _derivs(f, G, args::Vararg{Any,N}) where {N}
-    return Expr(:tuple, [:(_deriv.(f, G, Val($i), args...)) for i = 1:N]...)
+    return Expr(:tuple, [:(_deriv.(f, G, Val($i), args...)) for i in 1:N]...)
 end
 @inline function tracker_∇broadcast(f, args::Vararg{Any,N}) where {N}
     args_values = map(value, args)
@@ -262,7 +255,7 @@ end
 end
 
 @noinline function special_forward_exec!(
-    instruction::SpecialInstruction{typeof(tracker_∇broadcast)},
+    instruction::SpecialInstruction{typeof(tracker_∇broadcast)}
 )
     input, output = instruction.input, instruction.output
     f = instruction.cache[1]
@@ -273,7 +266,7 @@ end
 end
 
 @noinline function special_reverse_exec!(
-    instruction::SpecialInstruction{typeof(tracker_∇broadcast)},
+    instruction::SpecialInstruction{typeof(tracker_∇broadcast)}
 )
     input = instruction.input
     output = instruction.output
@@ -292,7 +285,7 @@ end
 
 @inline _materialize(f, args) = broadcast(f, args...)
 
-for (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
+for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         @warn "$M.$f is not available and hence rule for it can not be defined"
         continue  # Skip rules for methods not defined in the current scope
@@ -303,38 +296,38 @@ for (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
     elseif arity == 2
         @eval begin
             @inline materialize(
-                bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedArray,TrackedArray}},
+                bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedArray,TrackedArray}}
             ) = _materialize(bc.f, bc.args)
             @inline materialize(
-                bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedArray,TrackedReal}},
+                bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedArray,TrackedReal}}
             ) = _materialize(bc.f, bc.args)
             @noinline materialize(
-                bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedReal,TrackedArray}},
+                bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedReal,TrackedArray}}
             ) = _materialize(bc.f, bc.args)
         end
         for A in ARRAY_TYPES
             @eval begin
                 @inline materialize(
-                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{$A{<:Number},TrackedArray}},
+                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{$A{<:Number},TrackedArray}}
                 ) = _materialize(bc.f, bc.args)
                 @inline materialize(
-                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedArray,$A{<:Number}}},
+                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedArray,$A{<:Number}}}
                 ) = _materialize(bc.f, bc.args)
                 @inline materialize(
-                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{$A{<:Number},TrackedReal}},
+                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{$A{<:Number},TrackedReal}}
                 ) = _materialize(bc.f, bc.args)
                 @inline materialize(
-                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedReal,$A{<:Number}}},
+                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedReal,$A{<:Number}}}
                 ) = _materialize(bc.f, bc.args)
             end
         end
         for R in REAL_TYPES
             @eval begin
                 @inline materialize(
-                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{$R,TrackedArray}},
+                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{$R,TrackedArray}}
                 ) = _materialize(bc.f, bc.args)
                 @inline materialize(
-                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedArray,$R}},
+                    bc::RDBroadcasted{typeof($M.$f),<:Tuple{TrackedArray,$R}}
                 ) = _materialize(bc.f, bc.args)
             end
         end
