@@ -664,7 +664,7 @@ denom_partials(n::Real, d::Real) = Ref(denom_partials_kernel(n, d))
 denom_partials(n, d) = broadcast(denom_partials_kernel, n, d)
 denom_partials!(out::Ref, n, d) = (out[] = denom_partials_kernel(n, d); nothing)
 function denom_partials!(out::AbstractArray, n, d)
-    (broadcast!(denom_partials_kernel, out, n, d); nothing)
+    return (broadcast!(denom_partials_kernel, out, n, d); nothing)
 end
 
 rdiv_cache(x, y) = (numer_partials(value(y)), denom_partials(value(x), value(y)))
@@ -774,7 +774,7 @@ base_partials(b::Real, e::Real) = Ref(base_partials_kernel(b, e))
 base_partials(b, e) = broadcast(base_partials_kernel, b, e)
 base_partials!(out::Ref, b, e) = (out[] = base_partials_kernel(b, e); nothing)
 function base_partials!(out::AbstractArray, b, e)
-    (broadcast!(base_partials_kernel, out, b, e); nothing)
+    return (broadcast!(base_partials_kernel, out, b, e); nothing)
 end
 
 exp_partials_kernel(b::Real, e::Real) = log(b) * b^e
@@ -782,7 +782,7 @@ exp_partials(b::Real, e::Real) = Ref(exp_partials_kernel(b, e))
 exp_partials(b, e) = broadcast(exp_partials_kernel, b, e)
 exp_partials!(out::Ref, b, e) = (out[] = exp_partials_kernel(b, e); nothing)
 function exp_partials!(out::AbstractArray, b, e)
-    (broadcast!(exp_partials_kernel, out, b, e); nothing)
+    return (broadcast!(exp_partials_kernel, out, b, e); nothing)
 end
 
 function pow_cache(x, y)

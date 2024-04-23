@@ -349,7 +349,7 @@ function reverse_mul!(output, output_deriv, a, b, a_tmp, b_tmp)
         end
     end
     return istracked(b) &&
-        increment_deriv!(b, mul!(b_tmp, transpose(value(a)), output_deriv))
+           increment_deriv!(b, mul!(b_tmp, transpose(value(a)), output_deriv))
 end
 
 for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
@@ -366,16 +366,18 @@ for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
                     increment_deriv!(a, mul!(a_tmp, output_deriv, mulargvalue(b)))
                 end
             end
-            return istracked(_b) &&
-                increment_deriv!(_b, ($f)(mul!(($f)(b_tmp), ($f)(output_deriv), value(a))))
+            return istracked(_b) && increment_deriv!(
+                _b, ($f)(mul!(($f)(b_tmp), ($f)(output_deriv), value(a)))
+            )
         end
         # f(a) * b
         function reverse_mul!(output, output_deriv, a::$F, b, a_tmp, b_tmp)
             _a = ($f)(a)
             istracked(_a) &&
                 increment_deriv!(_a, ($f)(mul!(a_tmp, output_deriv, ($f)(value(b)))))
-            return istracked(b) &&
-                increment_deriv!(b, mul!(b_tmp, ($f)(mulargvalue(a)), ($f)(output_deriv)))
+            return istracked(b) && increment_deriv!(
+                b, mul!(b_tmp, ($f)(mulargvalue(a)), ($f)(output_deriv))
+            )
         end
         # f(a) * f(b)
         function reverse_mul!(output, output_deriv, a::$F, b::$F, a_tmp, b_tmp)

@@ -192,62 +192,64 @@ macro grad(expr)
     @gensym tp output_value output back args kwargs
     args_ex = getargs_expr(d[:args])
     kwargs_ex = getkwargs_expr(d[:kwargs])
-    return esc(quote
-        function $ReverseDiff.track(
-            ::typeof($f), $(d[:args]...); $(d[:kwargs]...)
-        ) where {$(d[:whereparams]...)}
-            $closure_ex
-            $args = $args_ex
-            $kwargs = $kwargs_ex
-            $tp = $ReverseDiff.tape($args...)
-            $output_value, $back = $closure($args...; $kwargs...)
-            $output = $ReverseDiff.track($output_value, $tp)
-            $ReverseDiff.record!(
-                $tp,
-                $ReverseDiff.SpecialInstruction,
-                $f,
-                $args,
-                $output,
-                ($back, $closure, $kwargs),
-            )
-            return $output
-        end
-
-        if !hasmethod(
-            $ReverseDiff.special_reverse_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
-        )
-            @noinline function $ReverseDiff.special_reverse_exec!(
-                instruction::$ReverseDiff.SpecialInstruction{typeof($f)}
-            )
-                output = instruction.output
-                input = instruction.input
-                back = instruction.cache[1]
-                input_derivs = back($ReverseDiff.deriv(output))
-                @assert input_derivs isa Tuple
-                $ReverseDiff._add_to_deriv!.(input, input_derivs)
-                $ReverseDiff.unseed!(output)
-                return nothing
+    return esc(
+        quote
+            function $ReverseDiff.track(
+                ::typeof($f), $(d[:args]...); $(d[:kwargs]...)
+            ) where {$(d[:whereparams]...)}
+                $closure_ex
+                $args = $args_ex
+                $kwargs = $kwargs_ex
+                $tp = $ReverseDiff.tape($args...)
+                $output_value, $back = $closure($args...; $kwargs...)
+                $output = $ReverseDiff.track($output_value, $tp)
+                $ReverseDiff.record!(
+                    $tp,
+                    $ReverseDiff.SpecialInstruction,
+                    $f,
+                    $args,
+                    $output,
+                    ($back, $closure, $kwargs),
+                )
+                return $output
             end
-        end
 
-        if !hasmethod(
-            $ReverseDiff.special_forward_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
-        )
-            @noinline function $ReverseDiff.special_forward_exec!(
-                instruction::$ReverseDiff.SpecialInstruction{typeof($f)}
+            if !hasmethod(
+                $ReverseDiff.special_reverse_exec!,
+                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
             )
-                output, input = instruction.output, instruction.input
-                $ReverseDiff.pull_value!.(input)
-                pullback = instruction.cache[2]
-                kwargs = instruction.cache[3]
-                out_value = pullback(input...; kwargs...)[1]
-                $ReverseDiff.value!(output, out_value)
-                return nothing
+                @noinline function $ReverseDiff.special_reverse_exec!(
+                    instruction::$ReverseDiff.SpecialInstruction{typeof($f)}
+                )
+                    output = instruction.output
+                    input = instruction.input
+                    back = instruction.cache[1]
+                    input_derivs = back($ReverseDiff.deriv(output))
+                    @assert input_derivs isa Tuple
+                    $ReverseDiff._add_to_deriv!.(input, input_derivs)
+                    $ReverseDiff.unseed!(output)
+                    return nothing
+                end
             end
-        end
-    end)
+
+            if !hasmethod(
+                $ReverseDiff.special_forward_exec!,
+                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+            )
+                @noinline function $ReverseDiff.special_forward_exec!(
+                    instruction::$ReverseDiff.SpecialInstruction{typeof($f)}
+                )
+                    output, input = instruction.output, instruction.input
+                    $ReverseDiff.pull_value!.(input)
+                    pullback = instruction.cache[2]
+                    kwargs = instruction.cache[3]
+                    out_value = pullback(input...; kwargs...)[1]
+                    $ReverseDiff.value!(output, out_value)
+                    return nothing
+                end
+            end
+        end,
+    )
 end
 
 """

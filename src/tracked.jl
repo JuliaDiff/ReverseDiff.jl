@@ -207,7 +207,7 @@ pull_deriv!(x::AbstractArray) = (istracked(x) && foreach(pull_deriv!, x); nothin
 push_deriv!(x) = nothing
 push_deriv!(t::TrackedArray) = nothing
 function push_deriv!(t::TrackedReal)
-    (hasorigin(t) && (t.origin.deriv[t.index] = deriv(t)); nothing)
+    return (hasorigin(t) && (t.origin.deriv[t.index] = deriv(t)); nothing)
 end
 push_deriv!(x::AbstractArray) = (istracked(x) && foreach(push_deriv!, x); nothing)
 
