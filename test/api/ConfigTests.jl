@@ -5,9 +5,15 @@ using ReverseDiff, Test
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
 issimilar(x::Nothing, y::Nothing) = true
-issimilar(x::AbstractArray, y::AbstractArray) = typeof(x) === typeof(y) && size(x) === size(y)
-issimilar(x::GradientConfig, y::GradientConfig) = issimilar(x.input, y.input) && x.tape === y.tape
-issimilar(x::JacobianConfig, y::JacobianConfig) = issimilar(x.output, y.output) && issimilar(x.input, y.input) && x.tape === y.tape
+function issimilar(x::AbstractArray, y::AbstractArray)
+    return typeof(x) === typeof(y) && size(x) === size(y)
+end
+function issimilar(x::GradientConfig, y::GradientConfig)
+    return issimilar(x.input, y.input) && x.tape === y.tape
+end
+function issimilar(x::JacobianConfig, y::JacobianConfig)
+    return issimilar(x.output, y.output) && issimilar(x.input, y.input) && x.tape === y.tape
+end
 issimilar(x::Tuple, y::Tuple) = all(map(issimilar, x, y))
 
 ############################################################################################

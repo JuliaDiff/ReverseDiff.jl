@@ -37,7 +37,7 @@ function test_forward(f, x, tp::InstructionTape, fsym::Symbol)
     @test value(yt) == f(x2)
     ReverseDiff.value!(xt, x)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_forward(f, a, b, tp)
@@ -113,7 +113,7 @@ function test_forward(f, a, b, tp)
     ReverseDiff.value!(bt, a)
     ReverseDiff.value!(bt, b)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_skip(f, x, tp)

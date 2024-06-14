@@ -7,7 +7,7 @@ include(joinpath(dirname(@__FILE__), "../utils.jl"))
 x, a, b = rand(3, 3), rand(3, 3), rand(3, 3)
 tp = InstructionTape()
 
-function test_arr2num(f, x, tp; ignore_tape_length = false)
+function test_arr2num(f, x, tp; ignore_tape_length=false)
     xt = track(copy(x), tp)
     y = f(x)
 
@@ -31,7 +31,7 @@ function test_arr2num(f, x, tp; ignore_tape_length = false)
     @test abs(value(yt) - y) <= abs(y) * eps(typeof(y))
     ReverseDiff.value!(xt, x)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_arr2arr(f, x, tp)
@@ -55,7 +55,7 @@ function test_arr2arr(f, x, tp)
     @test value(yt) == f(x2)
     ReverseDiff.value!(xt, x)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_arr2arr(f, a, b, tp)
@@ -128,7 +128,7 @@ function test_arr2arr(f, a, b, tp)
     ReverseDiff.value!(at, a)
     ReverseDiff.value!(bt, b)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_arr2arr_inplace(f!, f, c, a, b, tp)
@@ -204,7 +204,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     ReverseDiff.value!(at, a)
     ReverseDiff.value!(bt, b)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 for f in (
@@ -229,12 +229,9 @@ function norm_hermitian(v)
     return norm(A' * A)
 end
 
-for f in (
-    y -> vec(y)' * Matrix{Float64}(I, length(y), length(y)) * vec(y),
-    norm_hermitian,
-)
+for f in (y -> vec(y)' * Matrix{Float64}(I, length(y), length(y)) * vec(y), norm_hermitian)
     test_println("Array -> Number functions", f)
-    test_arr2num(f, x, tp, ignore_tape_length=true)
+    test_arr2num(f, x, tp; ignore_tape_length=true)
 end
 
 for f in (-, inv)
@@ -278,7 +275,8 @@ test_arr2arr(*, transpose(a), adjoint(b), tp)
 test_arr2arr_inplace(mul!, *, x, transpose(a), adjoint(b), tp)
 
 # Prevent regression on https://github.com/JuliaDiff/ReverseDiff.jl/issues/235
-A = [1 2; 3 4]; x = [5, 6];
-@test ReverseDiff.gradient(y -> sum(y'*A), x) == [3, 7]
+A = [1 2; 3 4]
+x = [5, 6]
+@test ReverseDiff.gradient(y -> sum(y' * A), x) == [3, 7]
 
 end # module

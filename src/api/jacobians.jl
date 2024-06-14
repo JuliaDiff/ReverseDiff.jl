@@ -19,7 +19,7 @@ If possible, it is highly recommended to use `ReverseDiff.JacobianTape` to prere
 Otherwise, this method will have to re-record `f`'s execution trace for every subsequent
 call.
 """
-function jacobian(f, input, cfg::JacobianConfig = JacobianConfig(input))
+function jacobian(f, input, cfg::JacobianConfig=JacobianConfig(input))
     tape = JacobianTape(f, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     result = jacobian!(tape, input)
@@ -38,7 +38,7 @@ of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult
 case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored
 in it as well.
 """
-function jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input))
+function jacobian!(result, f, input, cfg::JacobianConfig=JacobianConfig(input))
     tape = JacobianTape(f, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     jacobian!(result, tape, input)
@@ -56,7 +56,7 @@ end
 Exactly like `ReverseDiff.jacobian(f, input, cfg)`, except the target function has the
 form `f!(output::AbstractArray{<:Real}, input::AbstractArray{<:Real}...)`.
 """
-function jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
+function jacobian(f!, output, input, cfg::JacobianConfig=JacobianConfig(output, input))
     tape = JacobianTape(f!, output, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     result = jacobian!(tape, input)
@@ -71,7 +71,9 @@ end
 Exactly like `ReverseDiff.jacobian!(result, f, input, cfg)`, except the target function has the
 form `f!(output::AbstractArray{<:Real}, input::AbstractArray{<:Real}...)`.
 """
-function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
+function jacobian!(
+    result, f!, output, input, cfg::JacobianConfig=JacobianConfig(output, input)
+)
     tape = JacobianTape(f!, output, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     jacobian!(result, tape, input)

@@ -18,7 +18,7 @@ If possible, it is highly recommended to use `ReverseDiff.GradientTape` to prere
 Otherwise, this method will have to re-record `f`'s execution trace for every subsequent
 call.
 """
-function gradient(f, input, cfg::GradientConfig = GradientConfig(input))
+function gradient(f, input, cfg::GradientConfig=GradientConfig(input))
     tape = GradientTape(f, input, cfg)
     result = construct_result(input_hook(tape))
     seeded_reverse_pass!(result, tape)
@@ -37,7 +37,7 @@ of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult
 case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored
 in it as well.
 """
-function gradient!(result, f, input, cfg::GradientConfig = GradientConfig(input))
+function gradient!(result, f, input, cfg::GradientConfig=GradientConfig(input))
     tape = GradientTape(f, input, cfg)
     seeded_reverse_pass!(result, tape)
     empty!(cfg.tape)

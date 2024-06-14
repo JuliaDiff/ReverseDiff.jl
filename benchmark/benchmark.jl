@@ -51,13 +51,23 @@ function grad_benchmark_driver!(out, f, x)
             gc()
         end
     else
-        println("skipping compiled GradientTape benchmark because the tape is too long ($(length(tp.tape)) elements)")
+        println(
+            "skipping compiled GradientTape benchmark because the tape is too long ($(length(tp.tape)) elements)",
+        )
     end
 end
 
 ####################################################################
 
-rosenbrock(x) = sum(map(ReverseDiff.@forward((i, j) -> (1 - j)^2 + 100*(i - j^2)^2), x[2:end], x[1:end-1]))
+function rosenbrock(x)
+    return sum(
+        map(
+            ReverseDiff.@forward((i, j) -> (1 - j)^2 + 100 * (i - j^2)^2),
+            x[2:end],
+            x[1:(end - 1)],
+        ),
+    )
+end
 
 # function rosenbrock(x)
 #     i = x[2:end]
@@ -82,16 +92,15 @@ grad_benchmark_driver!(out, rosenbrock, x)
 ####################################################################
 
 function ackley(x::AbstractVector)
-    a, b, c = 20.0, -0.2, 2.0*π
+    a, b, c = 20.0, -0.2, 2.0 * π
     len_recip = inv(length(x))
     sum_sqrs = zero(eltype(x))
     sum_cos = sum_sqrs
     for i in x
-        sum_cos += cos(c*i)
+        sum_cos += cos(c * i)
         sum_sqrs += i^2
     end
-    return (-a * exp(b * sqrt(len_recip*sum_sqrs)) -
-            exp(len_recip*sum_cos) + a + e)
+    return (-a * exp(b * sqrt(len_recip * sum_sqrs)) - exp(len_recip * sum_cos) + a + e)
 end
 
 x = rand(100000)
@@ -103,8 +112,8 @@ grad_benchmark_driver!(out, ackley, x)
 function generate_matrix_test(n)
     return x -> begin
         @assert length(x) == 2n^2 + n
-        a = reshape(x[1:n^2], n, n)
-        b = reshape(x[n^2 + 1:2n^2], n, n)
+        a = reshape(x[1:(n^2)], n, n)
+        b = reshape(x[(n^2 + 1):(2n^2)], n, n)
         return trace(log.((a * b) + a - b))
     end
 end
@@ -119,7 +128,7 @@ grad_benchmark_driver!(out, matrix_test, x)
 
 relu(x) = log.(1.0 .+ exp.(x))
 
-ReverseDiff.@forward sigmoid(n) = 1. / (1. + exp(-n))
+ReverseDiff.@forward sigmoid(n) = 1.0 / (1.0 + exp(-n))
 
 function neural_net(w1, w2, w3, x1)
     x2 = relu(w1 * x1)
@@ -127,7 +136,7 @@ function neural_net(w1, w2, w3, x1)
     return sigmoid(dot(w3, x3))
 end
 
-xs = (randn(10,10), randn(10,10), randn(10), rand(10))
+xs = (randn(10, 10), randn(10, 10), randn(10), rand(10))
 outs = map(similar, xs)
 grad_benchmark_driver!(outs, neural_net, xs)
 

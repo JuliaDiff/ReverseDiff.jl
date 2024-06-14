@@ -95,10 +95,14 @@ end
 # binary #
 #--------#
 
-@inline function (self::ForwardOptimize{F})(a::TrackedReal{V1,D}, b::TrackedReal{V2,D}) where {F,V1,V2,D}
+@inline function (self::ForwardOptimize{F})(
+    a::TrackedReal{V1,D}, b::TrackedReal{V2,D}
+) where {F,V1,V2,D}
     T = promote_type(V1, V2, D)
     result = DiffResults.GradientResult(SVector(zero(T), zero(T)))
-    result = ForwardDiff.gradient!(result, x -> self.f(x[1], x[2]), SVector(value(a), value(b)))
+    result = ForwardDiff.gradient!(
+        result, x -> self.f(x[1], x[2]), SVector(value(a), value(b))
+    )
     tp = tape(a, b)
     out = track(DiffResults.value(result), D, tp)
     cache = RefValue(DiffResults.gradient(result))
@@ -130,8 +134,10 @@ end
     return out
 end
 
-@inline (self::ForwardOptimize{F})(x::Dual, t::TrackedReal) where {F} = invoke(self.f, Tuple{Dual,Real}, x, t)
-@inline (self::ForwardOptimize{F})(t::TrackedReal, x::Dual) where {F} = invoke(self.f, Tuple{Real,Dual}, t, x)
+@inline (self::ForwardOptimize{F})(x::Dual, t::TrackedReal) where {F} =
+    invoke(self.f, Tuple{Dual,Real}, x, t)
+@inline (self::ForwardOptimize{F})(t::TrackedReal, x::Dual) where {F} =
+    invoke(self.f, Tuple{Real,Dual}, t, x)
 
 #################################
 # Skip Instruction Optimization #
@@ -186,56 +192,64 @@ macro grad(expr)
     @gensym tp output_value output back args kwargs
     args_ex = getargs_expr(d[:args])
     kwargs_ex = getkwargs_expr(d[:kwargs])
-    return quote
-        function $ReverseDiff.track(::typeof($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...),}
-            $closure_ex
-            $args = $args_ex
-            $kwargs = $kwargs_ex
-            $tp = $ReverseDiff.tape($args...)
-            $output_value, $back = $closure($args...; $kwargs...)
-            $output = $ReverseDiff.track($output_value, $tp)
-            $ReverseDiff.record!(
-                $tp,
-                $ReverseDiff.SpecialInstruction,
-                $f,
-                $args,
-                $output,
-                ($back, $closure, $kwargs),
+    return esc(
+        quote
+            function $ReverseDiff.track(
+                ::typeof($f), $(d[:args]...); $(d[:kwargs]...)
+            ) where {$(d[:whereparams]...)}
+                $closure_ex
+                $args = $args_ex
+                $kwargs = $kwargs_ex
+                $tp = $ReverseDiff.tape($args...)
+                $output_value, $back = $closure($args...; $kwargs...)
+                $output = $ReverseDiff.track($output_value, $tp)
+                $ReverseDiff.record!(
+                    $tp,
+                    $ReverseDiff.SpecialInstruction,
+                    $f,
+                    $args,
+                    $output,
+                    ($back, $closure, $kwargs),
+                )
+                return $output
+            end
+
+            if !hasmethod(
+                $ReverseDiff.special_reverse_exec!,
+                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
             )
-            return $output
-        end
-
-        if !hasmethod(
-            $ReverseDiff.special_reverse_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
-        )
-            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
-                output = instruction.output
-                input = instruction.input
-                back = instruction.cache[1]
-                input_derivs = back($ReverseDiff.deriv(output))
-                @assert input_derivs isa Tuple
-                $ReverseDiff._add_to_deriv!.(input, input_derivs)
-                $ReverseDiff.unseed!(output)
-                return nothing
+                @noinline function $ReverseDiff.special_reverse_exec!(
+                    instruction::$ReverseDiff.SpecialInstruction{typeof($f)}
+                )
+                    output = instruction.output
+                    input = instruction.input
+                    back = instruction.cache[1]
+                    input_derivs = back($ReverseDiff.deriv(output))
+                    @assert input_derivs isa Tuple
+                    $ReverseDiff._add_to_deriv!.(input, input_derivs)
+                    $ReverseDiff.unseed!(output)
+                    return nothing
+                end
             end
-        end
 
-        if !hasmethod(
-            $ReverseDiff.special_forward_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
-        )
-            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
-                output, input = instruction.output, instruction.input
-                $ReverseDiff.pull_value!.(input)
-                pullback = instruction.cache[2]
-                kwargs = instruction.cache[3]
-                out_value = pullback(input...; kwargs...)[1]
-                $ReverseDiff.value!(output, out_value)
-                return nothing
+            if !hasmethod(
+                $ReverseDiff.special_forward_exec!,
+                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+            )
+                @noinline function $ReverseDiff.special_forward_exec!(
+                    instruction::$ReverseDiff.SpecialInstruction{typeof($f)}
+                )
+                    output, input = instruction.output, instruction.input
+                    $ReverseDiff.pull_value!.(input)
+                    pullback = instruction.cache[2]
+                    kwargs = instruction.cache[3]
+                    out_value = pullback(input...; kwargs...)[1]
+                    $ReverseDiff.value!(output, out_value)
+                    return nothing
+                end
             end
-        end
-    end |> esc
+        end,
+    )
 end
 
 """
@@ -284,7 +298,11 @@ function _make_fwd_args(func, args_l)
 
     arg_types = map(args_fixed) do arg
         if Meta.isexpr(arg, :(...))
-            Meta.isexpr(arg.args[1], :(::)) ? :(Vararg{$(arg.args[1].args[end])}) : :(Vararg{Any})
+            if Meta.isexpr(arg.args[1], :(::))
+                :(Vararg{$(arg.args[1].args[end])})
+            else
+                :(Vararg{Any})
+            end
         elseif Meta.isexpr(arg, :(::))
             arg.args[end]
         else
@@ -335,9 +353,15 @@ macro grad_from_chainrules(fcall)
         function ReverseDiff.track($(args_track...))
             args = ($(args_fixed...),)
             tp = ReverseDiff.tape(args...)
-            output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; $kwargs...)
+            output_value, back = ChainRulesCore.rrule(
+                $f, map(ReverseDiff.value, args)...; $kwargs...
+            )
             output = ReverseDiff.track(output_value, tp)
-            closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule($f, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
+            function closure(cls_args...; cls_kwargs...)
+                return ChainRulesCore.rrule(
+                    $f, map(ReverseDiff.value, cls_args)...; cls_kwargs...
+                )
+            end
             ReverseDiff.record!(
                 tp,
                 ReverseDiff.SpecialInstruction,
@@ -349,7 +373,9 @@ macro grad_from_chainrules(fcall)
             return output
         end
 
-        @noinline function ReverseDiff.special_reverse_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+        @noinline function ReverseDiff.special_reverse_exec!(
+            instruction::ReverseDiff.SpecialInstruction{typeof($f),<:Tuple{$(arg_types...)}}
+        )
             output = instruction.output
             input = instruction.input
             back = instruction.cache[1]
@@ -361,7 +387,9 @@ macro grad_from_chainrules(fcall)
             return nothing
         end
 
-        @noinline function ReverseDiff.special_forward_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+        @noinline function ReverseDiff.special_forward_exec!(
+            instruction::ReverseDiff.SpecialInstruction{typeof($f),<:Tuple{$(arg_types...)}}
+        )
             output, input = instruction.output, instruction.input
             ReverseDiff.pull_value!.(input)
             pullback = instruction.cache[2]
@@ -374,11 +402,13 @@ macro grad_from_chainrules(fcall)
 end
 
 _add_to_deriv!(d1, d2) = nothing
-function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2::AbstractThunk)
-    increment_deriv!(d1, unthunk(d2))
+function _add_to_deriv!(
+    d1::Union{TrackedReal,AbstractArray{<:TrackedReal}}, d2::AbstractThunk
+)
+    return increment_deriv!(d1, unthunk(d2))
 end
-function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2)
-    increment_deriv!(d1, d2)
+function _add_to_deriv!(d1::Union{TrackedReal,AbstractArray{<:TrackedReal}}, d2)
+    return increment_deriv!(d1, d2)
 end
 function getargs_expr(args_with_types)
     expr = Expr(:tuple)

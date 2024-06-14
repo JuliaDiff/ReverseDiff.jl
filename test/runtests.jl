@@ -1,6 +1,6 @@
 const TESTDIR = dirname(@__FILE__)
 
-test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
+test_println(kind, f, pad="  ") = println(pad, "testing $(kind): `$(f)`...")
 
 println("running TapeTests...")
 t = @elapsed include(joinpath(TESTDIR, "TapeTests.jl"))

@@ -55,10 +55,10 @@ function unpack(sizes, vecx)
     start = 0
     out = map(sizes) do s
         if s === ()
-            x = vecx[start+1]
+            x = vecx[start + 1]
             start += 1
         else
-            x = reshape(vecx[start+1:start+prod(s)], s)
+            x = reshape(vecx[(start + 1):(start + prod(s))], s)
             start += prod(s)
         end
     end
@@ -67,8 +67,8 @@ end
 
 @testset "cat" begin
     v = rand(3)
-    m = rand(3,3)
-    a = rand(3,3,3)
+    m = rand(3, 3)
+    a = rand(3, 3, 3)
     n = rand()
 
     testcat(cat, (n,), TrackedVector, (dims=1,))

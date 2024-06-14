@@ -5,7 +5,7 @@
 for (T, f) in [(:Adjoint, :adjoint), (:Transpose, :transpose)]
     _f = Symbol(:_copy, f)
     @eval begin
-        Base.copy(A::$T{<:TrackedReal, <:TrackedVecOrMat}) = $_f(parent(A))
+        Base.copy(A::$T{<:TrackedReal,<:TrackedVecOrMat}) = $_f(parent(A))
         $_f(A) = copy($f(A))
         $_f(A::TrackedVecOrMat) = track($_f, A)
         @grad function $_f(A::AbstractVecOrMat)

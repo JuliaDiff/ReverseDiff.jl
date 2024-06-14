@@ -1,0 +1,22 @@
+name: format-check
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: 1
+      - name: Install JuliaFormatter.jl
+        run: julia  -e 'using Pkg; Pkg.add(PackageSpec(name="JuliaFormatter"))'
+      - name: Format code
+        run: julia  -e 'using JuliaFormatter; format(".", verbose=true)'
+      - uses: reviewdog/action-suggester@v1
+        with:
+          tool_name: JuliaFormatter
+          fail_on_error: true
+          filter_mode: added

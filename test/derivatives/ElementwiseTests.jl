@@ -66,7 +66,7 @@ function test_elementwise(f, fopt, x, tp)
     @test yt == broadcast(f, x2)
     ReverseDiff.value!(xt, x)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 function test_map(f, fopt, a, b, tp)
@@ -127,7 +127,7 @@ function test_map(f, fopt, a, b, tp)
     out_b = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out_a, ct, at, tp)
     ReverseDiff.seeded_reverse_pass!(out_b, ct, bt, tp)
-    jac = let a=a, b=b, f=f
+    jac = let a = a, b = b, f = f
         ForwardDiff.jacobian(vcat(vec(a), vec(b))) do x
             map(f, reshape(x[1:length(a)], size(a)), reshape(x[(length(a) + 1):end], size(b)))
         end
@@ -143,10 +143,12 @@ function test_map(f, fopt, a, b, tp)
     ReverseDiff.value!(at, a)
     ReverseDiff.value!(bt, b)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
-function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin::Bool = false)
+function test_broadcast(
+    f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin::Bool=false
+)
     at, bt = track(copy(a), tp), track(copy(b), tp)
 
     if builtin
@@ -211,7 +213,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     out_b = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out_a, ct, at, tp)
     ReverseDiff.seeded_reverse_pass!(out_b, ct, bt, tp)
-    jac = let a=a, b=b, g=g
+    jac = let a = a, b = b, g = g
         ForwardDiff.jacobian(vcat(vec(a), vec(b))) do x
             g(reshape(x[1:length(a)], size(a)), reshape(x[(length(a) + 1):end], size(b)))
         end
@@ -228,10 +230,10 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     ReverseDiff.value!(at, a)
     ReverseDiff.value!(bt, b)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
-function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool = false)
+function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool=false)
     nt, xt = track(copy(n), tp), track(copy(x), tp)
 
     if builtin
@@ -296,14 +298,14 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     out_x = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out_n, yt, nt, tp)
     ReverseDiff.seeded_reverse_pass!(out_x, yt, xt, tp)
-    jac = let x=x, g=g
+    jac = let x = x, g = g
         ForwardDiff.jacobian(z -> g(z[1], reshape(z[2:end], size(x))), vcat(n, vec(x)))
     end
     test_approx(out_n, reshape(jac[:, 1], size(y)); nans=true)
     test_approx(out_x, jac[:, 2:end]; nans=true)
 
     # forward
-    n2, x2 = n + offset , x .- offset
+    n2, x2 = n + offset, x .- offset
     ReverseDiff.value!(nt, n2)
     ReverseDiff.value!(xt, x2)
     ReverseDiff.forward_pass!(tp)
@@ -311,10 +313,10 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     ReverseDiff.value!(nt, n)
     ReverseDiff.value!(xt, x)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
-function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool = false)
+function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool=false)
     xt, nt = track(copy(x), tp), track(copy(n), tp)
 
     if builtin
@@ -379,7 +381,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     out_x = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out_n, yt, nt, tp)
     ReverseDiff.seeded_reverse_pass!(out_x, yt, xt, tp)
-    jac = let x=x, g=g
+    jac = let x = x, g = g
         ForwardDiff.jacobian(z -> g(reshape(z[1:(end - 1)], size(x)), z[end]), vcat(vec(x), n))
     end
     test_approx(out_x, jac[:, 1:(end - 1)]; nans=true)
@@ -394,7 +396,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     ReverseDiff.value!(xt, x)
     ReverseDiff.value!(nt, n)
 
-    empty!(tp)
+    return empty!(tp)
 end
 
 for f in DiffTests.NUMBER_TO_NUMBER_FUNCS
