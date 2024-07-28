@@ -29,12 +29,12 @@ function seeded_reverse_pass!(result, output::TrackedReal, input, tape)
     unseed!(input)
     seed!(output)
     reverse_pass!(tape)
-    extract_result!(result, output, input)
+    result = extract_result!(result, output, input)
     return result
 end
 
 function seeded_reverse_pass!(result, output::Number, input, tape)
-    extract_result!(result, output)
+    result = extract_result!(result, output)
     return result
 end
 
@@ -58,8 +58,8 @@ function seeded_reverse_pass!(result::AbstractArray, output::AbstractArray, inpu
 end
 
 function seeded_reverse_pass!(result::DiffResult, output::AbstractArray, input::TrackedArray, tape)
-    seeded_reverse_pass!(DiffResults.jacobian(result), output, input, tape)
-    extract_result_value!(result, output)
+    result = seeded_reverse_pass!(DiffResults.jacobian(result), output, input, tape)
+    result = extract_result_value!(result, output)
     return result
 end
 
