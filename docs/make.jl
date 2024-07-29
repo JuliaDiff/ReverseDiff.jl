@@ -16,5 +16,5 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/JuliaDiff/ReverseDiff.jl", push_preview=true,
+    repo="github.com/JuliaDiff/ReverseDiff.jl.git", push_preview=true,
 )

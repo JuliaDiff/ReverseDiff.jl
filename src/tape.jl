@@ -110,7 +110,7 @@ function Base.show(io::IO, instruction::AbstractInstruction, pad = "")
 end
 
 function Base.show(io::IO, tp::InstructionTape)
-    println("$(length(tp))-element InstructionTape:")
+    println(io, length(tp), "-element InstructionTape:")
     i = 1
     for instruction in tp
         print(io, "$i => ")
