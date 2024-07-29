@@ -82,7 +82,7 @@ function unpack(sizes, vecx)
     return out
 end
 
-@testset verbose = true "cat" begin
+@testset "cat" begin
     v = rand(3)
     m = rand(3,3)
     a = rand(3,3,3)
