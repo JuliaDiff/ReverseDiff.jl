@@ -84,8 +84,8 @@ end
 
 @testset verbose = true "cat" begin
     v = rand(3)
-    m = rand(3, 3)
-    a = rand(3, 3, 3)
+    m = rand(3,3)
+    a = rand(3,3,3)
     n = rand()
 
     testcat(cat, (n,), TrackedVector, (dims=1,))
@@ -115,4 +115,4 @@ end
     testcat(hcat, (v, v), TrackedMatrix)
     testcat(hcat, (v, m), TrackedMatrix)
     testcat(hcat, (m, v), TrackedMatrix)
-end;
+end
