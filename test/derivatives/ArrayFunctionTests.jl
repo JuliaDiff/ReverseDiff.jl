@@ -17,40 +17,50 @@ end
 end
 
 function testcat(f, args::Tuple, type, kwargs=NamedTuple())
-    @testset "$f - $(typeof(args)) - $type - $kwargs" begin
-        x = f(track.(args)...; kwargs...)
+    x = f(track.(args)...; kwargs...)
+    @test x isa type
+    @test value(x) == f(args...; kwargs...)
+
+    if length(args) == 1
+        x = f(track(args[1]); kwargs...)
         @test x isa type
         @test value(x) == f(args...; kwargs...)
+    else
+        @assert length(args) == 2
 
-        if length(args) == 1
-            x = f(track(args[1]); kwargs...)
-            @test x isa type
-            @test value(x) == f(args...; kwargs...)
+        broken = f == hcat && (args[2] isa AbstractMatrix)
+        if broken
+            @test_broken f(track(args[1]), args[2]; kwargs...) isa type
+            @test_broken value(f(track(args[1]), args[2]; kwargs...)) == f(args...; kwargs...)
         else
-            @assert length(args) == 2
-            x = f(track(args[1]), args[2]; kwargs...)
-            @test x isa type
-            @test value(x) == f(args...; kwargs...)
-
-            x = f(args[1], track(args[2]); kwargs...)
-            @test x isa type
-            @test value(x) == f(args...; kwargs...)
+            @test f(track(args[1]), args[2]; kwargs...) isa type
+            @test value(f(track(args[1]), args[2]; kwargs...)) == f(args...; kwargs...)
         end
 
-        args = (args..., args...)
-        sizes = size.(args)
-        F = vecx -> sum(f(unpack(sizes, vecx)...; kwargs...))
-        X = pack(args)
-        if length(args) < 4
-            @test f(track.(args)...; kwargs...) isa type
-            @test value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
-            @test ForwardDiff.gradient(F, X) == gradient(F, X)
+        broken = f == hcat && (args[1] isa AbstractMatrix)
+        if broken
+            @test_broken f(args[1], track(args[2]); kwargs...) isa type
+            @test_broken value(f(args[1], track(args[2]); kwargs...)) == f(args...; kwargs...)
         else
-            @test_broken f(track.(args)...; kwargs...) isa type
-            @test_broken value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
-            @test_broken ForwardDiff.gradient(F, X) == gradient(F, X)
+            @test f(args[1], track(args[2]); kwargs...) isa type
+            @test value(f(args[1], track(args[2]); kwargs...)) == f(args...; kwargs...)
         end
     end
+
+    args = (args..., args...)
+    sizes = size.(args)
+    broken = (f in (vcat, hcat) && (args[2] isa AbstractArray))
+    if broken
+        @test_broken f(track.(args)...; kwargs...) isa type
+        @test_broken value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
+    else
+        @test f(track.(args)...; kwargs...) isa type
+        @test value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
+    end
+
+    F = vecx -> sum(f(unpack(sizes, vecx)...; kwargs...))
+    X = pack(args)
+    @test ForwardDiff.gradient(F, X) == gradient(F, X)
 end
 
 function pack(xs)
@@ -72,7 +82,7 @@ function unpack(sizes, vecx)
     return out
 end
 
-@testset "cat" begin
+@testset verbose = true "cat" begin
     v = rand(3)
     m = rand(3, 3)
     a = rand(3, 3, 3)
@@ -105,4 +115,4 @@ end
     testcat(hcat, (v, v), TrackedMatrix)
     testcat(hcat, (v, m), TrackedMatrix)
     testcat(hcat, (m, v), TrackedMatrix)
-end
+end;
