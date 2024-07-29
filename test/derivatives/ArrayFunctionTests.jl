@@ -17,37 +17,39 @@ end
 end
 
 function testcat(f, args::Tuple, type, kwargs=NamedTuple())
-    x = f(track.(args)...; kwargs...)
-    @test x isa type
-    @test value(x) == f(args...; kwargs...)
-
-    if length(args) == 1
-        x = f(track(args[1]); kwargs...)
-        @test x isa type
-        @test value(x) == f(args...; kwargs...)
-    else
-        @assert length(args) == 2
-        x = f(track(args[1]), args[2]; kwargs...)
+    @testset "$f - $(typeof(args)) - $type - $kwargs" begin
+        x = f(track.(args)...; kwargs...)
         @test x isa type
         @test value(x) == f(args...; kwargs...)
 
-        x = f(args[1], track(args[2]); kwargs...)
-        @test x isa type
-        @test value(x) == f(args...; kwargs...)
-    end
+        if length(args) == 1
+            x = f(track(args[1]); kwargs...)
+            @test x isa type
+            @test value(x) == f(args...; kwargs...)
+        else
+            @assert length(args) == 2
+            x = f(track(args[1]), args[2]; kwargs...)
+            @test x isa type
+            @test value(x) == f(args...; kwargs...)
 
-    args = (args..., args...)
-    sizes = size.(args)
-    F = vecx -> sum(f(unpack(sizes, vecx)...; kwargs...))
-    X = pack(args)
-    if length(args) < 4
-        @test f(track.(args)...; kwargs...) isa type
-        @test value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
-        @test ForwardDiff.gradient(F, X) == gradient(F, X)
-    else
-        @test_broken f(track.(args)...; kwargs...) isa type
-        @test_broken value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
-        @test_broken ForwardDiff.gradient(F, X) == gradient(F, X)
+            x = f(args[1], track(args[2]); kwargs...)
+            @test x isa type
+            @test value(x) == f(args...; kwargs...)
+        end
+
+        args = (args..., args...)
+        sizes = size.(args)
+        F = vecx -> sum(f(unpack(sizes, vecx)...; kwargs...))
+        X = pack(args)
+        if length(args) < 4
+            @test f(track.(args)...; kwargs...) isa type
+            @test value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
+            @test ForwardDiff.gradient(F, X) == gradient(F, X)
+        else
+            @test_broken f(track.(args)...; kwargs...) isa type
+            @test_broken value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
+            @test_broken ForwardDiff.gradient(F, X) == gradient(F, X)
+        end
     end
 end
 
