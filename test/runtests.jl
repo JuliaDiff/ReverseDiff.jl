@@ -1,6 +1,10 @@
+using Test
+
 const TESTDIR = dirname(@__FILE__)
 
 test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
+
+@testset "ReverseDiff" begin
 
 println("running TapeTests...")
 t = @elapsed include(joinpath(TESTDIR, "TapeTests.jl"))
@@ -53,3 +57,5 @@ println("done (took $t seconds).")
 println("running CompatTests...")
 t = @elapsed include(joinpath(TESTDIR, "compat/CompatTests.jl"))
 println("done (took $t seconds).")
+
+end
