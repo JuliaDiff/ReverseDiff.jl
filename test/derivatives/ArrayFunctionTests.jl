@@ -29,7 +29,7 @@ function testcat(f, args::Tuple, type, kwargs=NamedTuple())
         @assert length(args) == 2
 
         broken = f == hcat && (args[2] isa AbstractMatrix)
-        if broken && VERSION > v"1.3"
+        if broken && VERSION >= v"1.4"
             @test_broken f(track(args[1]), args[2]; kwargs...) isa type
             @test_broken value(f(track(args[1]), args[2]; kwargs...)) == f(args...; kwargs...)
         else
@@ -38,7 +38,7 @@ function testcat(f, args::Tuple, type, kwargs=NamedTuple())
         end
 
         broken = f == hcat && (args[1] isa AbstractMatrix)
-        if broken && VERSION > v"1.3"
+        if broken && VERSION >= v"1.4"
             @test_broken f(args[1], track(args[2]); kwargs...) isa type
             @test_broken value(f(args[1], track(args[2]); kwargs...)) == f(args...; kwargs...)
         else
@@ -50,7 +50,7 @@ function testcat(f, args::Tuple, type, kwargs=NamedTuple())
     args = (args..., args...)
     sizes = size.(args)
     broken = (f in (vcat, hcat) && (args[2] isa AbstractArray))
-    if broken && VERSION > v"1.3"
+    if broken && VERSION >= v"1.4"
         @test_broken f(track.(args)...; kwargs...) isa type
         @test_broken value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
     else
