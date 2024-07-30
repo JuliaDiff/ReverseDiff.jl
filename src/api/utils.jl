@@ -64,7 +64,7 @@ function seeded_reverse_pass!(result::DiffResult, output::AbstractArray, input::
 end
 
 function seeded_reverse_pass!(result::Tuple, output::AbstractArray, input::Tuple, tape)
-    for i in eachindex(result)
+    result = map(eachindex(result, input)) do i
         seeded_reverse_pass!(result[i], output, input[i], tape)
     end
     return result
@@ -75,14 +75,14 @@ end
 #####################
 
 function extract_result!(result::Tuple, output, input::Tuple)
-    for i in eachindex(result)
+    result = map(eachindex(result, input)) do i
         extract_result!(result[i], output, input[i])
     end
     return result
 end
 
 function extract_result!(result::Tuple, output)
-    for i in eachindex(result)
+    result = map(eachindex(result)) do i
         extract_result!(result[i], output)
     end
     return result
@@ -111,7 +111,7 @@ function extract_result!(result::DiffResult, output::Number)
 end
 
 function extract_result_value!(result::Tuple, output)
-    for i in eachindex(result)
+    result = map(eachindex(result)) do i
         extract_result_value!(result[i], output)
     end
     return result

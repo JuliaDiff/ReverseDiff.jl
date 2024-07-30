@@ -36,7 +36,8 @@ julia = "1"
 DiffTests = "de460e47-3fe3-5279-bb4a-814414816d5d"
 FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 IrrationalConstants = "92d709cd-6900-40b7-9082-c6be49f344b6"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["DiffTests", "FillArrays", "IrrationalConstants", "Test"]
+test = ["DiffTests", "FillArrays", "IrrationalConstants", "StaticArrays", "Test"]
