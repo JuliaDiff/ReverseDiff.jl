@@ -21,7 +21,7 @@ call.
 function gradient(f, input, cfg::GradientConfig = GradientConfig(input))
     tape = GradientTape(f, input, cfg)
     result = construct_result(input_hook(tape))
-    seeded_reverse_pass!(result, tape)
+    result = seeded_reverse_pass!(result, tape)
     empty!(cfg.tape)
     return result
 end
@@ -39,7 +39,7 @@ in it as well.
 """
 function gradient!(result, f, input, cfg::GradientConfig = GradientConfig(input))
     tape = GradientTape(f, input, cfg)
-    seeded_reverse_pass!(result, tape)
+    result = seeded_reverse_pass!(result, tape)
     empty!(cfg.tape)
     return result
 end
@@ -60,7 +60,7 @@ of `f` w.r.t. `input[i].`
 """
 function gradient!(tape::Union{GradientTape,CompiledGradient}, input)
     result = construct_result(input_hook(tape))
-    gradient!(result, tape, input)
+    result = gradient!(result, tape, input)
     return result
 end
 
@@ -77,6 +77,6 @@ in it as well.
 """
 function gradient!(result, tape::Union{GradientTape,CompiledGradient}, input)
     seeded_forward_pass!(tape, input)
-    seeded_reverse_pass!(result, tape)
+    result = seeded_reverse_pass!(result, tape)
     return result
 end
