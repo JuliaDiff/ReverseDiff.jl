@@ -12,73 +12,83 @@ ReverseDiff.hessian(DiffTests.mat2num_1, rand(3, 3))
 hess_test_approx(a, b) = test_approx(a, b, 1e-4)
 
 function test_unary_hessian(f, x)
-    test = DiffResults.HessianResult(x)
-    ForwardDiff.hessian!(test, f, x, ForwardDiff.HessianConfig(f, test, x, ForwardDiff.Chunk{1}()))
+    @testset "Test unary Hessian: f=$f - x::$(typeof(x))" begin
+        test = DiffResults.HessianResult(x)
+        ForwardDiff.hessian!(test, f, x, ForwardDiff.HessianConfig(f, test, x, ForwardDiff.Chunk{1}()))
 
-    # without HessianConfig
+        # without HessianConfig
 
-    hess_test_approx(ReverseDiff.hessian(f, x), DiffResults.hessian(test))
+        @testst "Without HessianConfig" begin
+            hess_test_approx(ReverseDiff.hessian(f, x), DiffResults.hessian(test))
 
-    out = similar(DiffResults.hessian(test))
-    ReverseDiff.hessian!(out, f, x)
-    hess_test_approx(out, DiffResults.hessian(test))
+            out = similar(DiffResults.hessian(test))
+            ReverseDiff.hessian!(out, f, x)
+            hess_test_approx(out, DiffResults.hessian(test))
 
-    result = DiffResults.HessianResult(x)
-    result = ReverseDiff.hessian!(result, f, x)
-    hess_test_approx(DiffResults.value(result), DiffResults.value(test))
-    hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
-    hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
+            result = DiffResults.HessianResult(x)
+            result = ReverseDiff.hessian!(result, f, x)
+            hess_test_approx(DiffResults.value(result), DiffResults.value(test))
+            hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+            hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
+        end
 
-    # with HessianConfig
+        # with HessianConfig
 
-    cfg = ReverseDiff.HessianConfig(x)
+        @testset "With HessianConfig" begin
+            cfg = ReverseDiff.HessianConfig(x)
 
-    hess_test_approx(ReverseDiff.hessian(f, x, cfg), DiffResults.hessian(test))
+            hess_test_approx(ReverseDiff.hessian(f, x, cfg), DiffResults.hessian(test))
 
-    out = similar(DiffResults.hessian(test))
-    ReverseDiff.hessian!(out, f, x, cfg)
-    hess_test_approx(out, DiffResults.hessian(test))
+            out = similar(DiffResults.hessian(test))
+            ReverseDiff.hessian!(out, f, x, cfg)
+            hess_test_approx(out, DiffResults.hessian(test))
 
-    result = DiffResults.HessianResult(x)
-    cfg = ReverseDiff.HessianConfig(result, x)
-    result = ReverseDiff.hessian!(result, f, x, cfg)
-    hess_test_approx(DiffResults.value(result), DiffResults.value(test))
-    hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
-    hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
+            result = DiffResults.HessianResult(x)
+            cfg = ReverseDiff.HessianConfig(result, x)
+            result = ReverseDiff.hessian!(result, f, x, cfg)
+            hess_test_approx(DiffResults.value(result), DiffResults.value(test))
+            hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+            hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
+        end
 
-    # with HessianTape
+        # with HessianTape
 
-    seedx = rand(eltype(x), size(x))
-    tp = ReverseDiff.HessianTape(f, seedx)
+        @testset "With HessianTape" begin
+            seedx = rand(eltype(x), size(x))
+            tp = ReverseDiff.HessianTape(f, seedx)
 
-    hess_test_approx(ReverseDiff.hessian!(tp, x), DiffResults.hessian(test))
+            hess_test_approx(ReverseDiff.hessian!(tp, x), DiffResults.hessian(test))
 
-    out = similar(DiffResults.hessian(test))
-    ReverseDiff.hessian!(out, tp, x)
-    hess_test_approx(out, DiffResults.hessian(test))
+            out = similar(DiffResults.hessian(test))
+            ReverseDiff.hessian!(out, tp, x)
+            hess_test_approx(out, DiffResults.hessian(test))
 
-    result = DiffResults.HessianResult(x)
-    result = ReverseDiff.hessian!(result, tp, x)
-    hess_test_approx(DiffResults.value(result), DiffResults.value(test))
-    hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
-    hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
+            result = DiffResults.HessianResult(x)
+            result = ReverseDiff.hessian!(result, tp, x)
+            hess_test_approx(DiffResults.value(result), DiffResults.value(test))
+            hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+            hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
+        end
 
-    # with compiled HessianTape
+        # with compiled HessianTape
 
-    if length(tp.tape) <= 10000 # otherwise compile time can be crazy
-        ctp = ReverseDiff.compile(tp)
+        @testset "With compiled HessianTape" begin
+            if length(tp.tape) <= 10000 # otherwise compile time can be crazy
+                ctp = ReverseDiff.compile(tp)
 
-        hess_test_approx(ReverseDiff.hessian!(ctp, x), DiffResults.hessian(test))
+                hess_test_approx(ReverseDiff.hessian!(ctp, x), DiffResults.hessian(test))
 
-        out = similar(DiffResults.hessian(test))
-        ReverseDiff.hessian!(out, ctp, x)
-        hess_test_approx(out, DiffResults.hessian(test))
+                out = similar(DiffResults.hessian(test))
+                ReverseDiff.hessian!(out, ctp, x)
+                hess_test_approx(out, DiffResults.hessian(test))
 
-        result = DiffResults.HessianResult(x)
-        result = ReverseDiff.hessian!(result, ctp, x)
-        hess_test_approx(DiffResults.value(result), DiffResults.value(test))
-        hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
-        hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
+                result = DiffResults.HessianResult(x)
+                result = ReverseDiff.hessian!(result, ctp, x)
+                hess_test_approx(DiffResults.value(result), DiffResults.value(test))
+                hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+                hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
+            end
+        end
     end
 end
 

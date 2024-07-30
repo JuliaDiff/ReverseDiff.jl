@@ -5,170 +5,194 @@ using DiffTests, ForwardDiff, ReverseDiff, Test, LinearAlgebra
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
 function test_unary_gradient(f, x)
-    test = ForwardDiff.gradient!(DiffResults.GradientResult(x), f, x)
+    @testset "Test unary gradient: f=$f - x::$(typeof(x))" begin
 
-    # without GradientConfig
+        test = ForwardDiff.gradient!(DiffResults.GradientResult(x), f, x)
 
-    test_approx(ReverseDiff.gradient(f, x), DiffResults.gradient(test))
+        # without GradientConfig
 
-    out = similar(x)
-    ReverseDiff.gradient!(out, f, x)
-    test_approx(out, DiffResults.gradient(test))
+        @testset "Without GradientConfig" begin
+            test_approx(ReverseDiff.gradient(f, x), DiffResults.gradient(test))
 
-    result = DiffResults.GradientResult(x)
-    result = ReverseDiff.gradient!(result, f, x)
-    test_approx(DiffResults.value(result), DiffResults.value(test))
-    test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+            out = similar(x)
+            ReverseDiff.gradient!(out, f, x)
+            test_approx(out, DiffResults.gradient(test))
 
-    # with GradientConfig
+            result = DiffResults.GradientResult(x)
+            result = ReverseDiff.gradient!(result, f, x)
+            test_approx(DiffResults.value(result), DiffResults.value(test))
+            test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+        end
 
-    cfg = ReverseDiff.GradientConfig(x)
+        # with GradientConfig
 
-    test_approx(ReverseDiff.gradient(f, x, cfg), DiffResults.gradient(test))
+        @testset "With GradientConfig" begin
+            cfg = ReverseDiff.GradientConfig(x)
 
-    out = similar(x)
-    ReverseDiff.gradient!(out, f, x, cfg)
-    test_approx(out, DiffResults.gradient(test))
+            test_approx(ReverseDiff.gradient(f, x, cfg), DiffResults.gradient(test))
 
-    result = DiffResults.GradientResult(x)
-    result = ReverseDiff.gradient!(result, f, x, cfg)
-    test_approx(DiffResults.value(result), DiffResults.value(test))
-    test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+            out = similar(x)
+            ReverseDiff.gradient!(out, f, x, cfg)
+            test_approx(out, DiffResults.gradient(test))
 
-    # with GradientTape
+            result = DiffResults.GradientResult(x)
+            result = ReverseDiff.gradient!(result, f, x, cfg)
+            test_approx(DiffResults.value(result), DiffResults.value(test))
+            test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+        end
 
-    seedx = rand(eltype(x), size(x))
-    tp = ReverseDiff.GradientTape(f, seedx)
+        # with GradientTape
 
-    test_approx(ReverseDiff.gradient!(tp, x), DiffResults.gradient(test))
+        @testset "With GradientTape" begin
+            seedx = rand(eltype(x), size(x))
+            tp = ReverseDiff.GradientTape(f, seedx)
 
-    out = similar(x)
-    ReverseDiff.gradient!(out, tp, x)
-    test_approx(out, DiffResults.gradient(test))
+            test_approx(ReverseDiff.gradient!(tp, x), DiffResults.gradient(test))
 
-    result = DiffResults.GradientResult(x)
-    result = ReverseDiff.gradient!(result, tp, x)
-    test_approx(DiffResults.value(result), DiffResults.value(test))
-    test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+            out = similar(x)
+            ReverseDiff.gradient!(out, tp, x)
+            test_approx(out, DiffResults.gradient(test))
 
-    # with compiled GradientTape
+            result = DiffResults.GradientResult(x)
+            result = ReverseDiff.gradient!(result, tp, x)
+            test_approx(DiffResults.value(result), DiffResults.value(test))
+            test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+        end
 
-    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        ctp = ReverseDiff.compile(tp)
+        # with compiled GradientTape
 
-        test_approx(ReverseDiff.gradient!(ctp, x), DiffResults.gradient(test))
+        @testset "With compiled GradientTape" begin
+            if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+                ctp = ReverseDiff.compile(tp)
 
-        out = similar(x)
-        ReverseDiff.gradient!(out, ctp, x)
-        test_approx(out, DiffResults.gradient(test))
+                test_approx(ReverseDiff.gradient!(ctp, x), DiffResults.gradient(test))
 
-        result = DiffResults.GradientResult(x)
-        result = ReverseDiff.gradient!(result, ctp, x)
-        test_approx(DiffResults.value(result), DiffResults.value(test))
-        test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+                out = similar(x)
+                ReverseDiff.gradient!(out, ctp, x)
+                test_approx(out, DiffResults.gradient(test))
+
+                result = DiffResults.GradientResult(x)
+                result = ReverseDiff.gradient!(result, ctp, x)
+                test_approx(DiffResults.value(result), DiffResults.value(test))
+                test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
+            end
+        end
+
     end
 end
 
 function test_ternary_gradient(f, a, b, c)
-    test_val = f(a, b, c)
-    test_a = ForwardDiff.gradient(x -> f(x, b, c), a)
-    test_b = ForwardDiff.gradient(x -> f(a, x, c), b)
-    test_c = ForwardDiff.gradient(x -> f(a, b, x), c)
+    @testset "Test ternary gradient: f=$f - a::$(typeof(a)), b::$(typeof(b)), c::$(typeof(c))" begin
 
-    # without GradientConfig
+        test_val = f(a, b, c)
+        test_a = ForwardDiff.gradient(x -> f(x, b, c), a)
+        test_b = ForwardDiff.gradient(x -> f(a, x, c), b)
+        test_c = ForwardDiff.gradient(x -> f(a, b, x), c)
 
-    ∇a, ∇b, ∇c = ReverseDiff.gradient(f, (a, b, c))
-    test_approx(∇a, test_a)
-    test_approx(∇b, test_b)
-    test_approx(∇c, test_c)
+        # without GradientConfig
 
-    ∇a, ∇b, ∇c = map(similar, (a, b, c))
-    ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c))
-    test_approx(∇a, test_a)
-    test_approx(∇b, test_b)
-    test_approx(∇c, test_c)
+        @testset "Without GradientConfig" begin
+            ∇a, ∇b, ∇c = ReverseDiff.gradient(f, (a, b, c))
+            test_approx(∇a, test_a)
+            test_approx(∇b, test_b)
+            test_approx(∇c, test_c)
 
-    ∇a, ∇b, ∇c = map(DiffResults.GradientResult, (a, b, c))
-    (∇a, ∇b, ∇c) = ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c))
-    test_approx(DiffResults.value(∇a), test_val)
-    test_approx(DiffResults.value(∇b), test_val)
-    test_approx(DiffResults.value(∇c), test_val)
-    test_approx(DiffResults.gradient(∇a), test_a)
-    test_approx(DiffResults.gradient(∇b), test_b)
-    test_approx(DiffResults.gradient(∇c), test_c)
+            ∇a, ∇b, ∇c = map(similar, (a, b, c))
+            ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c))
+            test_approx(∇a, test_a)
+            test_approx(∇b, test_b)
+            test_approx(∇c, test_c)
 
-    # with GradientConfig
+            ∇a, ∇b, ∇c = map(DiffResults.GradientResult, (a, b, c))
+            (∇a, ∇b, ∇c) = ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c))
+            test_approx(DiffResults.value(∇a), test_val)
+            test_approx(DiffResults.value(∇b), test_val)
+            test_approx(DiffResults.value(∇c), test_val)
+            test_approx(DiffResults.gradient(∇a), test_a)
+            test_approx(DiffResults.gradient(∇b), test_b)
+            test_approx(DiffResults.gradient(∇c), test_c)
+        end
 
-    cfg = ReverseDiff.GradientConfig((a, b, c))
+        # with GradientConfig
 
-    ∇a, ∇b, ∇c = ReverseDiff.gradient(f, (a, b, c), cfg)
-    test_approx(∇a, test_a)
-    test_approx(∇b, test_b)
-    test_approx(∇c, test_c)
+        @testset "With GradientConfig" begin
+            cfg = ReverseDiff.GradientConfig((a, b, c))
 
-    ∇a, ∇b, ∇c = map(similar, (a, b, c))
-    ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c), cfg)
-    test_approx(∇a, test_a)
-    test_approx(∇b, test_b)
-    test_approx(∇c, test_c)
+            ∇a, ∇b, ∇c = ReverseDiff.gradient(f, (a, b, c), cfg)
+            test_approx(∇a, test_a)
+            test_approx(∇b, test_b)
+            test_approx(∇c, test_c)
 
-    ∇a, ∇b, ∇c = map(DiffResults.GradientResult, (a, b, c))
-    (∇a, ∇b, ∇c) = ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c), cfg)
-    test_approx(DiffResults.value(∇a), test_val)
-    test_approx(DiffResults.value(∇b), test_val)
-    test_approx(DiffResults.value(∇c), test_val)
-    test_approx(DiffResults.gradient(∇a), test_a)
-    test_approx(DiffResults.gradient(∇b), test_b)
-    test_approx(DiffResults.gradient(∇c), test_c)
+            ∇a, ∇b, ∇c = map(similar, (a, b, c))
+            ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c), cfg)
+            test_approx(∇a, test_a)
+            test_approx(∇b, test_b)
+            test_approx(∇c, test_c)
 
-    # with GradientTape
+            ∇a, ∇b, ∇c = map(DiffResults.GradientResult, (a, b, c))
+            (∇a, ∇b, ∇c) = ReverseDiff.gradient!((∇a, ∇b, ∇c), f, (a, b, c), cfg)
+            test_approx(DiffResults.value(∇a), test_val)
+            test_approx(DiffResults.value(∇b), test_val)
+            test_approx(DiffResults.value(∇c), test_val)
+            test_approx(DiffResults.gradient(∇a), test_a)
+            test_approx(DiffResults.gradient(∇b), test_b)
+            test_approx(DiffResults.gradient(∇c), test_c)
+        end
 
-    tp = ReverseDiff.GradientTape(f, (rand(eltype(a), size(a)), rand(eltype(b), size(b)), rand(eltype(c), size(c))))
+        # with GradientTape
 
-    ∇a, ∇b, ∇c = ReverseDiff.gradient!(tp, (a, b, c))
-    test_approx(∇a, test_a)
-    test_approx(∇b, test_b)
-    test_approx(∇c, test_c)
+        @testset "With GradientTape" begin
+            tp = ReverseDiff.GradientTape(f, (rand(eltype(a), size(a)), rand(eltype(b), size(b)), rand(eltype(c), size(c))))
 
-    ∇a, ∇b, ∇c = map(similar, (a, b, c))
-    ReverseDiff.gradient!((∇a, ∇b, ∇c), tp, (a, b, c))
-    test_approx(∇a, test_a)
-    test_approx(∇b, test_b)
-    test_approx(∇c, test_c)
+            ∇a, ∇b, ∇c = ReverseDiff.gradient!(tp, (a, b, c))
+            test_approx(∇a, test_a)
+            test_approx(∇b, test_b)
+            test_approx(∇c, test_c)
 
-    ∇a, ∇b, ∇c = map(DiffResults.GradientResult, (a, b, c))
-    (∇a, ∇b, ∇c) = ReverseDiff.gradient!((∇a, ∇b, ∇c), tp, (a, b, c))
-    test_approx(DiffResults.value(∇a), test_val)
-    test_approx(DiffResults.value(∇b), test_val)
-    test_approx(DiffResults.value(∇c), test_val)
-    test_approx(DiffResults.gradient(∇a), test_a)
-    test_approx(DiffResults.gradient(∇b), test_b)
-    test_approx(DiffResults.gradient(∇c), test_c)
+            ∇a, ∇b, ∇c = map(similar, (a, b, c))
+            ReverseDiff.gradient!((∇a, ∇b, ∇c), tp, (a, b, c))
+            test_approx(∇a, test_a)
+            test_approx(∇b, test_b)
+            test_approx(∇c, test_c)
 
-    # with compiled GradientTape
+            ∇a, ∇b, ∇c = map(DiffResults.GradientResult, (a, b, c))
+            (∇a, ∇b, ∇c) = ReverseDiff.gradient!((∇a, ∇b, ∇c), tp, (a, b, c))
+            test_approx(DiffResults.value(∇a), test_val)
+            test_approx(DiffResults.value(∇b), test_val)
+            test_approx(DiffResults.value(∇c), test_val)
+            test_approx(DiffResults.gradient(∇a), test_a)
+            test_approx(DiffResults.gradient(∇b), test_b)
+            test_approx(DiffResults.gradient(∇c), test_c)
+        end
 
-    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        ctp = ReverseDiff.compile(tp)
+        # with compiled GradientTape
 
-        ∇a, ∇b, ∇c = ReverseDiff.gradient!(ctp, (a, b, c))
-        test_approx(∇a, test_a)
-        test_approx(∇b, test_b)
-        test_approx(∇c, test_c)
+        @testset "With compiled GradientTape" begin
+            if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+                ctp = ReverseDiff.compile(tp)
 
-        ∇a, ∇b, ∇c = map(similar, (a, b, c))
-        ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
-        test_approx(∇a, test_a)
-        test_approx(∇b, test_b)
-        test_approx(∇c, test_c)
+                ∇a, ∇b, ∇c = ReverseDiff.gradient!(ctp, (a, b, c))
+                test_approx(∇a, test_a)
+                test_approx(∇b, test_b)
+                test_approx(∇c, test_c)
 
-        ∇a, ∇b, ∇c = map(DiffResults.GradientResult, (a, b, c))
-        (∇a, ∇b, ∇c) = ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
-        test_approx(DiffResults.value(∇a), test_val)
-        test_approx(DiffResults.value(∇b), test_val)
-        test_approx(DiffResults.value(∇c), test_val)
-        test_approx(DiffResults.gradient(∇a), test_a)
-        test_approx(DiffResults.gradient(∇b), test_b)
-        test_approx(DiffResults.gradient(∇c), test_c)
+                ∇a, ∇b, ∇c = map(similar, (a, b, c))
+                ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
+                test_approx(∇a, test_a)
+                test_approx(∇b, test_b)
+                test_approx(∇c, test_c)
+
+                ∇a, ∇b, ∇c = map(DiffResults.GradientResult, (a, b, c))
+                (∇a, ∇b, ∇c) = ReverseDiff.gradient!((∇a, ∇b, ∇c), ctp, (a, b, c))
+                test_approx(DiffResults.value(∇a), test_val)
+                test_approx(DiffResults.value(∇b), test_val)
+                test_approx(DiffResults.value(∇c), test_val)
+                test_approx(DiffResults.gradient(∇a), test_a)
+                test_approx(DiffResults.gradient(∇b), test_b)
+                test_approx(DiffResults.gradient(∇c), test_c)
+            end
+        end
+
     end
 end
 
@@ -193,10 +217,10 @@ norm_hermitian2(v) = (A = I - 2 * v * transpose(v); norm(transpose(A) * A))
 norm_hermitian3(v) = (A = I - 2 * v * collect(v'); norm(collect(A') * A))
 norm_hermitian4(v) = (A = I - 2 * v * v'; norm(transpose(A) * A))
 norm_hermitian5(v) = (A = I - 2 * v * transpose(v); norm(A' * A))
-norm_hermitian6(v) = (A = (v'v)*I - 2 * v * v'; norm(A' * A))
+norm_hermitian6(v) = (A = (v'v) * I - 2 * v * v'; norm(A' * A))
 
 for f in (norm_hermitian1, norm_hermitian2, norm_hermitian3,
-            norm_hermitian4, norm_hermitian5, norm_hermitian6)
+    norm_hermitian4, norm_hermitian5, norm_hermitian6)
     test_println("VECTOR_TO_NUMBER_FUNCS", f)
     test_unary_gradient(f, rand(5))
 end
