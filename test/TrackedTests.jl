@@ -4,6 +4,7 @@ using ReverseDiff, Test
 using ReverseDiff: TrackedReal, TrackedArray
 
 import ForwardDiff
+import IrrationalConstants: log2π
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
 
@@ -609,6 +610,7 @@ empty!(tp)
 @test promote_type(T, Integer) === TrackedReal{BigInt,Float64,A}
 @test promote_type(T, typeof(ℯ)) === TrackedReal{BigFloat,Float64,A}
 @test promote_type(T, typeof(π)) === TrackedReal{BigFloat,Float64,A}
+@test promote_type(T, typeof(log2π)) === TrackedReal{BigFloat,Float64,A}
 @test promote_type(T, Rational{Int}) === TrackedReal{Rational{BigInt},Float64,A}
 @test promote_type(T, BigFloat) === TrackedReal{BigFloat,Float64,A}
 @test promote_type(T, BigInt) === T
