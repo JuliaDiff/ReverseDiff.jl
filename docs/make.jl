@@ -5,7 +5,6 @@ makedocs(;
     sitename="ReverseDiff.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", nothing) == "true",
-        canonical="http://www.juliadiff.org/ReverseDiff.jl",
     ),
     pages=[
         "Home" => "index.md",
