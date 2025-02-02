@@ -5,244 +5,274 @@ using DiffTests, ForwardDiff, ReverseDiff, Test
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
 function test_unary_jacobian(f, x)
-    test_val = f(x)
-    test = ForwardDiff.jacobian!(DiffResults.JacobianResult(test_val, x), f, x, ForwardDiff.JacobianConfig(f, x))
+    @testset "Test unary Jacobian: f=$f - x::$(typeof(x))" begin
+        test_val = f(x)
+        test = ForwardDiff.jacobian!(DiffResults.JacobianResult(test_val, x), f, x, ForwardDiff.JacobianConfig(f, x))
 
-    # without JacobianConfig
+        # without JacobianConfig
 
-    test_approx(ReverseDiff.jacobian(f, x), DiffResults.jacobian(test))
+        @testset "Without JacobianConfig" begin
+            test_approx(ReverseDiff.jacobian(f, x), DiffResults.jacobian(test))
 
-    out = similar(DiffResults.jacobian(test))
-    ReverseDiff.jacobian!(out, f, x)
-    test_approx(out, DiffResults.jacobian(test))
+            out = similar(DiffResults.jacobian(test))
+            ReverseDiff.jacobian!(out, f, x)
+            test_approx(out, DiffResults.jacobian(test))
 
-    result = DiffResults.JacobianResult(test_val, x)
-    ReverseDiff.jacobian!(result, f, x)
-    test_approx(DiffResults.value(result), DiffResults.value(test))
-    test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+            result = DiffResults.JacobianResult(test_val, x)
+            result = ReverseDiff.jacobian!(result, f, x)
+            test_approx(DiffResults.value(result), DiffResults.value(test))
+            test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+        end
 
-    # with JacobianConfig
+        # with JacobianConfig
 
-    cfg = ReverseDiff.JacobianConfig(x)
+        @testset "With JacobianConfig" begin
+            cfg = ReverseDiff.JacobianConfig(x)
 
-    test_approx(ReverseDiff.jacobian(f, x, cfg), DiffResults.jacobian(test))
+            test_approx(ReverseDiff.jacobian(f, x, cfg), DiffResults.jacobian(test))
 
-    out = similar(DiffResults.jacobian(test))
-    ReverseDiff.jacobian!(out, f, x, cfg)
-    test_approx(out, DiffResults.jacobian(test))
+            out = similar(DiffResults.jacobian(test))
+            ReverseDiff.jacobian!(out, f, x, cfg)
+            test_approx(out, DiffResults.jacobian(test))
 
-    result = DiffResults.JacobianResult(test_val, x)
-    ReverseDiff.jacobian!(result, f, x, cfg)
-    test_approx(DiffResults.value(result), DiffResults.value(test))
-    test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+            result = DiffResults.JacobianResult(test_val, x)
+            result = ReverseDiff.jacobian!(result, f, x, cfg)
+            test_approx(DiffResults.value(result), DiffResults.value(test))
+            test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+        end
 
-    # with JacobianTape
+        # with JacobianTape
 
-    tp = ReverseDiff.JacobianTape(f, rand(eltype(x), size(x)))
+        @testset "With JacobianTape" begin
+            tp = ReverseDiff.JacobianTape(f, rand(eltype(x), size(x)))
 
-    test_approx(ReverseDiff.jacobian!(tp, x), DiffResults.jacobian(test))
+            test_approx(ReverseDiff.jacobian!(tp, x), DiffResults.jacobian(test))
 
-    out = similar(DiffResults.jacobian(test))
-    ReverseDiff.jacobian!(out, tp, x)
-    test_approx(out, DiffResults.jacobian(test))
+            out = similar(DiffResults.jacobian(test))
+            ReverseDiff.jacobian!(out, tp, x)
+            test_approx(out, DiffResults.jacobian(test))
 
-    result = DiffResults.JacobianResult(test_val, x)
-    ReverseDiff.jacobian!(result, tp, x)
-    test_approx(DiffResults.value(result), DiffResults.value(test))
-    test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+            result = DiffResults.JacobianResult(test_val, x)
+            result = ReverseDiff.jacobian!(result, tp, x)
+            test_approx(DiffResults.value(result), DiffResults.value(test))
+            test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+        end
 
-    # with compiled JacobianTape
+        # with compiled JacobianTape
 
-    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        ctp = ReverseDiff.compile(tp)
+        @testset "With compiled JacobianTape" begin
+            if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+                ctp = ReverseDiff.compile(tp)
 
-        test_approx(ReverseDiff.jacobian!(ctp, x), DiffResults.jacobian(test))
+                test_approx(ReverseDiff.jacobian!(ctp, x), DiffResults.jacobian(test))
 
-        out = similar(DiffResults.jacobian(test))
-        ReverseDiff.jacobian!(out, ctp, x)
-        test_approx(out, DiffResults.jacobian(test))
+                out = similar(DiffResults.jacobian(test))
+                ReverseDiff.jacobian!(out, ctp, x)
+                test_approx(out, DiffResults.jacobian(test))
 
-        result = DiffResults.JacobianResult(test_val, x)
-        ReverseDiff.jacobian!(result, ctp, x)
-        test_approx(DiffResults.value(result), DiffResults.value(test))
-        test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+                result = DiffResults.JacobianResult(test_val, x)
+                result = ReverseDiff.jacobian!(result, ctp, x)
+                test_approx(DiffResults.value(result), DiffResults.value(test))
+                test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+            end
+        end
     end
 end
 
 function test_unary_jacobian(f!, y, x)
-    y_original = copy(y)
-    y_copy = copy(y)
-    test = ForwardDiff.jacobian!(DiffResults.JacobianResult(y_copy, x), f!, y_copy, x)
+    @testset "Test unary Jacobian: f!=$f! - y::$(typeof(y)), x::$(typeof(x))" begin
+        y_original = copy(y)
+        y_copy = copy(y)
+        test = ForwardDiff.jacobian!(DiffResults.JacobianResult(y_copy, x), f!, y_copy, x)
 
-    # without JacobianConfig
+        # without JacobianConfig
 
-    out = ReverseDiff.jacobian(f!, y, x)
-    test_approx(y, DiffResults.value(test))
-    test_approx(out, DiffResults.jacobian(test))
-    copyto!(y, y_original)
+        @testset "Without JacobianConfig" begin
+            out = ReverseDiff.jacobian(f!, y, x)
+            test_approx(y, DiffResults.value(test))
+            test_approx(out, DiffResults.jacobian(test))
+            copyto!(y, y_original)
 
-    out = similar(DiffResults.jacobian(test))
-    ReverseDiff.jacobian!(out, f!, y, x)
-    test_approx(y,   DiffResults.value(test))
-    test_approx(out, DiffResults.jacobian(test))
-    copyto!(y, y_original)
+            out = similar(DiffResults.jacobian(test))
+            ReverseDiff.jacobian!(out, f!, y, x)
+            test_approx(y, DiffResults.value(test))
+            test_approx(out, DiffResults.jacobian(test))
+            copyto!(y, y_original)
 
-    result = DiffResults.JacobianResult(y, x)
-    ReverseDiff.jacobian!(result, f!, y, x)
-    @test DiffResults.value(result) == y
-    test_approx(y, DiffResults.value(test))
-    test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
-    copyto!(y, y_original)
+            result = DiffResults.JacobianResult(y, x)
+            result = ReverseDiff.jacobian!(result, f!, y, x)
+            @test DiffResults.value(result) == y
+            test_approx(y, DiffResults.value(test))
+            test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+            copyto!(y, y_original)
+        end
 
-    # with JacobianConfig
+        # with JacobianConfig
 
-    cfg = ReverseDiff.JacobianConfig(y, x)
+        @testset "With JacobianConfig" begin
+            cfg = ReverseDiff.JacobianConfig(y, x)
 
-    out = ReverseDiff.jacobian(f!, y, x, cfg)
-    test_approx(y,   DiffResults.value(test))
-    test_approx(out, DiffResults.jacobian(test))
-    copyto!(y, y_original)
+            out = ReverseDiff.jacobian(f!, y, x, cfg)
+            test_approx(y, DiffResults.value(test))
+            test_approx(out, DiffResults.jacobian(test))
+            copyto!(y, y_original)
 
-    out = similar(DiffResults.jacobian(test))
-    ReverseDiff.jacobian!(out, f!, y, x, cfg)
-    test_approx(y,   DiffResults.value(test))
-    test_approx(out, DiffResults.jacobian(test))
-    copyto!(y, y_original)
+            out = similar(DiffResults.jacobian(test))
+            ReverseDiff.jacobian!(out, f!, y, x, cfg)
+            test_approx(y, DiffResults.value(test))
+            test_approx(out, DiffResults.jacobian(test))
+            copyto!(y, y_original)
 
-    result = DiffResults.JacobianResult(y, x)
-    ReverseDiff.jacobian!(result, f!, y, x, cfg)
-    @test DiffResults.value(result) == y
-    test_approx(y, DiffResults.value(test))
-    test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
-    copyto!(y, y_original)
+            result = DiffResults.JacobianResult(y, x)
+            result = ReverseDiff.jacobian!(result, f!, y, x, cfg)
+            @test DiffResults.value(result) == y
+            test_approx(y, DiffResults.value(test))
+            test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+            copyto!(y, y_original)
+        end
 
-    # with JacobianTape
+        # with JacobianTape
 
-    tp = ReverseDiff.JacobianTape(f!, y, rand(eltype(x), size(x)))
+        @testset "With JacobianTape" begin
+            tp = ReverseDiff.JacobianTape(f!, y, rand(eltype(x), size(x)))
 
-    out = ReverseDiff.jacobian!(tp, x)
-    test_approx(out, DiffResults.jacobian(test))
+            out = ReverseDiff.jacobian!(tp, x)
+            test_approx(out, DiffResults.jacobian(test))
 
-    out = similar(DiffResults.jacobian(test))
-    ReverseDiff.jacobian!(out, tp, x)
-    test_approx(out, DiffResults.jacobian(test))
+            out = similar(DiffResults.jacobian(test))
+            ReverseDiff.jacobian!(out, tp, x)
+            test_approx(out, DiffResults.jacobian(test))
 
-    result = DiffResults.JacobianResult(y, x)
-    ReverseDiff.jacobian!(result, tp, x)
-    test_approx(DiffResults.value(result), DiffResults.value(test))
-    test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+            result = DiffResults.JacobianResult(y, x)
+            result = ReverseDiff.jacobian!(result, tp, x)
+            test_approx(DiffResults.value(result), DiffResults.value(test))
+            test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+        end
 
-    # with compiled JacobianTape
+        # with compiled JacobianTape
 
-    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        ctp = ReverseDiff.compile(tp)
+        @testset "With compiled JacobianTape" begin
+            if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+                ctp = ReverseDiff.compile(tp)
 
-        out = ReverseDiff.jacobian!(ctp, x)
+                out = ReverseDiff.jacobian!(ctp, x)
 
-        test_approx(out, DiffResults.jacobian(test))
+                test_approx(out, DiffResults.jacobian(test))
 
-        out = similar(DiffResults.jacobian(test))
-        ReverseDiff.jacobian!(out, ctp, x)
-        test_approx(out, DiffResults.jacobian(test))
+                out = similar(DiffResults.jacobian(test))
+                ReverseDiff.jacobian!(out, ctp, x)
+                test_approx(out, DiffResults.jacobian(test))
 
-        result = DiffResults.JacobianResult(y, x)
-        ReverseDiff.jacobian!(result, ctp, x)
-        test_approx(DiffResults.value(result), DiffResults.value(test))
-        test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+                result = DiffResults.JacobianResult(y, x)
+                result = ReverseDiff.jacobian!(result, ctp, x)
+                test_approx(DiffResults.value(result), DiffResults.value(test))
+                test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
+            end
+        end
     end
 end
 
 function test_binary_jacobian(f, a, b)
-    test_val = f(a, b)
-    test_a = ForwardDiff.jacobian(x -> f(x, b), a)
-    test_b = ForwardDiff.jacobian(x -> f(a, x), b)
+    @testset "Test binary Jacobian: f=$f - a::$(typeof(a)), b::$(typeof(b))" begin
+        test_val = f(a, b)
+        test_a = ForwardDiff.jacobian(x -> f(x, b), a)
+        test_b = ForwardDiff.jacobian(x -> f(a, x), b)
 
-    # without JacobianConfig
+        # without JacobianConfig
 
-    Ja, Jb = ReverseDiff.jacobian(f, (a, b))
-    test_approx(Ja, test_a)
-    test_approx(Jb, test_b)
+        @testset "Without JacobianConfig" begin
+            Ja, Jb = ReverseDiff.jacobian(f, (a, b))
+            test_approx(Ja, test_a)
+            test_approx(Jb, test_b)
 
-    Ja = similar(a, length(test_val), length(a))
-    Jb = similar(b, length(test_val), length(b))
-    ReverseDiff.jacobian!((Ja, Jb), f, (a, b))
-    test_approx(Ja, test_a)
-    test_approx(Jb, test_b)
+            Ja = similar(a, length(test_val), length(a))
+            Jb = similar(b, length(test_val), length(b))
+            ReverseDiff.jacobian!((Ja, Jb), f, (a, b))
+            test_approx(Ja, test_a)
+            test_approx(Jb, test_b)
 
-    Ja = DiffResults.JacobianResult(test_val, a)
-    Jb = DiffResults.JacobianResult(test_val, b)
-    ReverseDiff.jacobian!((Ja, Jb), f, (a, b))
-    test_approx(DiffResults.value(Ja), test_val)
-    test_approx(DiffResults.value(Jb), test_val)
-    test_approx(DiffResults.gradient(Ja), test_a)
-    test_approx(DiffResults.gradient(Jb), test_b)
+            Ja = DiffResults.JacobianResult(test_val, a)
+            Jb = DiffResults.JacobianResult(test_val, b)
+            (Ja, Jb) = ReverseDiff.jacobian!((Ja, Jb), f, (a, b))
+            test_approx(DiffResults.value(Ja), test_val)
+            test_approx(DiffResults.value(Jb), test_val)
+            test_approx(DiffResults.gradient(Ja), test_a)
+            test_approx(DiffResults.gradient(Jb), test_b)
+        end
 
-    # with JacobianConfig
+        # with JacobianConfig
 
-    cfg = ReverseDiff.JacobianConfig((a, b))
+        @testset "With JacobianConfig" begin
+            cfg = ReverseDiff.JacobianConfig((a, b))
 
-    Ja, Jb = ReverseDiff.jacobian(f, (a, b), cfg)
-    test_approx(Ja, test_a)
-    test_approx(Jb, test_b)
+            Ja, Jb = ReverseDiff.jacobian(f, (a, b), cfg)
+            test_approx(Ja, test_a)
+            test_approx(Jb, test_b)
 
-    Ja = similar(a, length(test_val), length(a))
-    Jb = similar(b, length(test_val), length(b))
-    ReverseDiff.jacobian!((Ja, Jb), f, (a, b), cfg)
-    test_approx(Ja, test_a)
-    test_approx(Jb, test_b)
+            Ja = similar(a, length(test_val), length(a))
+            Jb = similar(b, length(test_val), length(b))
+            ReverseDiff.jacobian!((Ja, Jb), f, (a, b), cfg)
+            test_approx(Ja, test_a)
+            test_approx(Jb, test_b)
 
-    Ja = DiffResults.JacobianResult(test_val, a)
-    Jb = DiffResults.JacobianResult(test_val, b)
-    ReverseDiff.jacobian!((Ja, Jb), f, (a, b), cfg)
-    test_approx(DiffResults.value(Ja), test_val)
-    test_approx(DiffResults.value(Jb), test_val)
-    test_approx(DiffResults.jacobian(Ja), test_a)
-    test_approx(DiffResults.jacobian(Jb), test_b)
+            Ja = DiffResults.JacobianResult(test_val, a)
+            Jb = DiffResults.JacobianResult(test_val, b)
+            (Ja, Jb) = ReverseDiff.jacobian!((Ja, Jb), f, (a, b), cfg)
+            test_approx(DiffResults.value(Ja), test_val)
+            test_approx(DiffResults.value(Jb), test_val)
+            test_approx(DiffResults.jacobian(Ja), test_a)
+            test_approx(DiffResults.jacobian(Jb), test_b)
+        end
 
-    # with JacobianTape
+        # with JacobianTape
 
-    tp = ReverseDiff.JacobianTape(f, (rand(eltype(a), size(a)), rand(eltype(b), size(b))))
+        @testset "With JacobianTape" begin
+            tp = ReverseDiff.JacobianTape(f, (rand(eltype(a), size(a)), rand(eltype(b), size(b))))
 
-    Ja, Jb = ReverseDiff.jacobian!(tp, (a, b))
-    test_approx(Ja, test_a)
-    test_approx(Jb, test_b)
+            Ja, Jb = ReverseDiff.jacobian!(tp, (a, b))
+            test_approx(Ja, test_a)
+            test_approx(Jb, test_b)
 
-    Ja = similar(a, length(test_val), length(a))
-    Jb = similar(b, length(test_val), length(b))
-    ReverseDiff.jacobian!((Ja, Jb), tp, (a, b))
-    test_approx(Ja, test_a)
-    test_approx(Jb, test_b)
+            Ja = similar(a, length(test_val), length(a))
+            Jb = similar(b, length(test_val), length(b))
+            ReverseDiff.jacobian!((Ja, Jb), tp, (a, b))
+            test_approx(Ja, test_a)
+            test_approx(Jb, test_b)
 
-    Ja = DiffResults.JacobianResult(test_val, a)
-    Jb = DiffResults.JacobianResult(test_val, b)
-    ReverseDiff.jacobian!((Ja, Jb), tp, (a, b))
-    test_approx(DiffResults.value(Ja), test_val)
-    test_approx(DiffResults.value(Jb), test_val)
-    test_approx(DiffResults.gradient(Ja), test_a)
-    test_approx(DiffResults.gradient(Jb), test_b)
+            Ja = DiffResults.JacobianResult(test_val, a)
+            Jb = DiffResults.JacobianResult(test_val, b)
+            (Ja, Jb) = ReverseDiff.jacobian!((Ja, Jb), tp, (a, b))
+            test_approx(DiffResults.value(Ja), test_val)
+            test_approx(DiffResults.value(Jb), test_val)
+            test_approx(DiffResults.gradient(Ja), test_a)
+            test_approx(DiffResults.gradient(Jb), test_b)
+        end
 
-    # with compiled JacobianTape
+        # with compiled JacobianTape
 
-    if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
-        ctp = ReverseDiff.compile(tp)
+        @testset "With compiled JacobianTape" begin
+            if length(tp.tape) <= COMPILED_TAPE_LIMIT # otherwise compile time can be crazy
+                ctp = ReverseDiff.compile(tp)
 
-        Ja, Jb = ReverseDiff.jacobian!(ctp, (a, b))
-        test_approx(Ja, test_a)
-        test_approx(Jb, test_b)
+                Ja, Jb = ReverseDiff.jacobian!(ctp, (a, b))
+                test_approx(Ja, test_a)
+                test_approx(Jb, test_b)
 
-        Ja = similar(a, length(test_val), length(a))
-        Jb = similar(b, length(test_val), length(b))
-        ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
-        test_approx(Ja, test_a)
-        test_approx(Jb, test_b)
+                Ja = similar(a, length(test_val), length(a))
+                Jb = similar(b, length(test_val), length(b))
+                ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
+                test_approx(Ja, test_a)
+                test_approx(Jb, test_b)
 
-        Ja = DiffResults.JacobianResult(test_val, a)
-        Jb = DiffResults.JacobianResult(test_val, b)
-        ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
-        test_approx(DiffResults.value(Ja), test_val)
-        test_approx(DiffResults.value(Jb), test_val)
-        test_approx(DiffResults.gradient(Ja), test_a)
-        test_approx(DiffResults.gradient(Jb), test_b)
+                Ja = DiffResults.JacobianResult(test_val, a)
+                Jb = DiffResults.JacobianResult(test_val, b)
+                (Ja, Jb) = ReverseDiff.jacobian!((Ja, Jb), ctp, (a, b))
+                test_approx(DiffResults.value(Ja), test_val)
+                test_approx(DiffResults.value(Jb), test_val)
+                test_approx(DiffResults.gradient(Ja), test_a)
+                test_approx(DiffResults.gradient(Jb), test_b)
+            end
+        end
     end
 end
 
