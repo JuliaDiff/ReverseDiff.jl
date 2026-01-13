@@ -433,6 +433,12 @@ Base.rand(rng::Random.AbstractRNG, ::Type{TrackedReal{V,D,O}}) where {V,D,O} = T
 Base.eps(t::TrackedReal) = eps(value(t))
 Base.eps(::Type{T}) where {T<:TrackedReal} = eps(valtype(T))
 
+Base.floatmax(t::TrackedReal) = floatmax(value(t))
+Base.floatmax(::Type{T}) where {T<:TrackedReal} = floatmax(valtype(T))
+
+Base.floatmin(t::TrackedReal) = floatmin(value(t))
+Base.floatmin(::Type{T}) where {T<:TrackedReal} = floatmin(valtype(T))
+
 Base.floor(t::TrackedReal) = floor(value(t))
 Base.floor(::Type{R}, t::TrackedReal) where {R<:Real} = floor(R, value(t))
 
