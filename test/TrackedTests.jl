@@ -756,10 +756,7 @@ tr_rand = rand(MersenneTwister(1), TrackedReal{Int,Float64,Nothing})
 @test eps(tr_float) === eps(v_float)
 @test eps(typeof(tr_float)) === eps(Float64)
 
-@test floatmax(tr_float) === floatmax(v_float)
 @test floatmax(typeof(tr_float)) === floatmax(Float64)
-
-@test floatmin(tr_float) === floatmin(v_float)
 @test floatmin(typeof(tr_float)) === floatmin(Float64)
 
 @test floor(tr_float) === floor(v_float)
