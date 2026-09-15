@@ -24,7 +24,16 @@ istypeorclosure(::AbstractArray{<:Real}) = false
 istypeorclosure(::TrackedArray) = false
 istypeorclosure(::AbstractArray{<:TrackedReal}) = true
 istypeorclosure(::Real) = false
-@generated _istypeorclosure(::Type{F}) where {F} = :($(fieldcount(F) > 0))
+@generated function _istypeorclosure(::Type{F}) where {F}
+    # `fieldcount` errors for types without a definite number of fields, such as
+    # `Type{T}` and abstract types; be conservative in that case.
+    hasfields = try
+        fieldcount(F) > 0
+    catch
+        true
+    end
+    return :($hasfields)
+end
 
 mayhavetracked(b) = istypeorclosure(b)
 mayhavetracked(b::Type) = false
