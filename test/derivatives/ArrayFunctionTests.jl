@@ -16,6 +16,11 @@ end
     @test any(iszero, track([ones(2); 0.0]))
 end
 
+# SparseArrays >= 1.10 pirates `hcat`/`vcat` for `Union{AbstractVecOrMat{<:Number},Number}`,
+# which is ambiguous with the methods defined for `TrackedArray`.
+const SPARSE_CAT_AMBIGUITY =
+    VERSION >= v"1.10" && any(k -> k.name == "SparseArrays", keys(Base.loaded_modules))
+
 function testcat(f, args::Tuple, type, kwargs=NamedTuple())
     x = f(track.(args)...; kwargs...)
     @test x isa type
@@ -29,7 +34,7 @@ function testcat(f, args::Tuple, type, kwargs=NamedTuple())
         @assert length(args) == 2
 
         broken = f == hcat && (args[2] isa AbstractMatrix)
-        if broken && v"1.4" <= VERSION < v"1.11"
+        if broken && SPARSE_CAT_AMBIGUITY
             @test_broken f(track(args[1]), args[2]; kwargs...) isa type
             @test_broken value(f(track(args[1]), args[2]; kwargs...)) == f(args...; kwargs...)
         else
@@ -38,7 +43,7 @@ function testcat(f, args::Tuple, type, kwargs=NamedTuple())
         end
 
         broken = f == hcat && (args[1] isa AbstractMatrix)
-        if broken && v"1.4" <= VERSION < v"1.11"
+        if broken && SPARSE_CAT_AMBIGUITY
             @test_broken f(args[1], track(args[2]); kwargs...) isa type
             @test_broken value(f(args[1], track(args[2]); kwargs...)) == f(args...; kwargs...)
         else
@@ -50,7 +55,7 @@ function testcat(f, args::Tuple, type, kwargs=NamedTuple())
     args = (args..., args...)
     sizes = size.(args)
     broken = (f in (vcat, hcat) && (args[2] isa AbstractArray))
-    if broken && v"1.4" <= VERSION < v"1.11"
+    if broken && SPARSE_CAT_AMBIGUITY
         @test_broken f(track.(args)...; kwargs...) isa type
         @test_broken value(f(track.(args)...; kwargs...)) == f(args...; kwargs...)
     else

@@ -443,4 +443,14 @@ for f in DiffTests.BINARY_BROADCAST_OPS
     test_broadcast(f, f, a, n, tp, true)
 end
 
+@testset "broadcasting over types without a definite field count (#289)" begin
+    T = ReverseDiff.TrackedReal{Float64,Float64,ReverseDiff.TrackedArray{Float64,Float64,1,Vector{Float64},Vector{Float64}}}
+    msg = "Converting an instance of $T to Float64 is not defined. Please use `ReverseDiff.value` instead."
+    @test_throws ArgumentError(msg) ReverseDiff.gradient(v -> sum(convert.(Float64, v) .* [2.0, 3.0]), [0.3, 0.5])
+
+    @test ReverseDiff.gradient(v -> sum(convert.(Real, v) .* [2.0, 3.0]), [0.3, 0.5]) == [2.0, 3.0]
+    @test ReverseDiff.gradient(v -> sum(v .* Any[2.0, 3.0]), [0.3, 0.5]) == [2.0, 3.0]
+    @test ReverseDiff.gradient(v -> sum(v .* Base.RefValue{Any}(2.0)), [0.3, 0.5]) == [2.0, 2.0]
+end
+
 end # module
