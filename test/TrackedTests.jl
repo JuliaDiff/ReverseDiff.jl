@@ -780,12 +780,10 @@ tr_rand = rand(MersenneTwister(1), TrackedReal{Int,Float64,Nothing})
 @test div(v_float, tr_float2) === div(v_float, v_float2)
 @test div(tr_float, v_float2) === div(v_float, v_float2)
 
-if VERSION ≥ v"1.4"
-    for r in (RoundUp, RoundDown)
-        @test div(tr_float, tr_float2, r) === div(v_float, v_float2, r)
-        @test div(v_float, tr_float2, r) === div(v_float, v_float2, r)
-        @test div(tr_float, v_float2, r) === div(v_float, v_float2, r)
-    end
+for r in (RoundUp, RoundDown)
+    @test div(tr_float, tr_float2, r) === div(v_float, v_float2, r)
+    @test div(v_float, tr_float2, r) === div(v_float, v_float2, r)
+    @test div(tr_float, v_float2, r) === div(v_float, v_float2, r)
 end
 
 @test trunc(tr_float) === trunc(v_float)

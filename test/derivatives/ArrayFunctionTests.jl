@@ -16,10 +16,9 @@ end
     @test any(iszero, track([ones(2); 0.0]))
 end
 
-# SparseArrays >= 1.10 pirates `hcat`/`vcat` for `Union{AbstractVecOrMat{<:Number},Number}`,
+# SparseArrays pirates `hcat`/`vcat` for `Union{AbstractVecOrMat{<:Number},Number}`,
 # which is ambiguous with the methods defined for `TrackedArray`.
-const SPARSE_CAT_AMBIGUITY =
-    VERSION >= v"1.10" && any(k -> k.name == "SparseArrays", keys(Base.loaded_modules))
+const SPARSE_CAT_AMBIGUITY = any(k -> k.name == "SparseArrays", keys(Base.loaded_modules))
 
 function testcat(f, args::Tuple, type, kwargs=NamedTuple())
     x = f(track.(args)...; kwargs...)
