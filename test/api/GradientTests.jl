@@ -208,7 +208,7 @@ end
 
 # logical indices, which are only normalized when the instruction is executed
 getindex_logical(x) = sum(abs2, x[[true, false, true, false, true]])
-getindex_logical_bitvector(x) = sum(abs2, x[BitVector((false, true, true, false, true))])
+getindex_logical_bitvector(x) = sum(abs2, x[BitVector([false, true, true, false, true])])
 getindex_logical_rows(m) = sum(abs2, m[[true, false, true, false, true], :])
 getindex_logical_mask(m) = sum(abs2, m[isodd.(LinearIndices(m))])
 

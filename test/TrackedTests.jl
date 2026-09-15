@@ -716,7 +716,7 @@ instr = tp[1]
 empty!(tp)
 
 # logical indices (`Bool <: Integer`, so they reach the generic `getindex`)
-rowmask, colmask = [true, false, true], BitVector((false, true, true))
+rowmask, colmask = [true, false, true], BitVector([false, true, true])
 mask = [true false true; false true false; true false true]
 
 for inds in ((rowmask, :), (:, colmask), (rowmask, 2:3), (mask,), (vec(mask),))
