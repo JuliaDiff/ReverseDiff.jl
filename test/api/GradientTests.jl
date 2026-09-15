@@ -206,4 +206,31 @@ for f in DiffTests.TERNARY_MATRIX_TO_NUMBER_FUNCS
     test_ternary_gradient(f, rand(5, 5), rand(5, 5), rand(5, 5))
 end
 
+# logical indices, which are only normalized when the instruction is executed
+getindex_logical(x) = sum(abs2, x[[true, false, true, false, true]])
+getindex_logical_bitvector(x) = sum(abs2, x[BitVector((false, true, true, false, true))])
+getindex_logical_rows(m) = sum(abs2, m[[true, false, true, false, true], :])
+getindex_logical_mask(m) = sum(abs2, m[isodd.(LinearIndices(m))])
+
+# issue #281
+view_intermediate(x) = sum(abs2, view(2 .* x, 2:4))
+view_and_parent(x) = sum(view(x, 2:4)) + 3 * sum(x)
+view_overlapping(x) = sum(view(x, 1:4)) * sum(view(x, 3:5))
+view_nested(x) = sum(abs2, view(view(x, 1:4), 2:3))
+view_logical(x) = sum(abs2, view(x, [true, false, true, false, true]))
+view_dot(x) = dot(view(x, 1:3), view(x, 3:5))
+view_cartesian(m) = sum(abs2, view(m, 1:2, :))
+view_strided(m) = sum(abs2, view(m, :, 2:3)' * view(m, :, 1:2))
+
+for f in (getindex_logical, getindex_logical_bitvector, view_intermediate, view_and_parent,
+          view_overlapping, view_nested, view_logical, view_dot)
+    test_println("VECTOR_TO_NUMBER_FUNCS", f)
+    test_unary_gradient(f, rand(5))
+end
+
+for f in (getindex_logical_rows, getindex_logical_mask, view_cartesian, view_strided)
+    test_println("MATRIX_TO_NUMBER_FUNCS", f)
+    test_unary_gradient(f, rand(5, 5))
+end
+
 end # module
