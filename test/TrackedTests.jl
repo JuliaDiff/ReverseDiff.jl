@@ -776,8 +776,9 @@ tr_float32 = TrackedReal(Float32(v_float), Float32(d), tp)
 @test deepcopy(tr_float) === tr_float
 @test copy(tr_float) === tr_float
 
-@test samefields(float(tr_int), TrackedReal{Float64,Float64,Nothing}(float(v_int)))
+@test samefields(float(tr_int), TrackedReal{Float64,Float64,Nothing}(float(v_int), zero(d), tp))
 @test float(tr_float) === tr_float
+@test float(tr_float32) === tr_float32
 
 @test samefields(one(tr_float), typeof(tr_float)(one(v_float)))
 

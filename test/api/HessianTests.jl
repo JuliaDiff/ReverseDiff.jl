@@ -92,4 +92,13 @@ for f in DiffTests.VECTOR_TO_NUMBER_FUNCS
     test_unary_hessian(f, rand(5))
 end
 
+############################################################
+
+@testset "`float` keeps the tape (#107, #276)" begin
+    ff(x) = float(x[1]^3 * x[2] + x[2]^2)
+    x = [2.0, 3.0]
+    @test ReverseDiff.gradient(ff, x) == [36.0, 14.0]
+    @test ReverseDiff.hessian(ff, x) == [36.0 12.0; 12.0 2.0]
+end
+
 end # module
