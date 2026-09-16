@@ -1,6 +1,6 @@
 module JacobianTests
 
-using DiffTests, ForwardDiff, ReverseDiff, Test
+using DiffTests, ForwardDiff, ReverseDiff, StaticArrays, Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -310,6 +310,27 @@ for f in DiffTests.BINARY_MATRIX_TO_MATRIX_FUNCS
     # Ja, Jb = ReverseDiff.jacobian((x, y) -> ReverseDiff.jacobian(f, (x, y)), (a, b))
     # test_approx(Ja test_a)
     # test_approx(Jb test_b)
+end
+
+############################################################################################
+
+f251(x) = x .^ 2
+
+@testset "primal value of an immutable result (#251)" begin
+    x = MVector{2}(3.0, 5.0)
+    value, jac = [9.0, 25.0], [6.0 0.0; 0.0 10.0]
+
+    result = ReverseDiff.jacobian!(DiffResults.JacobianResult(SVector{2}(0.0, 0.0), x), f251, x)
+    @test result isa DiffResults.ImmutableDiffResult
+    @test DiffResults.value(result) == value
+    @test DiffResults.jacobian(result) == jac
+
+    tape = ReverseDiff.JacobianTape(f251, x)
+    for t in (tape, ReverseDiff.compile(tape))
+        result = ReverseDiff.jacobian!(DiffResults.JacobianResult(SVector{2}(0.0, 0.0), x), t, x)
+        @test DiffResults.value(result) == value
+        @test DiffResults.jacobian(result) == jac
+    end
 end
 
 end # module

@@ -1,6 +1,6 @@
 module GradientTests
 
-using DiffTests, ForwardDiff, ReverseDiff, Test, LinearAlgebra
+using DiffTests, ForwardDiff, ReverseDiff, StaticArrays, Test, LinearAlgebra
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -280,6 +280,55 @@ nested269!(grad, tape, x) = (y = value_and_gradient269!(grad, tape, x)[1]; (y, g
     for t in (tape, ReverseDiff.compile(tape))
         @test nested269!(similar(x), t, x) == (34.0, [6.0, 10.0])
     end
+end
+
+############################################################################################
+
+f251(x) = sum(abs2, x)
+
+# An `MVector` gives an `ImmutableDiffResult` with a writable gradient buffer; an `SVector`
+# buffer cannot be written to at all.
+@testset "primal value of an immutable result (#251)" begin
+    x = MVector{2}(3.0, 5.0)
+    value, grad = 34.0, [6.0, 10.0]
+
+    # `GradientResult` aliases its argument as the gradient buffer, so pass a copy.
+    result = ReverseDiff.gradient!(DiffResults.GradientResult(MVector(x)), f251, x)
+    @test result isa DiffResults.ImmutableDiffResult
+    @test DiffResults.value(result) == value
+    @test DiffResults.gradient(result) == grad
+
+    tape = ReverseDiff.GradientTape(f251, x)
+    for t in (tape, ReverseDiff.compile(tape))
+        result = ReverseDiff.gradient!(DiffResults.GradientResult(MVector(x)), t, x)
+        @test DiffResults.value(result) == value
+        @test DiffResults.gradient(result) == grad
+    end
+end
+
+g251(x, y) = sum(abs2, x) + sum(abs2, y)
+
+@testset "primal value of immutable results in a tuple (#251)" begin
+    x, y = MVector{2}(3.0, 5.0), MVector{2}(2.0, 4.0)
+    value, grads = 54.0, ([6.0, 10.0], [4.0, 8.0])
+
+    result = (DiffResults.GradientResult(MVector(x)), DiffResults.GradientResult(MVector(y)))
+    result = ReverseDiff.gradient!(result, g251, (x, y))
+    @test all(r -> r isa DiffResults.ImmutableDiffResult, result)
+    @test map(DiffResults.value, result) == (value, value)
+    @test map(DiffResults.gradient, result) == grads
+
+    tape = ReverseDiff.GradientTape(g251, (x, y))
+    for t in (tape, ReverseDiff.compile(tape))
+        result = (DiffResults.GradientResult(MVector(x)), DiffResults.GradientResult(MVector(y)))
+        result = ReverseDiff.gradient!(result, t, (x, y))
+        @test map(DiffResults.value, result) == (value, value)
+        @test map(DiffResults.gradient, result) == grads
+    end
+
+    # a result tuple that does not match the input tuple is rejected by dispatch
+    @test_throws MethodError ReverseDiff.gradient!((MVector(x),), g251, (x, y))
+    @test_throws MethodError ReverseDiff.gradient!((MVector(x), MVector(y), MVector(x)), g251, (x, y))
 end
 
 end # module

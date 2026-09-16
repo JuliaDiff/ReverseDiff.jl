@@ -38,7 +38,7 @@ If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the g
 """
 function hessian!(result, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
     ∇f = x -> gradient(f, x, cfg.gradient_config)
-    jacobian!(result, ∇f, input, cfg.jacobian_config)
+    result = jacobian!(result, ∇f, input, cfg.jacobian_config)
     return result
 end
 
@@ -46,7 +46,7 @@ function hessian!(result::DiffResult, f, input::AbstractArray,
                   cfg::HessianConfig = HessianConfig(result, input))
     ∇f! = (y, x) -> begin
         gradient_result = DiffResult(zero(eltype(y)), y)
-        gradient!(gradient_result, f, x, cfg.gradient_config)
+        gradient_result = gradient!(gradient_result, f, x, cfg.gradient_config)
         result = DiffResults.value!(result, value(DiffResults.value(gradient_result)))
         return y
     end
@@ -68,7 +68,7 @@ return the Hessian `H(f)(input)`.
 """
 function hessian!(tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     result = construct_result(output_hook(tape), input_hook(tape))
-    hessian!(result, tape, input)
+    result = hessian!(result, tape, input)
     return result
 end
 
@@ -85,13 +85,15 @@ If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the g
 """
 function hessian!(result::AbstractArray, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)
-    seeded_reverse_pass!(result, tape)
+    result = seeded_reverse_pass!(result, tape)
     return result
 end
 
 function hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)
-    seeded_reverse_pass!(DiffResult(DiffResults.gradient(result), DiffResults.hessian(result)), tape)
+    inner = DiffResult(DiffResults.gradient(result), DiffResults.hessian(result))
+    inner = seeded_reverse_pass!(inner, tape)
+    result = DiffResults.gradient!(result, DiffResults.value(inner))
     result = DiffResults.value!(result, func_hook(tape)(input))
     return result
 end
