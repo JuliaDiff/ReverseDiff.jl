@@ -715,6 +715,41 @@ instr = tp[1]
 @test instr.cache === nothing
 empty!(tp)
 
+# logical indices (`Bool <: Integer`, so they reach the generic `getindex`)
+rowmask, colmask = [true, false, true], BitVector([false, true, true])
+mask = [true false true; false true false; true false true]
+
+for inds in ((rowmask, :), (:, colmask), (rowmask, 2:3), (mask,), (vec(mask),))
+    @test samefields(@inferred(ta[inds...]), TrackedArray(varr[inds...], darr[inds...], tp))
+    @test length(tp) == 1
+    empty!(tp)
+end
+
+# `view` aliases the parent's buffers, so nothing needs to be recorded
+ta_view = @inferred view(ta, :, 2)
+@test samefields(ta_view, TrackedArray(varr[:, 2], darr[:, 2], tp))
+@test isempty(tp)
+@test parent(ReverseDiff.value(ta_view)) === varr
+@test parent(ReverseDiff.deriv(ta_view)) === darr
+
+# views that aren't `IndexLinear` are materialized through `getindex` instead
+@test samefields(@inferred(view(ta, 1:2, :)), TrackedArray(varr[1:2, :], darr[1:2, :], tp))
+@test length(tp) == 1
+empty!(tp)
+
+# recording a view must not scale with its length
+function view_allocs(d)
+    t = TrackedArray(rand(d), zeros(d), InstructionTape())
+    return @allocated sum(view(t, 2:d))
+end
+view_allocs(10)
+@test view_allocs(10) == view_allocs(100)
+
+for inds in ((:, 2), (2, :), (1:2, 2:3), (:, 1:2), (1:2, :), ([1, 3], :), (:, :), (1:2, 3), (1, 2))
+    @test size(@inferred(view(ta, inds...))) === size(view(varr, inds...))
+    empty!(tp)
+end
+
 @test IndexStyle(ta) === IndexLinear()
 
 @test Base.size(ta) === size(varr)

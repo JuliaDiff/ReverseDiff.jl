@@ -349,15 +349,16 @@ Base.@propagate_inbounds function Base.getindex(t::TrackedArray, i1::Integer, is
     ind = LinearIndices(t)[i1, is...]
     return TrackedReal(value(t)[i1, is...], deriv(t)[i1, is...], tape(t), ind, t)
 end
+# the instruction below indexes into `inds[d]` position-wise, so `Colon`s and logical
+# masks have to be normalized to concrete indices
+_indexvector(i) = i
+_indexvector(i::Base.LogicalIndex) = collect(i)
+
 Base.@propagate_inbounds function Base.getindex(t::TrackedArray, _inds1::Union{Integer, Colon, AbstractArray{<:Integer}}, _inds2::Union{Integer, Colon, AbstractArray{<:Integer}}...)
-    inds1 = _inds1 isa Colon ? axes(t, 1) : _inds1
-    inds2 = ntuple(Val(length(_inds2))) do i
-        _inds2[i] isa Colon && return axes(t, i+1)
-        return _inds2[i]
-    end
+    inds = map(_indexvector, Base.to_indices(t, (_inds1, _inds2...)))
     tp = tape(t)
-    out = TrackedArray(value(t)[inds1, inds2...], deriv(t)[inds1, inds2...], tp)
-    record!(tp, SpecialInstruction, (getindex, Val(:generic)), (t, (inds1, inds2...)), out)
+    out = TrackedArray(value(t)[inds...], deriv(t)[inds...], tp)
+    record!(tp, SpecialInstruction, (getindex, Val(:generic)), (t, inds), out)
     return out
 end
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{<:Tuple{typeof(getindex), Val{:generic}}})
@@ -385,6 +386,17 @@ end
         output_value[i += 1] = input_value[idx]
     end
     return nothing
+end
+
+# a `TrackedArray` backed by views of the parent's buffers shares its deriv array with the
+# parent, so derivatives accumulate into the parent and nothing has to be recorded (#281)
+const ViewIndex = Union{Integer,Colon,AbstractRange,AbstractArray{<:Integer},AbstractArray{<:CartesianIndex}}
+
+Base.@propagate_inbounds function Base.view(t::TrackedArray, inds::ViewIndex...)
+    v = view(value(t), inds...)
+    # `TrackedArray` requires linearly indexable buffers, so materialize anything else
+    IndexStyle(v) === IndexLinear() || return t[inds...]
+    return TrackedArray(v, view(deriv(t), inds...), tape(t))
 end
 
 Base.setindex!(t::TrackedArray, args...) = error("TrackedArrays do not support setindex!")

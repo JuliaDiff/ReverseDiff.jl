@@ -8,6 +8,17 @@ on:
     branches:
       - master
     tags: '*'
+  # Allows re-deploying the documentation for a tag whose build did not run
+  workflow_dispatch:
+    inputs:
+      tests:
+        description: Run the test matrix
+        type: boolean
+        default: true
+      docs:
+        description: Build and deploy the documentation
+        type: boolean
+        default: true
 
 concurrency:
   # Skip intermediate builds: always.
@@ -18,6 +29,7 @@ concurrency:
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ github.event_name }}
+    if: github.event_name != 'workflow_dispatch' || inputs.tests
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -44,6 +56,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
   docs:
     name: Documentation
+    if: github.event_name != 'workflow_dispatch' || inputs.docs
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Required when authenticating with `GITHUB_TOKEN`, not needed when authenticating with SSH deploy keys
