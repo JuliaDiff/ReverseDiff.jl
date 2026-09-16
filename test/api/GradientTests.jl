@@ -261,4 +261,25 @@ end
     end
 end
 
+############################################################################################
+
+# Top level, not inside the `@testset`: closures would change the inlining decisions.
+f269(x) = sum(abs2, x)
+
+function value_and_gradient269!(grad, tape, x)
+    result = DiffResults.MutableDiffResult(zero(eltype(x)), (grad,))
+    result = ReverseDiff.gradient!(result, tape, x)
+    return DiffResults.value(result), DiffResults.gradient(result)
+end
+
+nested269!(grad, tape, x) = (y = value_and_gradient269!(grad, tape, x)[1]; (y, grad))
+
+@testset "primal value survives inlining into a caller (#269)" begin
+    x = [3.0, 5.0]
+    tape = ReverseDiff.GradientTape(f269, x)
+    for t in (tape, ReverseDiff.compile(tape))
+        @test nested269!(similar(x), t, x) == (34.0, [6.0, 10.0])
+    end
+end
+
 end # module
