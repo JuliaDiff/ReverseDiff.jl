@@ -331,4 +331,39 @@ g251(x, y) = sum(abs2, x) + sum(abs2, y)
     @test_throws MethodError ReverseDiff.gradient!((MVector(x), MVector(y), MVector(x)), g251, (x, y))
 end
 
+############################################################################################
+
+# The output does not depend on the input, so it is recorded untracked and all derivatives
+# are zero.
+f_untracked(x) = 1.0
+g_untracked(x, y) = 2.0
+
+@testset "output that does not depend on the input" begin
+    x, y = rand(3), rand(2)
+
+    @test ReverseDiff.gradient(f_untracked, x) == zeros(3)
+    @test ReverseDiff.gradient(g_untracked, (x, y)) == (zeros(3), zeros(2))
+
+    result = ReverseDiff.gradient!(DiffResults.GradientResult(x), f_untracked, x)
+    @test DiffResults.value(result) == 1.0
+    @test DiffResults.gradient(result) == zeros(3)
+
+    result = (DiffResults.GradientResult(x), DiffResults.GradientResult(y))
+    result = ReverseDiff.gradient!(result, g_untracked, (x, y))
+    @test map(DiffResults.value, result) == (2.0, 2.0)
+    @test map(DiffResults.gradient, result) == (zeros(3), zeros(2))
+
+    tape = ReverseDiff.GradientTape(g_untracked, (x, y))
+    for t in (tape, ReverseDiff.compile(tape))
+        @test ReverseDiff.gradient!(t, (x, y)) == (zeros(3), zeros(2))
+        @test ReverseDiff.gradient!((similar(x), similar(y)), t, (x, y)) == (zeros(3), zeros(2))
+    end
+
+    # a result that does not match the input tuple is rejected by dispatch, as when tracked
+    @test_throws MethodError ReverseDiff.gradient!((similar(x),), g_untracked, (x, y))
+    @test_throws MethodError ReverseDiff.gradient!(similar(x), g_untracked, (x, y))
+    @test_throws MethodError ReverseDiff.gradient!(similar(x), g251, (x, y))
+    @test_throws MethodError ReverseDiff.gradient!(DiffResults.GradientResult(x), g251, (x, y))
+end
+
 end # module
