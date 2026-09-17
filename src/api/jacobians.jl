@@ -30,18 +30,19 @@ end
 """
     ReverseDiff.jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input))
 
-Returns `result`. This method is exactly like `ReverseDiff.jacobian(f, input, cfg)`, except
-it stores the resulting Jacobian(s) in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.jacobian(f, input, cfg)`, except it stores the
+resulting Jacobian(s) in `result` rather than allocating new memory.
 
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any
 of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult`, in which
 case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored
-in it as well.
+in it as well. An immutable `DiffResult` cannot be updated in place and is replaced, so use
+the returned value: `result = ReverseDiff.jacobian!(result, f, input, cfg)`.
 """
 function jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input))
     tape = JacobianTape(f, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
-    jacobian!(result, tape, input)
+    result = jacobian!(result, tape, input)
     empty!(tape.tape)
     return result
 end
@@ -74,7 +75,7 @@ form `f!(output::AbstractArray{<:Real}, input::AbstractArray{<:Real}...)`.
 function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
     tape = JacobianTape(f!, output, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
-    jacobian!(result, tape, input)
+    result = jacobian!(result, tape, input)
     extract_result_value!(output, output_hook(tape))
     empty!(tape.tape)
     return result
@@ -103,23 +104,25 @@ new `output` values into the tape.
 """
 function jacobian!(tape::Union{JacobianTape,CompiledJacobian}, input)
     result = construct_result(output_hook(tape), input_hook(tape))
-    jacobian!(result, tape, input)
+    result = jacobian!(result, tape, input)
     return result
 end
 
 """
     ReverseDiff.jacobian!(result, tape::Union{JacobianTape,CompiledJacobian}, input)
 
-Returns `result`. This method is exactly like `ReverseDiff.jacobian!(tape, input)`, except it
-stores the resulting Jacobian(s) in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.jacobian!(tape, input)`, except it stores the
+resulting Jacobian(s) in `result` rather than allocating new memory.
 
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any
 of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult`, in which
-case the primal value of the target function will be stored in it as well.
+case the primal value of the target function will be stored in it as well. An immutable
+`DiffResult` cannot be updated in place and is replaced, so use the returned value:
+`result = ReverseDiff.jacobian!(result, tape, input)`.
 """
 function jacobian!(result, tape::Union{JacobianTape,CompiledJacobian}, input)
     seeded_forward_pass!(tape, input)
-    seeded_reverse_pass!(result, tape)
+    result = seeded_reverse_pass!(result, tape)
     return result
 end
 

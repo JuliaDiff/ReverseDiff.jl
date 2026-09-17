@@ -1,6 +1,6 @@
 module HessianTests
 
-using DiffTests, ForwardDiff, ReverseDiff, Test
+using DiffTests, ForwardDiff, ReverseDiff, StaticArrays, Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
 
@@ -104,6 +104,30 @@ end
     fa(x) = sum((float(x)::ReverseDiff.TrackedArray) .^ 3)
     @test ReverseDiff.gradient(fa, x) == [12.0, 27.0]
     @test ReverseDiff.hessian(fa, x) == [12.0 0.0; 0.0 18.0]
+end
+
+############################################################################################
+
+f251(x) = sum(abs2, x)
+
+@testset "primal value of an immutable result (#251)" begin
+    x = MVector{2}(3.0, 5.0)
+    value, grad, hess = 34.0, [6.0, 10.0], [2.0 0.0; 0.0 2.0]
+
+    result = DiffResults.HessianResult(MVector(x))
+    result = ReverseDiff.hessian!(result, f251, x, ReverseDiff.HessianConfig(result, x))
+    @test result isa DiffResults.ImmutableDiffResult
+    @test DiffResults.value(result) == value
+    @test DiffResults.gradient(result) == grad
+    @test DiffResults.hessian(result) == hess
+
+    tape = ReverseDiff.HessianTape(f251, x)
+    for t in (tape, ReverseDiff.compile(tape))
+        result = ReverseDiff.hessian!(DiffResults.HessianResult(MVector(x)), t, x)
+        @test DiffResults.value(result) == value
+        @test DiffResults.gradient(result) == grad
+        @test DiffResults.hessian(result) == hess
+    end
 end
 
 end # module
