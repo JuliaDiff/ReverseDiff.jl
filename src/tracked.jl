@@ -429,12 +429,43 @@ Base.hash(t::TrackedReal, hsh::UInt64) = hash(value(t), hsh)
 Base.deepcopy(t::T) where {T<:TrackedReal} = t
 Base.copy(t::T) where {T<:TrackedReal} = t
 
-function Base.float(t::TrackedReal{V,D,O}) where {V,D,O}
-    v = float(value(t))
-    return TrackedReal{typeof(v),D,O}(v)
+Base.float(t::TrackedReal) = _float(t, float(value(t)))
+Base.float(t::TrackedReal{V}) where {V<:AbstractFloat} = t
+
+Base.float(t::TrackedArray) = _float(t, float(value(t)))
+Base.float(t::TrackedArray{V}) where {V<:AbstractFloat} = t
+
+# `float` left the value type alone, so there is nothing to record
+_float(t::TrackedReal{V}, ::V) where {V<:Real} = t
+_float(t::TrackedArray{V}, ::AbstractArray{V}) where {V} = t
+
+function _float(t::TrackedReal{V,D}, v::Real) where {V,D}
+    tp = tape(t)
+    out = track(v, D, tp)
+    record!(tp, SpecialInstruction, float, t, out)
+    return out
 end
 
-Base.float(t::TrackedReal{V}) where {V<:AbstractFloat} = t
+function _float(t::TrackedArray{V,D}, v::AbstractArray) where {V,D}
+    tp = tape(t)
+    out = track(v, D, tp)
+    record!(tp, SpecialInstruction, float, t, out)
+    return out
+end
+
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(float)})
+    output = instruction.output
+    increment_deriv!(instruction.input, deriv(output))
+    unseed!(output)
+    return nothing
+end
+
+@noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(float)})
+    input = instruction.input
+    pull_value!(input)
+    value!(instruction.output, value(input))
+    return nothing
+end
 
 Base.one(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(one(V))
 Base.zero(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(zero(V))

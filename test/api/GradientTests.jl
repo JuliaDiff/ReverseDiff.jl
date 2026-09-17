@@ -233,4 +233,32 @@ for f in (getindex_logical_rows, getindex_logical_mask, view_cartesian, view_str
     test_unary_gradient(f, rand(5, 5))
 end
 
+############################################################
+
+@testset "`float` keeps the tape (#107, #276)" begin
+    @testset "`TrackedReal`" begin
+        g(x) = float(x[1])^3 * x[2]
+        @test ReverseDiff.gradient(g, [2.0, 3.0]) == [36.0, 8.0]
+        @test ReverseDiff.gradient(g, Rational{Int}[2//1, 3//1]) == [36, 8]
+    end
+
+    @testset "`TrackedArray`" begin
+        g(x) = sum((float(x)::ReverseDiff.TrackedArray) .^ 3)
+        @test ReverseDiff.gradient(g, [2.0, 3.0]) == [12.0, 27.0]
+        @test ReverseDiff.gradient(g, Rational{Int}[2//1, 3//1]) == [12, 27]
+    end
+
+    @testset "replaying a recorded tape" begin
+        g(x) = float(x[1])^3 * x[2]
+        tape = ReverseDiff.GradientTape(g, Rational{Int}[2//1, 3//1])
+        @test ReverseDiff.gradient!(tape, Rational{Int}[2//1, 3//1]) == [36, 8]
+        @test ReverseDiff.gradient!(tape, Rational{Int}[1//1, 4//1]) == [12, 1]
+
+        ga(x) = sum(float(x) .^ 3)
+        tape = ReverseDiff.GradientTape(ga, Rational{Int}[2//1, 3//1])
+        @test ReverseDiff.gradient!(tape, Rational{Int}[2//1, 3//1]) == [12, 27]
+        @test ReverseDiff.gradient!(tape, Rational{Int}[1//1, 4//1]) == [3, 48]
+    end
+end
+
 end # module
