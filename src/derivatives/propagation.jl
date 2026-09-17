@@ -165,25 +165,12 @@ end
 # with partial scalar #
 #---------------------#
 
-@inline function _broadcast_increment_deriv!(op::F, input, x, partial::Ref, i, j) where {F}
-    return _broadcast_increment_deriv!(op, input, x, partial[], i, j)
-end
-
 function _broadcast_increment_deriv!(op::F, input::AbstractArray, x::AbstractArray,
                                      partial::Real, input_bound::CartesianIndex,
                                      ::Nothing) where {F}
     for (xi, i) in zip(x, CartesianIndices(size(x)))
         increment_deriv!(input, op(xi, partial), min(input_bound, i))
     end
-    return nothing
-end
-
-function _broadcast_increment_deriv!(op::F, input::TrackedReal, x::AbstractArray,
-                                     partial::Real, ::Nothing, ::Nothing) where {F}
-    isempty(x) && return nothing
-    pull_deriv!(input)
-    input.deriv += sum(xi -> op(xi, partial), x)
-    push_deriv!(input)
     return nothing
 end
 
