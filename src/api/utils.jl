@@ -29,12 +29,12 @@ function seeded_reverse_pass!(result, output::TrackedReal, input, tape)
     unseed!(input)
     seed!(output)
     reverse_pass!(tape)
-    extract_result!(result, output, input)
+    result = extract_result!(result, output, input)
     return result
 end
 
 function seeded_reverse_pass!(result, output::Number, input, tape)
-    extract_result!(result, output)
+    result = extract_result!(result, output, input)
     return result
 end
 
@@ -59,33 +59,20 @@ end
 
 function seeded_reverse_pass!(result::DiffResult, output::AbstractArray, input::TrackedArray, tape)
     seeded_reverse_pass!(DiffResults.jacobian(result), output, input, tape)
-    extract_result_value!(result, output)
+    result = extract_result_value!(result, output)
     return result
 end
 
-function seeded_reverse_pass!(result::Tuple, output::AbstractArray, input::Tuple, tape)
-    for i in eachindex(result)
-        seeded_reverse_pass!(result[i], output, input[i], tape)
-    end
-    return result
+function seeded_reverse_pass!(result::NTuple{N,Any}, output::AbstractArray, input::NTuple{N,Any}, tape) where {N}
+    return map((r, i) -> seeded_reverse_pass!(r, output, i, tape), result, input)
 end
 
 #####################
 # result extraction #
 #####################
 
-function extract_result!(result::Tuple, output, input::Tuple)
-    for i in eachindex(result)
-        extract_result!(result[i], output, input[i])
-    end
-    return result
-end
-
-function extract_result!(result::Tuple, output)
-    for i in eachindex(result)
-        extract_result!(result[i], output)
-    end
-    return result
+function extract_result!(result::NTuple{N,Any}, output, input::NTuple{N,Any}) where {N}
+    return map((r, i) -> extract_result!(r, output, i), result, input)
 end
 
 function extract_result!(result::AbstractArray, output::TrackedReal, input::TrackedArray)
@@ -99,21 +86,15 @@ function extract_result!(result::DiffResult, output::TrackedReal, input::Tracked
     return result
 end
 
-function extract_result!(result::AbstractArray, output::Number)
+# `input` is unused, but constrained as above so a mismatched `result` still fails
+function extract_result!(result::AbstractArray, output::Number, input::TrackedArray)
     fill_zeros!(result)
     return result
 end
 
-function extract_result!(result::DiffResult, output::Number)
+function extract_result!(result::DiffResult, output::Number, input::TrackedArray)
     result = DiffResults.value!(result, output)
     fill_zeros!(DiffResults.gradient(result))
-    return result
-end
-
-function extract_result_value!(result::Tuple, output)
-    for i in eachindex(result)
-        extract_result_value!(result[i], output)
-    end
     return result
 end
 
@@ -129,11 +110,6 @@ end
 
 function extract_result_value!(result::AbstractArray, output::AbstractArray)
     map!(value, result, output)
-    return result
-end
-
-function extract_result_value!(result::AbstractArray, output::TrackedArray)
-    copyto!(result, value(output))
     return result
 end
 

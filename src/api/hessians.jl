@@ -30,15 +30,17 @@ end
 
     ReverseDiff.hessian!(result::DiffResult, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(result, input))
 
-Returns `result`. This method is exactly like `ReverseDiff.hessian(f, input, cfg)`, except
-it stores the resulting Hessian in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.hessian(f, input, cfg)`, except it stores the
+resulting Hessian in `result` rather than allocating new memory.
 
 If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
-`∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
+`∇f(input)` will be stored in it along with the Hessian `H(f)(input)`. An immutable
+`DiffResult` cannot be updated in place and is replaced, so use the returned value:
+`result = ReverseDiff.hessian!(result, f, input, cfg)`.
 """
 function hessian!(result, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
     ∇f = x -> gradient(f, x, cfg.gradient_config)
-    jacobian!(result, ∇f, input, cfg.jacobian_config)
+    result = jacobian!(result, ∇f, input, cfg.jacobian_config)
     return result
 end
 
@@ -46,7 +48,7 @@ function hessian!(result::DiffResult, f, input::AbstractArray,
                   cfg::HessianConfig = HessianConfig(result, input))
     ∇f! = (y, x) -> begin
         gradient_result = DiffResult(zero(eltype(y)), y)
-        gradient!(gradient_result, f, x, cfg.gradient_config)
+        gradient_result = gradient!(gradient_result, f, x, cfg.gradient_config)
         result = DiffResults.value!(result, value(DiffResults.value(gradient_result)))
         return y
     end
@@ -68,7 +70,7 @@ return the Hessian `H(f)(input)`.
 """
 function hessian!(tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     result = construct_result(output_hook(tape), input_hook(tape))
-    hessian!(result, tape, input)
+    result = hessian!(result, tape, input)
     return result
 end
 
@@ -77,21 +79,25 @@ end
 
     ReverseDiff.hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input)
 
-Returns `result`. This method is exactly like `ReverseDiff.hessian!(tape, input)`, except
-it stores the resulting Hessian in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.hessian!(tape, input)`, except it stores the
+resulting Hessian in `result` rather than allocating new memory.
 
 If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
-`∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
+`∇f(input)` will be stored in it along with the Hessian `H(f)(input)`. An immutable
+`DiffResult` cannot be updated in place and is replaced, so use the returned value:
+`result = ReverseDiff.hessian!(result, tape, input)`.
 """
 function hessian!(result::AbstractArray, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)
-    seeded_reverse_pass!(result, tape)
+    result = seeded_reverse_pass!(result, tape)
     return result
 end
 
 function hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)
-    seeded_reverse_pass!(DiffResult(DiffResults.gradient(result), DiffResults.hessian(result)), tape)
+    inner = DiffResult(DiffResults.gradient(result), DiffResults.hessian(result))
+    inner = seeded_reverse_pass!(inner, tape)
+    result = DiffResults.gradient!(result, DiffResults.value(inner))
     result = DiffResults.value!(result, func_hook(tape)(input))
     return result
 end

@@ -44,7 +44,7 @@ function seeded_forward_pass!(t::AbstractTape, input)
 end
 
 function seeded_reverse_pass!(result, t::AbstractTape)
-    seeded_reverse_pass!(result, output_hook(t), input_hook(t), t)
+    result = seeded_reverse_pass!(result, output_hook(t), input_hook(t), t)
     return result
 end
 
