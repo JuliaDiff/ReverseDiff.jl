@@ -3,7 +3,6 @@ module ReverseDiff
 using Base: RefValue
 using Random
 using LinearAlgebra
-using Statistics
 
 using FunctionWrappers: FunctionWrapper
 

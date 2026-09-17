@@ -1,8 +1,16 @@
 module LinAlgTests
 
-using ReverseDiff, ForwardDiff, Test, LinearAlgebra, Statistics
+using ReverseDiff, ForwardDiff, Test, LinearAlgebra
 
-include(joinpath(dirname(@__FILE__), "../utils.jl"))
+if get(ENV, "DOWNGRADE_TEST", "false")::String != "true"
+    @test Base.get_extension(ReverseDiff, :StatisticsExt) === nothing
+end
+
+using Statistics
+
+@test Base.get_extension(ReverseDiff, :StatisticsExt) !== nothing
+
+include("../utils.jl")
 
 x, a, b = rand(3, 3), rand(3, 3), rand(3, 3)
 tp = InstructionTape()
