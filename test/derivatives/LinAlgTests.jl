@@ -2,7 +2,9 @@ module LinAlgTests
 
 using ReverseDiff, ForwardDiff, Test, LinearAlgebra
 
-@test Base.get_extension(ReverseDiff, :StatisticsExt) === nothing
+if get(ENV, "DOWNGRADE_TEST", "false")::String != "true"
+    @test Base.get_extension(ReverseDiff, :StatisticsExt) === nothing
+end
 
 using Statistics
 
