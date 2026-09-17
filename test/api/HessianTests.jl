@@ -95,10 +95,15 @@ end
 ############################################################
 
 @testset "`float` keeps the tape (#107, #276)" begin
-    ff(x) = float(x[1]^3 * x[2] + x[2]^2)
     x = [2.0, 3.0]
+
+    ff(x) = float(x[1]^3 * x[2] + x[2]^2)
     @test ReverseDiff.gradient(ff, x) == [36.0, 14.0]
     @test ReverseDiff.hessian(ff, x) == [36.0 12.0; 12.0 2.0]
+
+    fa(x) = sum((float(x)::ReverseDiff.TrackedArray) .^ 3)
+    @test ReverseDiff.gradient(fa, x) == [12.0, 27.0]
+    @test ReverseDiff.hessian(fa, x) == [12.0 0.0; 0.0 18.0]
 end
 
 end # module

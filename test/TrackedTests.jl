@@ -756,6 +756,12 @@ end
 
 @test Base.copy(ta) === ta
 
+@test float(ta) === ta
+
+# as built for the inner tape of a Hessian
+ta_nested = ReverseDiff.track(collect(ta), eltype(ta), tp)
+@test float(ta_nested) === ta_nested
+
 @test all(samefields.(ta, copyto!(similar(ta), ta)))
 
 ####################
