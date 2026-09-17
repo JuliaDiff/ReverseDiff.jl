@@ -539,26 +539,18 @@ end
 # ./ #
 #----#
 
-numer_partials(d::Real) = Ref(inv(d))
-numer_partials(d::AbstractArray) = broadcast(inv, d)
-numer_partials!(out::Ref, d) = (out[] = inv(d); nothing)
-numer_partials!(out::AbstractArray, d) = (broadcast!(inv, out, d); nothing)
-
 denom_partials_kernel(n::Real, d::Real) =  -(n / (d * d))
 denom_partials(n::Real, d::Real) = Ref(denom_partials_kernel(n, d))
 denom_partials(n, d) = broadcast(denom_partials_kernel, n, d)
 denom_partials!(out::Ref, n, d) = (out[] = denom_partials_kernel(n, d); nothing)
 denom_partials!(out::AbstractArray, n, d) = (broadcast!(denom_partials_kernel, out, n, d); nothing)
 
-rdiv_cache(x, y) = (numer_partials(value(y)), denom_partials(value(x), value(y)))
-
 function broadcast_rdiv(x, y, ::Type{D}) where D
     tp = tape(x, y)
     out = track(value(x) ./ value(y), D, tp)
-    n_partials, d_partials = rdiv_cache(x, y)
-    cache = (n_partials, d_partials,
-             index_bound(x, out), index_bound(y, out),
-             index_bound(n_partials, out), index_bound(d_partials, out))
+    d_partials = denom_partials(value(x), value(y))
+    cache = (d_partials, index_bound(x, out), index_bound(y, out),
+             index_bound(d_partials, out))
     record!(tp, SpecialInstruction, (broadcast, /), (x, y), out, cache)
     return out
 end
@@ -566,12 +558,11 @@ end
 @noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}})
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
-    n_partials, d_partials = instruction.cache
+    d_partials = first(instruction.cache)
     output = instruction.output
     pull_value!(a)
     pull_value!(b)
     broadcast!(/, value(output), a_value, b_value)
-    istracked(a) && numer_partials!(n_partials, b_value)
     istracked(b) && denom_partials!(d_partials, a_value, b_value)
     return nothing
 end
@@ -580,9 +571,8 @@ end
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
-    n_partials, d_partials, a_bound, b_bound,
-    n_partials_bound, d_partials_bound = instruction.cache
-    istracked(a) && broadcast_increment_deriv!(a, output_deriv, n_partials, a_bound, n_partials_bound)
+    d_partials, a_bound, b_bound, d_partials_bound = instruction.cache
+    istracked(a) && broadcast_increment_div_deriv!(a, output_deriv, value(b), a_bound, b_bound)
     istracked(b) && broadcast_increment_deriv!(b, output_deriv, d_partials, b_bound, d_partials_bound)
     unseed!(output)
     return nothing
@@ -594,10 +584,9 @@ end
 function broadcast_ldiv(x, y, ::Type{D}) where D
     tp = tape(x, y)
     out = track(value(x) .\ value(y), D, tp)
-    n_partials, d_partials = rdiv_cache(y, x)
-    cache = (n_partials, d_partials,
-             index_bound(x, out), index_bound(y, out),
-             index_bound(n_partials, out), index_bound(d_partials, out))
+    d_partials = denom_partials(value(y), value(x))
+    cache = (d_partials, index_bound(x, out), index_bound(y, out),
+             index_bound(d_partials, out))
     record!(tp, SpecialInstruction, (broadcast, \), (x, y), out, cache)
     return out
 end
@@ -605,12 +594,11 @@ end
 @noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}})
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
-    n_partials, d_partials = instruction.cache
+    d_partials = first(instruction.cache)
     output = instruction.output
     pull_value!(a)
     pull_value!(b)
     broadcast!(\, value(output), a_value, b_value)
-    istracked(b) && numer_partials!(n_partials, a_value)
     istracked(a) && denom_partials!(d_partials, b_value, a_value)
     return nothing
 end
@@ -619,10 +607,9 @@ end
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
-    n_partials, d_partials, a_bound, b_bound,
-    n_partials_bound, d_partials_bound = instruction.cache
+    d_partials, a_bound, b_bound, d_partials_bound = instruction.cache
     istracked(a) && broadcast_increment_deriv!(a, output_deriv, d_partials, a_bound, d_partials_bound)
-    istracked(b) && broadcast_increment_deriv!(b, output_deriv, n_partials, b_bound, n_partials_bound)
+    istracked(b) && broadcast_increment_div_deriv!(b, output_deriv, value(a), b_bound, a_bound)
     unseed!(output)
     return nothing
 end

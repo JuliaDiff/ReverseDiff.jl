@@ -14,7 +14,7 @@ end
 @noinline function ReverseDiff.special_reverse_exec!(instruction::SpecialInstruction{typeof(mean)})
     input = instruction.input
     output = instruction.output
-    istracked(input) && increment_deriv!(input, inv(length(input)) * deriv(output))
+    istracked(input) && increment_deriv!(input, deriv(output) / length(input))
     unseed!(output)
     return nothing
 end

@@ -7,10 +7,8 @@ form of normal scalars/arrays, or `Dual` numbers) needs to accounted for as well
 
 Often, a function's input and output values are not similarly shaped. To account for these
 cases, `broadcast` and `reduce` versions of the propagation functions have been implemented.
-These special cases should be decently fast, but some might be prone to numerical error if
-the accumulated derivative becomes too large compared to the individual terms being added to
-it. This can be overcome by using the divide-and-conquer strategy from Base.mapreducedim,
-but that strategy is less cache efficient and more complicated to implement.
+Accumulations into a scalar derivative go through `sum`, whose pairwise reduction is both more
+accurate and faster than a sequential loop.
 
 A lot of the code here is pretty repetitive, and only covers the use cases that actually
 arise from the derivative definitions implemented elsewhere in ReverseDiff. At some point,
@@ -81,7 +79,7 @@ end
 
 function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                      results, p::Int)
-    for i in eachindex(x)
+    for i in eachindex(x, results)
         increment_deriv!(input, x[i] * getpartial(results[i], p), i)
     end
     return nothing
@@ -89,20 +87,20 @@ end
 
 function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                      results, p::Int, bound::CartesianIndex)
-    for i in CartesianIndices(size(x))
-        increment_deriv!(input, x[i] * getpartial(results[i], p), min(bound, i))
+    axes(x) == axes(results) ||
+        throw(DimensionMismatch("`x` and `results` must have the same indices"))
+    for (xi, r, i) in zip(x, results, CartesianIndices(size(x)))
+        increment_deriv!(input, xi * getpartial(r, p), min(bound, i))
     end
     return nothing
 end
 
 function diffresult_increment_deriv!(input::TrackedReal, x::AbstractArray,
                                      results, p::Int, ::Nothing)
+    inds = eachindex(x, results)
+    isempty(inds) && return nothing
     pull_deriv!(input)
-    input_deriv = input.deriv
-    for i in eachindex(results)
-        input_deriv += x[i] * getpartial(results[i], p)
-    end
-    input.deriv = input_deriv
+    input.deriv += sum(i -> x[i] * getpartial(results[i], p), inds)
     push_deriv!(input)
     return nothing
 end
@@ -116,45 +114,50 @@ end
 
 function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
                                     bound::CartesianIndex)
-    for i in CartesianIndices(size(x))
-        increment_deriv!(input, x[i], min(bound, i))
+    for (xi, i) in zip(x, CartesianIndices(size(x)))
+        increment_deriv!(input, xi, min(bound, i))
     end
     return nothing
 end
 
 function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray, ::Nothing)
+    isempty(x) && return nothing
     pull_deriv!(input)
-    input_deriv = input.deriv
-    for i in x
-        input_deriv += i
-    end
-    input.deriv = input_deriv
+    input.deriv += sum(x)
     push_deriv!(input)
     return nothing
 end
 
+# with partials #
+#---------------#
+
+@inline broadcast_increment_deriv!(input, x, partials, input_bound, partials_bound) =
+    _broadcast_increment_deriv!(*, input, x, partials, input_bound, partials_bound)
+
+@inline broadcast_increment_div_deriv!(input, x, partials, input_bound, partials_bound) =
+    _broadcast_increment_deriv!(/, input, x, partials, input_bound, partials_bound)
+
 # with partial array #
 #--------------------#
 
-function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
-                                    partials::AbstractArray,
-                                    input_bound::CartesianIndex,
-                                    partials_bound::CartesianIndex)
-    for i in CartesianIndices(size(x))
-        current_deriv = x[i] * partials[min(partials_bound, i)]
+function _broadcast_increment_deriv!(op::F, input::AbstractArray, x::AbstractArray,
+                                     partials::AbstractArray,
+                                     input_bound::CartesianIndex,
+                                     partials_bound::CartesianIndex) where {F}
+    for (xi, i) in zip(x, CartesianIndices(size(x)))
+        current_deriv = op(xi, partials[min(partials_bound, i)])
         increment_deriv!(input, current_deriv, min(input_bound, i))
     end
     return nothing
 end
 
-function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                    partials::AbstractArray, ::Nothing, ::CartesianIndex)
+function _broadcast_increment_deriv!(op::F, input::TrackedReal, x::AbstractArray,
+                                     partials::AbstractArray, ::Nothing,
+                                     ::CartesianIndex) where {F}
+    inds = eachindex(x, partials)
+    isempty(inds) && return nothing
     pull_deriv!(input)
-    input_deriv = input.deriv
-    for i in eachindex(x)
-        input_deriv += x[i] * partials[i]
-    end
-    input.deriv = input_deriv
+    input.deriv += sum(i -> op(x[i], partials[i]), inds)
     push_deriv!(input)
     return nothing
 end
@@ -162,27 +165,24 @@ end
 # with partial scalar #
 #---------------------#
 
-@inline function broadcast_increment_deriv!(input, x, partial::Ref, i, j)
-    return broadcast_increment_deriv!(input, x, partial[], i, j)
+@inline function _broadcast_increment_deriv!(op::F, input, x, partial::Ref, i, j) where {F}
+    return _broadcast_increment_deriv!(op, input, x, partial[], i, j)
 end
 
-function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
-                                    partial::Real, input_bound::CartesianIndex,
-                                    ::Nothing)
-    for i in CartesianIndices(size(x))
-        increment_deriv!(input, x[i] * partial, min(input_bound, i))
+function _broadcast_increment_deriv!(op::F, input::AbstractArray, x::AbstractArray,
+                                     partial::Real, input_bound::CartesianIndex,
+                                     ::Nothing) where {F}
+    for (xi, i) in zip(x, CartesianIndices(size(x)))
+        increment_deriv!(input, op(xi, partial), min(input_bound, i))
     end
     return nothing
 end
 
-function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                    partial::Real, ::Nothing, ::Nothing)
+function _broadcast_increment_deriv!(op::F, input::TrackedReal, x::AbstractArray,
+                                     partial::Real, ::Nothing, ::Nothing) where {F}
+    isempty(x) && return nothing
     pull_deriv!(input)
-    input_deriv = input.deriv
-    for i in eachindex(x)
-        input_deriv += x[i] * partial
-    end
-    input.deriv = input_deriv
+    input.deriv += sum(xi -> op(xi, partial), x)
     push_deriv!(input)
     return nothing
 end
@@ -193,19 +193,16 @@ end
 
 function broadcast_decrement_deriv!(input::AbstractArray, x::AbstractArray,
                                     bound::CartesianIndex)
-    for i in CartesianIndices(size(x))
-        decrement_deriv!(input, x[i], min(bound, i))
+    for (xi, i) in zip(x, CartesianIndices(size(x)))
+        decrement_deriv!(input, xi, min(bound, i))
     end
     return nothing
 end
 
 function broadcast_decrement_deriv!(input::TrackedReal, x::AbstractArray, ::Nothing)
+    isempty(x) && return nothing
     pull_deriv!(input)
-    input_deriv = input.deriv
-    for i in x
-        input_deriv -= i
-    end
-    input.deriv = input_deriv
+    input.deriv -= sum(x)
     push_deriv!(input)
     return nothing
 end
