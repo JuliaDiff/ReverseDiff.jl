@@ -30,12 +30,6 @@ test_println(kind, f, pad="  ") = println(pad, "testing $(kind): `$(f)`...")
         println("done (took $t seconds).")
     end
 
-    @testset "PrecisionTests" begin
-        println("running PrecisionTests...")
-        t = @elapsed include("PrecisionTests.jl")
-        println("done (took $t seconds).")
-    end
-
     @testset "ScalarTests" begin
         println("running ScalarTests...")
         t = @elapsed include(joinpath(TESTDIR, "derivatives/ScalarTests.jl"))
@@ -45,6 +39,12 @@ test_println(kind, f, pad="  ") = println(pad, "testing $(kind): `$(f)`...")
     @testset "LinAlgTests" begin
         println("running LinAlgTests...")
         t = @elapsed include(joinpath(TESTDIR, "derivatives/LinAlgTests.jl"))
+        println("done (took $t seconds).")
+    end
+
+    @testset "PrecisionTests" begin
+        println("running PrecisionTests...")
+        t = @elapsed include(joinpath(TESTDIR, "PrecisionTests.jl"))
         println("done (took $t seconds).")
     end
 

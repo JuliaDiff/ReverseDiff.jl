@@ -539,7 +539,7 @@ end
 # ./ #
 #----#
 
-denom_partials_kernel(n::Real, d::Real) =  -(n / (d * d))
+denom_partials_kernel(n::Real, d::Real) = -(n / d) / d
 denom_partials(n::Real, d::Real) = Ref(denom_partials_kernel(n, d))
 denom_partials(n, d) = broadcast(denom_partials_kernel, n, d)
 denom_partials!(out::Ref, n, d) = (out[] = denom_partials_kernel(n, d); nothing)

@@ -44,4 +44,13 @@ let f = y -> 1e-10 * sum(y ./ 1e-310)
     @test ReverseDiff.gradient(f, [1.0, 2.0]) == fill(1e-10 / 1e-310, 2)
 end
 
+# the denominator adjoint is `-n / d^2`, which must not overflow while it is still finite
+for (n, d) in ((1e-200, 1e-200), (1e200, 1e200))
+    ∂ = Float64(-big(n) / big(d)^2)
+    for f in (y -> sum([n] ./ y), y -> sum(y .\ [n]))
+        test_println("Float64 gradients", f)
+        @test ReverseDiff.gradient(f, [d]) ≈ [∂] rtol=8*eps(Float64)
+    end
+end
+
 end # module
