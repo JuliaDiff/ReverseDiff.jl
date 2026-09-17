@@ -29,7 +29,7 @@ LogExpFunctions = "1"
 NaNMath = "1"
 Random = "1"
 SpecialFunctions = "2"
-StaticArrays = "1"
+StaticArrays = "1.6.4"
 Statistics = "1"
 Test = "1"
 
