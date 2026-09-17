@@ -30,11 +30,13 @@ end
 
     ReverseDiff.hessian!(result::DiffResult, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(result, input))
 
-Returns `result`. This method is exactly like `ReverseDiff.hessian(f, input, cfg)`, except
-it stores the resulting Hessian in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.hessian(f, input, cfg)`, except it stores the
+resulting Hessian in `result` rather than allocating new memory.
 
 If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
-`∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
+`∇f(input)` will be stored in it along with the Hessian `H(f)(input)`. An immutable
+`DiffResult` cannot be updated in place and is replaced, so use the returned value:
+`result = ReverseDiff.hessian!(result, f, input, cfg)`.
 """
 function hessian!(result, f, input::AbstractArray, cfg::HessianConfig = HessianConfig(input))
     ∇f = x -> gradient(f, x, cfg.gradient_config)
@@ -77,11 +79,13 @@ end
 
     ReverseDiff.hessian!(result::DiffResult, tape::Union{HessianTape,CompiledHessian}, input)
 
-Returns `result`. This method is exactly like `ReverseDiff.hessian!(tape, input)`, except
-it stores the resulting Hessian in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.hessian!(tape, input)`, except it stores the
+resulting Hessian in `result` rather than allocating new memory.
 
 If `result` is a `DiffResults.DiffResult`, the primal value `f(input)` and the gradient
-`∇f(input)` will be stored in it along with the Hessian `H(f)(input)`.
+`∇f(input)` will be stored in it along with the Hessian `H(f)(input)`. An immutable
+`DiffResult` cannot be updated in place and is replaced, so use the returned value:
+`result = ReverseDiff.hessian!(result, tape, input)`.
 """
 function hessian!(result::AbstractArray, tape::Union{HessianTape,CompiledHessian}, input::AbstractArray)
     seeded_forward_pass!(tape, input)

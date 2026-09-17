@@ -30,13 +30,14 @@ end
 """
     ReverseDiff.jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input))
 
-Returns `result`. This method is exactly like `ReverseDiff.jacobian(f, input, cfg)`, except
-it stores the resulting Jacobian(s) in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.jacobian(f, input, cfg)`, except it stores the
+resulting Jacobian(s) in `result` rather than allocating new memory.
 
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any
 of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult`, in which
 case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored
-in it as well.
+in it as well. An immutable `DiffResult` cannot be updated in place and is replaced, so use
+the returned value: `result = ReverseDiff.jacobian!(result, f, input, cfg)`.
 """
 function jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input))
     tape = JacobianTape(f, input, cfg)
@@ -110,12 +111,14 @@ end
 """
     ReverseDiff.jacobian!(result, tape::Union{JacobianTape,CompiledJacobian}, input)
 
-Returns `result`. This method is exactly like `ReverseDiff.jacobian!(tape, input)`, except it
-stores the resulting Jacobian(s) in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.jacobian!(tape, input)`, except it stores the
+resulting Jacobian(s) in `result` rather than allocating new memory.
 
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any
 of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult`, in which
-case the primal value of the target function will be stored in it as well.
+case the primal value of the target function will be stored in it as well. An immutable
+`DiffResult` cannot be updated in place and is replaced, so use the returned value:
+`result = ReverseDiff.jacobian!(result, tape, input)`.
 """
 function jacobian!(result, tape::Union{JacobianTape,CompiledJacobian}, input)
     seeded_forward_pass!(tape, input)

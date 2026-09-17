@@ -29,13 +29,14 @@ end
 """
     ReverseDiff.gradient!(result, f, input, cfg::GradientConfig = GradientConfig(input))
 
-Returns `result`. This method is exactly like `ReverseDiff.gradient(f, input, cfg)`, except
-it stores the resulting gradient(s) in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.gradient(f, input, cfg)`, except it stores the
+resulting gradient(s) in `result` rather than allocating new memory.
 
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any
 of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult`, in which
 case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored
-in it as well.
+in it as well. An immutable `DiffResult` cannot be updated in place and is replaced, so use
+the returned value: `result = ReverseDiff.gradient!(result, f, input, cfg)`.
 """
 function gradient!(result, f, input, cfg::GradientConfig = GradientConfig(input))
     tape = GradientTape(f, input, cfg)
@@ -67,13 +68,14 @@ end
 """
     ReverseDiff.gradient!(result, tape::Union{GradientTape,CompiledGradient}, input)
 
-Returns `result`. This method is exactly like `ReverseDiff.gradient!(tape, input)`, except it
-stores the resulting gradient(s) in `result` rather than allocating new memory.
+This method is exactly like `ReverseDiff.gradient!(tape, input)`, except it stores the
+resulting gradient(s) in `result` rather than allocating new memory.
 
 `result` can be an `AbstractArray` or a `Tuple` of `AbstractArray`s. The `result` (or any
 of its elements, if `isa(result, Tuple)`), can also be a `DiffResults.DiffResult`, in which
 case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will be stored
-in it as well.
+in it as well. An immutable `DiffResult` cannot be updated in place and is replaced, so use
+the returned value: `result = ReverseDiff.gradient!(result, tape, input)`.
 """
 function gradient!(result, tape::Union{GradientTape,CompiledGradient}, input)
     seeded_forward_pass!(tape, input)
