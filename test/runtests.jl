@@ -89,4 +89,10 @@ test_println(kind, f, pad="  ") = println(pad, "testing $(kind): `$(f)`...")
         t = @elapsed include(joinpath(TESTDIR, "compat/CompatTests.jl"))
         println("done (took $t seconds).")
     end
+
+    @testset "QATests" begin
+        println("running QATests...")
+        t = @elapsed include(joinpath(TESTDIR, "QATests.jl"))
+        println("done (took $t seconds).")
+    end
 end
