@@ -204,6 +204,50 @@ end
     @test results[1] == fill(38, size(inputs[1])) # 38 = 3 + 5 * 7
 end
 
+### Thunked tangents
+# Lazy tangents have to be unthunked: `increment_deriv!` only accepts arrays and reals.
+
+f_thunk(x) = sum(4x .+ 1)
+function ChainRulesCore.rrule(::typeof(f_thunk), x)
+    # `InplaceableThunk` is what ChainRules' matrix rules hand back
+    pb_f_thunk(Δ) = (NoTangent(), InplaceableThunk(ȳ -> ȳ .+= 3Δ, @thunk(fill(3Δ, size(x)))))
+    return f_thunk(x), pb_f_thunk
+end
+ReverseDiff.@grad_from_chainrules f_thunk(x::ReverseDiff.TrackedArray)
+
+f_thunk(x::Real) = 4x + 1
+function ChainRulesCore.rrule(::typeof(f_thunk), x::Real)
+    pb_f_thunk_scalar(Δ) = (NoTangent(), @thunk(3Δ))
+    return f_thunk(x), pb_f_thunk_scalar
+end
+ReverseDiff.@grad_from_chainrules f_thunk(x::ReverseDiff.TrackedReal)
+
+# `@grad_from_chainrules` dispatches on `TrackedArray`, so only `@grad` reaches an array
+# that merely *holds* tracked elements
+g_thunk(a, b) = sum(a) + sum(b)
+function g_thunk(a::AbstractVector, b::AbstractVector)
+    if ReverseDiff.istracked(a) || ReverseDiff.istracked(b)
+        return ReverseDiff.track(g_thunk, a, b)
+    else
+        return sum(a) + sum(b)
+    end
+end
+ReverseDiff.@grad function g_thunk(a, b)
+    av, bv = ReverseDiff.value(a), ReverseDiff.value(b)
+    pb_g_thunk(Δ) = (@thunk(fill(3Δ, size(av))), @thunk(fill(5Δ, size(bv))))
+    return sum(av) + sum(bv), pb_g_thunk
+end
+
+@testset "thunked tangents" begin
+    x = rand(3, 3)
+    @test ReverseDiff.gradient(f_thunk, x) == fill(3, size(x))
+    @test ReverseDiff.gradient(u -> f_thunk(u[1]), [2.0]) == [3.0]
+
+    # the thunk for the untracked argument is dropped rather than forced
+    @test ReverseDiff.gradient(u -> g_thunk(Real[u[1], u[2]], [1.0, 2.0]), [1.0, 2.0]) == [3.0, 3.0]
+    @test ReverseDiff.gradient(u -> g_thunk([1.0, 2.0], Real[u[1], u[1]]), [1.0, 2.0]) == [10.0, 0.0]
+end
+
 ### Isolated Scope
 module IsolatedModuleForTestingScoping
 using ChainRulesCore
