@@ -374,11 +374,13 @@ macro grad_from_chainrules(fcall)
 end
 
 _add_to_deriv!(d1, d2) = nothing
-function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2::AbstractThunk)
-    increment_deriv!(d1, unthunk(d2))
+function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, d2::AbstractThunk)
+    istracked(d1) && increment_deriv!(d1, unthunk(d2))
+    return nothing
 end
-function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray{<:TrackedReal}}, d2)
-    increment_deriv!(d1, d2)
+function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, d2)
+    istracked(d1) && increment_deriv!(d1, d2)
+    return nothing
 end
 function getargs_expr(args_with_types)
     expr = Expr(:tuple)

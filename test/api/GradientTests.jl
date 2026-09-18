@@ -366,4 +366,44 @@ g_untracked(x, y) = 2.0
     @test_throws MethodError ReverseDiff.gradient!(DiffResults.GradientResult(x), g251, (x, y))
 end
 
+############################################################################################
+
+@testset "arrays with non-concrete eltype (#264)" begin
+    # the MWE from the issue
+    f(u) = last((Real[1.0, 2.0] * u[], u[]))
+    @test ReverseDiff.gradient(f, [2.0]) == [1.0]
+
+    # each operator reaches a different propagation path
+    @test ReverseDiff.gradient(u -> sum(Real[1.0, 2.0] .* u[]), [2.0]) == [3.0]
+    @test ReverseDiff.gradient(u -> sum(Real[1.0, 2.0] .+ u[]), [2.0]) == [2.0]
+    @test ReverseDiff.gradient(u -> sum(Real[1.0, 2.0] .- u[]), [2.0]) == [-2.0]
+    @test ReverseDiff.gradient(u -> sum(u[] .- Real[1.0, 2.0]), [2.0]) == [2.0]
+    @test ReverseDiff.gradient(u -> sum(Real[1.0, 2.0] ./ u[]), [2.0]) == [-0.75]
+    @test ReverseDiff.gradient(u -> sum(u[] ./ Real[1.0, 2.0]), [2.0]) == [1.5]
+
+    # tracked elements must still accumulate, including when one input repeats
+    @test ReverseDiff.gradient(u -> sum(Real[u[1], u[2]] .* 2.0), [2.0, 3.0]) == [2.0, 2.0]
+    @test ReverseDiff.gradient(u -> sum(Real[u[1], u[1]] .* 2.0), [2.0, 3.0]) == [4.0, 0.0]
+
+    # mixed tracked/untracked elements, and `Any` eltype
+    @test ReverseDiff.gradient(u -> sum(Real[3.0, u[2]] .* 2.0), [2.0, 3.0]) == [0.0, 2.0]
+    @test ReverseDiff.gradient(u -> sum(2.0 .- Real[3.0, u[2]]), [2.0, 3.0]) == [0.0, -1.0]
+    @test ReverseDiff.gradient(u -> sum(Any[3.0, u[2]] .* 2.0), [2.0, 3.0]) == [0.0, 2.0]
+
+    # linalg, the other APIs, and tape replay
+    A = Real[1.0 2.0; 3.0 4.0]
+    @test ReverseDiff.gradient(u -> sum(A * u), [1.0, 2.0]) == [4.0, 6.0]
+    @test ReverseDiff.jacobian(u -> A * u, [1.0, 2.0]) == [1.0 2.0; 3.0 4.0]
+    @test ReverseDiff.hessian(u -> sum((A * u) .^ 2), [1.0, 2.0]) == 2 * (A' * A)
+
+    tape = ReverseDiff.GradientTape(u -> sum(A * u), [1.0, 2.0])
+    @test ReverseDiff.gradient!(tape, [5.0, 6.0]) == [4.0, 6.0]
+
+    # `@grad` rules propagate to non-concrete eltype inputs (#145)
+    @test ReverseDiff.gradient(x -> sum([Real[x[1], x[2]]; x[3]]), [1.0, 2.0, 3.0]) == [1.0, 1.0, 1.0]
+    @test ReverseDiff.gradient(x -> sum([Any[x[1], x[2]]; x[3]]), [1.0, 2.0, 3.0]) == [1.0, 1.0, 1.0]
+    @test ReverseDiff.gradient(x -> sum([Real[5.0, x[2]]; x[3]]), [1.0, 2.0, 3.0]) == [0.0, 1.0, 1.0]
+    @test ReverseDiff.gradient(x -> sum([Real[x[1], x[2]] x[3]*ones(2)]), [1.0, 2.0, 3.0]) == [1.0, 1.0, 2.0]
+end
+
 end # module

@@ -97,7 +97,10 @@ const TrackedVecOrMat{V,D} = Union{TrackedVector{V,D}, TrackedMatrix{V,D}}
 istracked(x) = false
 istracked(::TrackedReal) = true
 istracked(::TrackedArray) = true
-istracked(::AbstractArray{T}) where {T} = T <: TrackedReal || !(isconcretetype(T))
+function istracked(::AbstractArray{T}) where {T}
+    # can any tracked type inhabit `T`?
+    return typeintersect(T, TrackedReal) !== Union{} || typeintersect(T, TrackedArray) !== Union{}
+end
 
 @inline value(x) = x
 @inline value(x::AbstractArray) = istracked(x) ? map(value, x) : x
