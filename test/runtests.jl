@@ -42,6 +42,12 @@ test_println(kind, f, pad="  ") = println(pad, "testing $(kind): `$(f)`...")
         println("done (took $t seconds).")
     end
 
+    @testset "PrecisionTests" begin
+        println("running PrecisionTests...")
+        t = @elapsed include(joinpath(TESTDIR, "PrecisionTests.jl"))
+        println("done (took $t seconds).")
+    end
+
     @testset "ElementWiseTests" begin
         println("running ElementwiseTests...")
         t = @elapsed include(joinpath(TESTDIR, "derivatives/ElementwiseTests.jl"))
