@@ -67,6 +67,8 @@ TrackedReal(v::V, a::D, tp::InstructionTape = NULL_TAPE) where {V,D} = TrackedRe
 # TrackedArray #
 #--------------#
 
+supports_linear_indexing(x) = IndexStyle(x) === IndexLinear()
+
 struct TrackedArray{V,D,N,VA,DA} <: AbstractArray{TrackedReal{V,D,TrackedArray{V,D,N,VA,DA}},N}
     value::VA
     deriv::DA
@@ -74,7 +76,7 @@ struct TrackedArray{V,D,N,VA,DA} <: AbstractArray{TrackedReal{V,D,TrackedArray{V
     function TrackedArray{V,D,N,VA,DA}(value::AbstractArray{V,N},
                                        deriv::AbstractArray{D,N},
                                        tape::InstructionTape) where {V,D,N,VA,DA}
-        @assert IndexStyle(value) === IndexLinear()
+        @assert supports_linear_indexing(value)
         @assert size(value) === size(deriv)
         return new{V,D,N,VA,DA}(value, deriv, tape)
     end
