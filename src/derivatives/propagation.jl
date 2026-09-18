@@ -30,8 +30,19 @@ index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} = CartesianIndex
 
 @inline increment_deriv!(t::TrackedArray, x::AbstractArray, i) = (t.deriv[i] += x[i]; nothing)
 @inline increment_deriv!(t::TrackedArray, x::Real, i) = (t.deriv[i] += x; nothing)
-@inline increment_deriv!(t::AbstractArray, x::AbstractArray, i) = increment_deriv!(t[i], x[i])
-@inline increment_deriv!(t::AbstractArray, x::Real, i) = increment_deriv!(t[i], x)
+
+# `istracked(t)` only promises that an element *may* be tracked
+@inline function increment_deriv!(t::AbstractArray, x::AbstractArray, i)
+    ti = t[i]
+    istracked(ti) && increment_deriv!(ti, x[i])
+    return nothing
+end
+
+@inline function increment_deriv!(t::AbstractArray, x::Real, i)
+    ti = t[i]
+    istracked(ti) && increment_deriv!(ti, x)
+    return nothing
+end
 
 function increment_deriv!(t::AbstractArray, x)
     for i in eachindex(t)
@@ -53,8 +64,19 @@ end
 
 @inline decrement_deriv!(t::TrackedArray, x::AbstractArray, i) = (t.deriv[i] -= x[i]; nothing)
 @inline decrement_deriv!(t::TrackedArray, x::Real, i) = (t.deriv[i] -= x; nothing)
-@inline decrement_deriv!(t::AbstractArray, x::AbstractArray, i) = decrement_deriv!(t[i], x[i])
-@inline decrement_deriv!(t::AbstractArray, x::Real, i) = decrement_deriv!(t[i], x)
+
+# `istracked(t)` only promises that an element *may* be tracked
+@inline function decrement_deriv!(t::AbstractArray, x::AbstractArray, i)
+    ti = t[i]
+    istracked(ti) && decrement_deriv!(ti, x[i])
+    return nothing
+end
+
+@inline function decrement_deriv!(t::AbstractArray, x::Real, i)
+    ti = t[i]
+    istracked(ti) && decrement_deriv!(ti, x)
+    return nothing
+end
 
 function decrement_deriv!(t::AbstractArray, x)
     for i in eachindex(t)

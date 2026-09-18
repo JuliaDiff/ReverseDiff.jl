@@ -98,6 +98,24 @@ t = TrackedArray(v, d, tp)
 @test ReverseDiff.istracked(Any[1])
 @test ReverseDiff.istracked([TrackedReal(1, 1)])
 
+# eltypes that cannot hold a tracked value (`TrackedReal <: Real`, but not `<: AbstractFloat`)
+@test !(ReverseDiff.istracked(AbstractString["a"]))
+@test !(ReverseDiff.istracked(Integer[1]))
+@test !(ReverseDiff.istracked(AbstractFloat[1.0]))
+# eltypes that can
+@test ReverseDiff.istracked(Real[1.0])
+@test ReverseDiff.istracked(Number[1.0])
+@test ReverseDiff.istracked(AbstractVector[[1.0]])
+@test ReverseDiff.istracked(Union{Float64,TrackedReal{Float64,Float64,Nothing}}[1.0])
+
+# a vector of `TrackedArray`s is tracked, and `value` and `tape` see through it
+let ta = TrackedArray(rand(2), rand(2), InstructionTape()), v = [ta, ta]
+    @test ReverseDiff.istracked(v)
+    @test ReverseDiff.value(v) == [ReverseDiff.value(ta), ReverseDiff.value(ta)]
+    @test eltype(ReverseDiff.value(v)) === Vector{Float64}
+    @test ReverseDiff.tape(v) === ReverseDiff.tape(ta)
+end
+
 # value #
 #-------#
 
