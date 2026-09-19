@@ -4,6 +4,8 @@ using ReverseDiff, Test
 using Aqua: Aqua
 using ExplicitImports: ExplicitImports
 using JET: JET
+using StaticArrays: StaticArrays
+using StaticArraysCore: StaticArraysCore
 
 # Activates `StatisticsExt`: `runtests.jl` includes this file after `LinAlgTests`
 using Statistics
@@ -23,32 +25,46 @@ const JET_AVAILABLE = pkgversion(JET) >= v"0.12" && JET.JET_AVAILABLE
 end
 
 @testset "ExplicitImports" begin
-    @testset "ReverseDiff" begin
-        @test ExplicitImports.check_all_explicit_imports_via_owners(ReverseDiff) === nothing
+    # Using ReverseDiff's internals inside its own extension is fine, but ExplicitImports cannot
+    # be told so: a package extension is a top-level module, so `Base.moduleroot(STATISTICS_EXT)`
+    # is `StatisticsExt` rather than `ReverseDiff` and `allow_internal_imports`/
+    # `allow_internal_accesses` never apply, while `ignore=(STATISTICS_EXT,)` is rejected because
+    # an extension is not a submodule. Listing the names is the only way to express it -- and it
+    # keeps the extension's dependence on internals visible and reviewable.
+    RD_INTERNALS = (
+        :SpecialInstruction, :TrackedArray, :deriv, :increment_deriv!, :istracked, :record!,
+        :special_forward_exec!, :special_reverse_exec!, :tape, :track, :unseed!, :value, :value!,
+    )
+    # Non-public names in `Base` and in dependencies that predate the `public` keyword.
+    # ReverseDiff itself cannot use `public` either: it requires Julia >= 1.11 and the LTS is 1.10.
+    UPSTREAM_INTERNALS = (
+        # `Base` and `Base.Broadcast`
+        :Broadcasted, :LogicalIndex, :RefValue, :broadcasted, :flatten, :materialize, :rtoldefault,
+        # `Core.Compiler`
+        :Compiler, :return_type,
+        # `DiffResults`
+        :DiffResult, :GradientResult, :ImmutableDiffResult, :derivative, :gradient, :gradient!,
+        :hessian, :jacobian,
+        # `DiffRules`, `ForwardDiff` and `FunctionWrappers`
+        :diffrules, :Dual, :derivative!, :FunctionWrapper,
+    )
+    NONPUBLIC = (RD_INTERNALS..., UPSTREAM_INTERNALS...)
 
-        # plain `using X` statements in `src/ReverseDiff.jl`
-        @test_broken ExplicitImports.check_no_implicit_imports(ReverseDiff) === nothing
-        # `ArrayStyle` and `Partials` are unused
-        @test_broken ExplicitImports.check_no_stale_explicit_imports(ReverseDiff) === nothing
-        # `LinearAlgebra.inv` is owned by `Base`
-        @test_broken ExplicitImports.check_all_qualified_accesses_via_owners(ReverseDiff) ===
-            nothing
-        # code generated in `src/macros.jl` qualifies names with `ReverseDiff.`
-        @test_broken ExplicitImports.check_no_self_qualified_accesses(ReverseDiff) === nothing
-    end
-
-    @testset "StatisticsExt" begin
-        @test ExplicitImports.check_no_implicit_imports(STATISTICS_EXT) === nothing
-        @test ExplicitImports.check_no_stale_explicit_imports(STATISTICS_EXT) === nothing
-        @test ExplicitImports.check_all_explicit_imports_via_owners(STATISTICS_EXT) === nothing
-        @test ExplicitImports.check_all_qualified_accesses_via_owners(STATISTICS_EXT) === nothing
-        @test ExplicitImports.check_no_self_qualified_accesses(STATISTICS_EXT) === nothing
-    end
-
-    # `ext/StatisticsExt.jl` uses internals and ReverseDiff declares no public names
     for m in (ReverseDiff, STATISTICS_EXT)
-        @test_broken ExplicitImports.check_all_explicit_imports_are_public(m) === nothing
-        @test_broken ExplicitImports.check_all_qualified_accesses_are_public(m) === nothing
+        @testset "$(nameof(m))" begin
+            @test ExplicitImports.check_no_implicit_imports(m) === nothing
+            @test ExplicitImports.check_no_stale_explicit_imports(m) === nothing
+            @test ExplicitImports.check_no_self_qualified_accesses(m) === nothing
+            @test ExplicitImports.check_all_qualified_accesses_via_owners(m) === nothing
+            # `SVector` is exported by `StaticArrays` but owned by `StaticArraysCore`
+            @test ExplicitImports.check_all_explicit_imports_via_owners(
+                m; skip=(Base => Core, StaticArrays => StaticArraysCore)
+            ) === nothing
+            @test ExplicitImports.check_all_explicit_imports_are_public(m; ignore=NONPUBLIC) ===
+                nothing
+            @test ExplicitImports.check_all_qualified_accesses_are_public(m; ignore=NONPUBLIC) ===
+                nothing
+        end
     end
 end
 
