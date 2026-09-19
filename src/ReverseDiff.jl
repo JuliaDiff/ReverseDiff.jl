@@ -1,24 +1,18 @@
 module ReverseDiff
 
 using Base: RefValue
-using Random
-using LinearAlgebra
-
+using ChainRulesCore: ChainRulesCore, AbstractThunk, unthunk
+using DiffResults: DiffResults, DiffResult
+using DiffRules: DiffRules
+using ForwardDiff: ForwardDiff, Dual
 using FunctionWrappers: FunctionWrapper
-
-using DiffResults
-using DiffResults: DiffResult
-using DiffRules, SpecialFunctions, NaNMath
-
-using ForwardDiff
-using ForwardDiff: Dual, Partials
-using StaticArrays
-
+using LinearAlgebra: LinearAlgebra, Adjoint, Transpose, det, dot, lmul!, mul!
 using LogExpFunctions: LogExpFunctions
-
-using MacroTools
-
-using ChainRulesCore
+using MacroTools: MacroTools, @capture
+using NaNMath: NaNMath
+using Random: Random
+using SpecialFunctions: SpecialFunctions
+using StaticArrays: StaticArrays, SVector
 
 # Not all operations will be valid over all of these types, but that's okay; such cases
 # will simply error when they hit the original operation in the overloaded definition.

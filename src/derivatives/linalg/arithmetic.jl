@@ -292,4 +292,4 @@ end
 
 ## zero
 
-Base.zero(x::ReverseDiff.TrackedArray) = track(zero(x.value))
+Base.zero(x::TrackedArray) = track(zero(x.value))
