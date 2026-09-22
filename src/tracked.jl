@@ -202,7 +202,7 @@ push_deriv!(x::AbstractArray) = (istracked(x) && foreach(push_deriv!, x); nothin
 # seed/unseed #
 #-------------#
 
-seed!(x) = nothing
+seed!(::Real) = nothing
 seed!(t::TrackedReal) = (t.deriv = one(derivtype(t)); push_deriv!(t); nothing)
 seed!(t::TrackedArray, i) = (t.deriv[i] = one(derivtype(t)); nothing)
 seed!(x::AbstractArray, i) = seed!(x[i])
@@ -516,6 +516,10 @@ track(x::AbstractArray, tp::InstructionTape = InstructionTape()) = track(x, elty
 track(x::Real, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = TrackedReal(x, zero(D), tp)
 
 track(x::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = TrackedArray(x, fill!(similar(x, D), zero(D)), tp)
+
+# every forward pass writes into the value buffer, which a `TrackedArray` rejects
+# TODO: self-nesting, and the `value`/`track` unwrapping elsewhere, risk perturbation confusion
+track(x::TrackedArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = track(collect(x), D, tp)
 
 track!(t::TrackedArray, x::AbstractArray) = (value!(t, x); unseed!(t); t)
 

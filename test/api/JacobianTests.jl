@@ -333,4 +333,9 @@ f251(x) = x .^ 2
     end
 end
 
+@testset "outputs whose element type is not `Real`" begin
+    @test ReverseDiff.jacobian(x -> Any[2 * x[1], 3 * x[2]], [1.0, 2.0]) == [2.0 0.0; 0.0 3.0]
+    @test ReverseDiff.jacobian(x -> [1.0, 2.0], rand(3)) == zeros(2, 3)
+end
+
 end # module

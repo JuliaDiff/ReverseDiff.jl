@@ -31,10 +31,9 @@ setprecision(BigFloat, 256) do
         @test ReverseDiff.gradient(f, x) ≈ ∇f(x) rtol=rtol
     end
 
-    # fused broadcasts lose precision in `ForwardDiff._div_partials` (upstream)
     let f = y -> sum(y .^ 2 ./ 7)
         test_println("BigFloat gradients", f)
-        @test_broken ReverseDiff.gradient(f, x) ≈ 2 .* x ./ 7 rtol=rtol
+        @test ReverseDiff.gradient(f, x) ≈ 2 .* x ./ 7 rtol=rtol
     end
 end
 
