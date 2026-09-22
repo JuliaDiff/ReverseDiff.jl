@@ -225,6 +225,19 @@ end
         tagA, ForwardDiff.Dual{tagB}(1.0, 2.0), 1)
 end
 
+@testset "a perturbation the derivative cannot hold is rejected (#67, #168)" begin
+    # `a` reaches the broadcast as a `Dual`, but the tape's derivatives are `Float64`
+    g(a) = sum(ReverseDiff.gradient(x -> sum(x .* a), [1.0, 2.0]))
+    E = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g),Float64},Float64,1}
+    msg = "a broadcast argument with element type $E carries a perturbation that a derivative of type Float64 cannot hold"
+
+    @test_throws ArgumentError(msg) ForwardDiff.derivative(g, 3.0)
+
+    # a tape whose derivatives are themselves `Dual`s can hold it, so it is left alone
+    h(a) = ReverseDiff.gradient(x -> sum(x .* a), [ForwardDiff.Dual(1.0, 0.0)])
+    @test h(3.0) == [ForwardDiff.Dual(3.0, 0.0)]
+end
+
 @testset "zero-dimensional arrays (#265)" begin
     a = rand(1)
 

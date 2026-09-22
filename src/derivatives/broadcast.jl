@@ -15,13 +15,23 @@ struct NotTracked{F} <: Function
 end
 (f::NotTracked{<:Union{Function, Type}})(args...; kwargs...) = f.f(args...; kwargs...)
 
-istypeorclosure(::F) where {F} = _istypeorclosure(F)
-istypeorclosure(::AbstractArray{F}) where {F} = _istypeorclosure(F)
-istypeorclosure(::Base.RefValue{F}) where {F} = _istypeorclosure(F)
-istypeorclosure(::AbstractArray{<:Real}) = false
-istypeorclosure(::TrackedArray) = false
-istypeorclosure(::Real) = false
-@generated function _istypeorclosure(::Type{F}) where {F}
+# an argument is seeded itself, or elementwise, so its own tracked values are in plain sight; a
+# `Ref` is handed to `f` whole, so nothing inside one is
+mayhidetracked(b::F) where {F} = _mayhidetracked(F)
+mayhidetracked(::AbstractArray{F}) where {F} = _mayhidetracked(F)
+mayhidetracked(::Base.RefValue{F}) where {F} = _mayhidetracked(F)
+mayhidetracked(::AbstractArray{<:Real}) = false
+mayhidetracked(::Real) = false
+mayhidetracked(b::Type) = false
+mayhidetracked(b::ForwardOptimize) = mayhidetracked(b.f)
+mayhidetracked(b::SkipOptimize) = mayhidetracked(b.f)
+mayhidetracked(b::Broadcasted) = mayhidetracked(b.f) || any(mayhidetracked, b.args)
+
+# below the argument nothing is seeded, so a tracked value is hidden wherever it sits: recurse
+# into what a container holds rather than ask about the container
+_mayhidetracked(::Type{<:NotTracked}) = false
+_mayhidetracked(::Type{<:AbstractArray{F}}) where {F} = _mayhidetracked(F)
+@generated function _mayhidetracked(::Type{F}) where {F}
     # `fieldcount` errors for types without a definite number of fields, such as
     # `Type{T}` and abstract types; be conservative in that case.
     hasfields = try
@@ -31,14 +41,6 @@ istypeorclosure(::Real) = false
     end
     return :($hasfields)
 end
-
-mayhavetracked(b) = istypeorclosure(b)
-mayhavetracked(b::Type) = false
-mayhavetracked(b::NotTracked) = false
-mayhavetracked(b::ForwardOptimize) = mayhavetracked(b.f)
-mayhavetracked(b::SkipOptimize) = mayhavetracked(b.f)
-mayhavetracked(b::Base.RefValue{<:NotTracked}) = false
-mayhavetracked(b::Broadcasted) = mayhavetracked(b.f) || any(mayhavetracked, b.args)
 
 struct TrackedStyle{N} <: AbstractArrayStyle{N} end
 
@@ -87,7 +89,7 @@ function Base.copy(_bc::Broadcasted{<:TrackedStyle})
     f, args = flattened_bc.f, flattened_bc.args
     # only the arguments are seeded, so a tracked value reaching `f` by another route, such
     # as a closure capturing one, has to be traced scalar-wise
-    if mayhavetracked(_bc)
+    if mayhidetracked(_bc)
         axs = flattened_bc.axes
         style = typeof(Broadcast.combine_styles(map(recur_value, args)...))
         return copy(Broadcasted{style, typeof(axs), typeof(f), typeof(args)}(f, args, axs))
@@ -257,8 +259,23 @@ replaycache(::Type{T}, results::AbstractArray, df, vf, targs) where {T} =
 replaycache(::Type, ::KnownPartials, df, vf, targs) =
     (vf, broadcast(vf, map(value, targs)...))
 
+# the seed is contracted with an argument, so a perturbation riding on one ends up in the
+# derivative and `D` has to be able to hold it; a widened element type is a `Union`
+@inline function checkargtags(::Type{D}, ::Type{E}) where {D, E}
+    if E isa Union
+        checkargtags(D, E.a)
+        checkargtags(D, E.b)
+    elseif ForwardDiff.tagtype(E) !== Nothing && !(promote_type(D, E) <: D)
+        throw(ArgumentError(LazyString("a broadcast argument with element type ", E,
+                                       " carries a perturbation that a derivative of type ", D,
+                                       " cannot hold")))
+    end
+    return nothing
+end
+
 # `df` hands back `f`'s own result, so `results` keeps the element type `Base` would produce
 @inline function recordresults(::Type{T}, results, df, vf, targs, ::Type{D}) where {T, D}
+    foreach(t -> checkargtags(D, eltype(value(t))), targs)
     g, outvalue = replaycache(T, results, df, vf, targs)
     tp = tape(targs...)
     out = track(outvalue, D, tp)
