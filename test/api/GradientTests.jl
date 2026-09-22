@@ -406,4 +406,24 @@ end
     @test ReverseDiff.gradient(x -> sum([Real[x[1], x[2]] x[3]*ones(2)]), [1.0, 2.0, 3.0]) == [1.0, 1.0, 2.0]
 end
 
+############################################################################################
+
+@testset "indexing a zero-dimensional `TrackedArray` (#126)" begin
+    # the MWE from the issue
+    @test ReverseDiff.gradient(x -> x[], fill(1.0)) == fill(1.0)
+
+    # `t[]`, `t[1]` and `t[CartesianIndex()]` are the same element
+    @test ReverseDiff.gradient(x -> x[]^3, fill(2.0)) == fill(12.0)
+    @test ReverseDiff.gradient(x -> x[1]^3, fill(2.0)) == fill(12.0)
+    @test ReverseDiff.gradient(x -> x[CartesianIndex()]^3, fill(2.0)) == fill(12.0)
+
+    # the other APIs, and tape replay
+    @test ReverseDiff.jacobian(x -> fill(x[]^2), fill(3.0)) == fill(6.0, 1, 1)
+    @test ReverseDiff.hessian(x -> x[]^3, fill(2.0)) == fill(12.0, 1, 1)
+
+    tape = ReverseDiff.GradientTape(x -> x[]^3, fill(2.0))
+    @test ReverseDiff.gradient!(tape, fill(4.0)) == fill(48.0)
+    @test ReverseDiff.gradient!(ReverseDiff.compile(tape), fill(4.0)) == fill(48.0)
+end
+
 end # module

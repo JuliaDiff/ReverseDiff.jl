@@ -743,6 +743,14 @@ for inds in ((rowmask, :), (:, colmask), (rowmask, 2:3), (mask,), (vec(mask),))
     empty!(tp)
 end
 
+# a 0-d array has no index to dispatch on, which used to be ambiguous (#126)
+tp0 = InstructionTape()
+ta0 = TrackedArray(fill(varr[1]), fill(darr[1]), tp0)
+@test samefields(ta0[], ta0[1])
+@test samefields(ta0[], ta0[CartesianIndex()])
+@test ta0[].origin === ta0
+@test isempty(tp0)
+
 # `view` aliases the parent's buffers, so nothing needs to be recorded
 ta_view = @inferred view(ta, :, 2)
 @test samefields(ta_view, TrackedArray(varr[:, 2], darr[:, 2], tp))
