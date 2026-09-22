@@ -331,16 +331,16 @@ macro grad_from_chainrules(fcall)
     end
     args_l, args_r, args_track, args_fixed, arg_types, kwargs = _make_fwd_args(f, xs)
     return quote
-        $f($(args_l...)) = ReverseDiff.track($(args_r...))
-        function ReverseDiff.track($(args_track...))
+        $f($(args_l...)) = $ReverseDiff.track($(args_r...))
+        function $ReverseDiff.track($(args_track...))
             args = ($(args_fixed...),)
-            tp = ReverseDiff.tape(args...)
-            output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; $kwargs...)
-            output = ReverseDiff.track(output_value, tp)
-            closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule($f, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
-            ReverseDiff.record!(
+            tp = $ReverseDiff.tape(args...)
+            output_value, back = $ChainRulesCore.rrule($f, map($ReverseDiff.value, args)...; $kwargs...)
+            output = $ReverseDiff.track(output_value, tp)
+            closure(cls_args...; cls_kwargs...) = $ChainRulesCore.rrule($f, map($ReverseDiff.value, cls_args)...; cls_kwargs...)
+            $ReverseDiff.record!(
                 tp,
-                ReverseDiff.SpecialInstruction,
+                $ReverseDiff.SpecialInstruction,
                 $f,
                 args,
                 output,
@@ -349,25 +349,25 @@ macro grad_from_chainrules(fcall)
             return output
         end
 
-        @noinline function ReverseDiff.special_reverse_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+        @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
             output = instruction.output
             input = instruction.input
             back = instruction.cache[1]
-            back_output = back(ReverseDiff.deriv(output))
+            back_output = back($ReverseDiff.deriv(output))
             input_derivs = back_output[2:end]
             @assert input_derivs isa Tuple
-            ReverseDiff._add_to_deriv!.(input, input_derivs)
-            ReverseDiff.unseed!(output)
+            $ReverseDiff._add_to_deriv!.(input, input_derivs)
+            $ReverseDiff.unseed!(output)
             return nothing
         end
 
-        @noinline function ReverseDiff.special_forward_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+        @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
             output, input = instruction.output, instruction.input
-            ReverseDiff.pull_value!.(input)
+            $ReverseDiff.pull_value!.(input)
             pullback = instruction.cache[2]
             kwargs = instruction.cache[3]
             out_value = pullback(input...; kwargs...)[1]
-            ReverseDiff.value!(output, out_value)
+            $ReverseDiff.value!(output, out_value)
             return nothing
         end
     end

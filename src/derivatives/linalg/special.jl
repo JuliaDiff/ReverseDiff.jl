@@ -52,7 +52,7 @@ end
 # inv #
 #######
 
-function LinearAlgebra.inv(x::TrackedArray{V,D}) where {V,D}
+function Base.inv(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
     out_value = inv(value(x))
     out = track(out_value, D, tp)

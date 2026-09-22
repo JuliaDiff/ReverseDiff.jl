@@ -4,6 +4,8 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliadiff.org/ReverseDiff.jl/dev)
 [![Build status](https://github.com/JuliaDiff/ReverseDiff.jl/workflows/CI/badge.svg)](https://github.com/JuliaDiff/ReverseDiff.jl/actions)
 [![codecov.io](https://codecov.io/github/JuliaDiff/ReverseDiff.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![JET QA](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
 
 [**See ReverseDiff Usage Examples**](https://github.com/JuliaDiff/ReverseDiff.jl/tree/master/examples)
 

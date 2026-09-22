@@ -2,7 +2,7 @@
 ## Broadcasting ##
 ##################
 
-using Base.Broadcast: BroadcastStyle, ArrayStyle, Broadcasted, broadcasted
+using Base.Broadcast: BroadcastStyle, Broadcasted, broadcasted
 using ForwardDiff: ForwardDiff, Dual
 import Base.Broadcast: materialize
 const RDBroadcasted{F, T} = Broadcasted{<:Any, <:Any, F, T}
