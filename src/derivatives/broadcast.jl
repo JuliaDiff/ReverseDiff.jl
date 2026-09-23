@@ -52,9 +52,7 @@ Broadcast.BroadcastStyle(::Type{<:AbstractArray{<:TrackedReal{<:Any,D},N}}) wher
 
 # `AbstractArrayStyle{Any}` carries `Any` as its dimension, which `max` cannot compare
 _maxdim(M::Int, N::Int) = max(M, N)
-_maxdim(::Type{Any}, ::Int) = Any
-_maxdim(::Int, ::Type{Any}) = Any
-_maxdim(::Type{Any}, ::Type{Any}) = Any
+_maxdim(_, _) = Any
 
 # tracked values must stay tracked, so take precedence over every other array style
 Broadcast.BroadcastStyle(::TrackedStyle{M}, ::AbstractArrayStyle{N}) where {M,N} =
@@ -283,9 +281,6 @@ end
     record!(tp, SpecialInstruction, ∇broadcast, targs, out, cache)
     return out
 end
-
-@inline trackresults(::Type{T}, results::AbstractArray{<:Dual{T}}, df, vf, targs,
-                     ::Type{D}) where {T, D} = recordresults(T, results, df, vf, targs, D)
 
 @inline trackresults(::Type{T}, results::KnownPartials, df, vf, targs,
                      ::Type{D}) where {T, D} = recordresults(T, results, df, vf, targs, D)
