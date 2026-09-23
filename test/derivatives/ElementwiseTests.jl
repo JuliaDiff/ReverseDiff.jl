@@ -474,4 +474,14 @@ end
     end
 end
 
+@testset "`map` over arrays of different lengths" begin
+    v = [0.5, 0.7, 0.9]
+    c = [1.5, 2.5]
+
+    for f in (t -> sum(map(*, t, c)), t -> sum(map(+, c, t)),
+              t -> sum(map(atan, t, 2 .* t[2:3])))
+        @test ReverseDiff.gradient(f, v) ≈ ForwardDiff.gradient(f, v)
+    end
+end
+
 end # module

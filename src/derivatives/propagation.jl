@@ -116,7 +116,7 @@ _contract(e::Contract, seed, i, args) = e.op(seed, map(a -> _at(a, i, args), e.a
 
 function diffresult_increment_deriv!(::Type{T}, input::AbstractArray, x::AbstractArray,
                                      results::AbstractArray, p::Int) where {T}
-    for i in eachindex(input, x, results)
+    for i in eachindex(x, results)
         increment_deriv!(input, x[i] * getpartial(T, results[i], p), i)
     end
     return nothing
