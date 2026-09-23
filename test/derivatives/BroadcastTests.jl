@@ -379,6 +379,9 @@ end
     @test ReverseDiff.gradient(t -> sum(t ./ w), v) == 1 ./ w
     @test ReverseDiff.gradient(t -> sum(w .\ t), v) == 1 ./ w
     @test ReverseDiff.gradient(t -> sum(t .* t), v) == 2 .* v
+    @test ReverseDiff.gradient(t -> sum(t .* Real[w...]), v) == w
+    @test ReverseDiff.gradient(t -> sum(t .* [t[i] for i in 1:3]), v) == 2 .* v
+    @test ReverseDiff.gradient(t -> sum(t' .* t'), v) == 2 .* v
 
     # `-x/y^2` is no argument of the broadcast, so it is read off a `Dual`
     @test ReverseDiff.gradient(t -> sum(w ./ t), v) == -w ./ v .^ 2

@@ -108,7 +108,7 @@ struct Contract{Op,A<:Tuple}
     args::A
 end
 
-_at(::Val{j}, i, args) where {j} = _elem(value(args[j]), i)
+_at(::Val{j}, i, args) where {j} = _elem(args[j], i)
 _elem(v::Real, i) = v
 _elem(v::AbstractArray, i) = v[i]
 

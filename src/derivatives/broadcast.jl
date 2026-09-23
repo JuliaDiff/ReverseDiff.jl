@@ -324,8 +324,9 @@ end
     results, _, tag, bounds = instruction.cache
     T = typeof(tag)
     slots, _ = trackedslots(input)
+    vals = map(value, input)
     map((x, slot, bound) ->
-            _br_add_to_deriv!(T, x, slot, output_deriv, results, bound, input),
+            _br_add_to_deriv!(T, x, slot, output_deriv, results, bound, vals),
         input, slots, bounds)
     unseed!(output)
     return nothing
