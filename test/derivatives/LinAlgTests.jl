@@ -309,4 +309,34 @@ for (f, J) in (
     test_approx(ReverseDiff.jacobian!(ctp, x), J)
 end
 
+function test_jacobian(f, x, J)
+    test_approx(ReverseDiff.jacobian(f, x), J)
+    ctp = ReverseDiff.compile(ReverseDiff.JacobianTape(f, x))
+    test_approx(ReverseDiff.jacobian!(ctp, x), J)
+end
+
+# Constant structured factors
+c = rand(3, 3)
+for W in (Diagonal(diag(c)), UpperTriangular(c), LowerTriangular(c), UnitUpperTriangular(c), UnitLowerTriangular(c))
+    test_println("*(A, B) functions with structured matrices", typeof(W))
+    test_jacobian(y -> W * y, rand(3), Matrix(W))
+    test_jacobian(y -> W * y, rand(3, 2), kron(I(2), Matrix(W)))
+    test_jacobian(y -> y * W, rand(2, 3), kron(transpose(Matrix(W)), I(2)))
+end
+
+# Row vectors
+v, V, M = rand(3), rand(2, 1), rand(3, 2)
+for f in (transpose, adjoint)
+    test_println("*(A, B) functions with row vectors", f)
+    for (h, x) in (
+        ((f, u) -> u * f(u), rand(3)),
+        ((f, u) -> u * f(v), rand(2, 1)),
+        ((f, u) -> V * f(u), rand(3)),
+        ((f, u) -> f(u) * M, rand(3)),
+        ((f, u) -> f(v) * u, rand(3, 2)),
+    )
+        test_jacobian(u -> h(f, u), x, ReverseDiff.jacobian(u -> h(x -> reshape(x, 1, :), u), x))
+    end
+end
+
 end # module
