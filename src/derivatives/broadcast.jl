@@ -46,9 +46,9 @@ struct TrackedStyle{N} <: AbstractArrayStyle{N} end
 
 (::Type{<:TrackedStyle})(::Val{N}) where {N} = TrackedStyle{N}()
 
-Broadcast.BroadcastStyle(::Type{<:TrackedArray{V,D,N}}) where {V,D,N} = TrackedStyle{N}()
 Broadcast.BroadcastStyle(::Type{<:TrackedReal}) = TrackedStyle{0}()
-Broadcast.BroadcastStyle(::Type{<:AbstractArray{<:TrackedReal,N}}) where {N} = TrackedStyle{N}()
+Broadcast.BroadcastStyle(::Type{<:AbstractArray{<:TrackedReal{<:Any,D},N}}) where {D,N} =
+    TrackedStyle{N}()
 
 # `AbstractArrayStyle{Any}` carries `Any` as its dimension, which `max` cannot compare
 _maxdim(M::Int, N::Int) = max(M, N)
@@ -105,7 +105,6 @@ Base.copyto!(::TrackedArray, ::Broadcasted{<:TrackedStyle}) = _no_tracked_dest()
 Base.copyto!(::TrackedArray, ::Broadcasted{<:DefaultArrayStyle}) = _no_tracked_dest()
 
 getouttype(::TrackedReal{<:Any, D}) where {D} = D
-getouttype(::TrackedArray{<:Any, D}) where {D} = D
 getouttype(::AbstractArray{<:TrackedReal{<:Any, D}}) where {D} = D
 getouttype(::Any) = Union{}
 

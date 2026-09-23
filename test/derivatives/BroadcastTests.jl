@@ -199,6 +199,17 @@ end
     @test map(deriv, x) ≈ b
 end
 
+@testset "an array of `TrackedReal`s with an abstract element type" begin
+    a = [1.0, 2.0]
+
+    @test ReverseDiff.gradient(u -> sum(TrackedReal[u[1], u[2]] .* 2.0), a) == [2.0, 2.0]
+    @test ReverseDiff.gradient(u -> sum(exp.(TrackedReal[u[1], u[2]])), a) ≈ exp.(a)
+    @test ReverseDiff.gradient(u -> sum(u .* TrackedReal[u[2], u[1]]), a) == [4.0, 2.0]
+
+    tape = ReverseDiff.GradientTape(u -> sum(exp.(TrackedReal[u[1], u[2]])), a)
+    @test ReverseDiff.gradient!(tape, [0.5, 1.5]) ≈ exp.([0.5, 1.5])
+end
+
 @testset "functions constant in their argument" begin
     a = rand(3)
 
