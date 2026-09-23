@@ -518,7 +518,7 @@ track(x::Real, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = T
 track(x::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = TrackedArray(x, fill!(similar(x, D), zero(D)), tp)
 
 # every forward pass writes into the value buffer, which a `TrackedArray` rejects
-# TODO: self-nesting, and the `value`/`track` unwrapping elsewhere, risk perturbation confusion
+# TODO: self-nesting, and the `value`/`track` unwrapping elsewhere, risk perturbation confusion (#45)
 track(x::TrackedArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = track(collect(x), D, tp)
 
 track!(t::TrackedArray, x::AbstractArray) = (value!(t, x); unseed!(t); t)
