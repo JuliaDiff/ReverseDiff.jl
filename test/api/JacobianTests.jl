@@ -251,6 +251,11 @@ for f in (DiffTests.ARRAY_TO_ARRAY_FUNCS..., DiffTests.MATRIX_TO_MATRIX_FUNCS...
     test_unary_jacobian(f, rand(5, 5))
 end
 
+for f in DiffTests.VECTOR_TO_VECTOR_FUNCS
+    test_println("VECTOR_TO_VECTOR_FUNCS", f)
+    test_unary_jacobian(f, rand(5))
+end
+
 for f! in DiffTests.INPLACE_ARRAY_TO_ARRAY_FUNCS
     test_println("INPLACE_ARRAY_TO_ARRAY_FUNCS", f!)
     test_unary_jacobian(f!, rand(25), rand(25))

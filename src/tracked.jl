@@ -473,6 +473,10 @@ end
 Base.one(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(one(V))
 Base.zero(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(zero(V))
 
+# neither identity depends on the origin (#172)
+Base.one(::Type{TrackedReal{V,D}}) where {V,D} = TrackedReal{V,D,Nothing}(one(V))
+Base.zero(::Type{TrackedReal{V,D}}) where {V,D} = TrackedReal{V,D,Nothing}(zero(V))
+
 Base.rand(::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(rand(V))
 Base.rand(rng::Random.AbstractRNG, ::Type{TrackedReal{V,D,O}}) where {V,D,O} = TrackedReal{V,D,O}(rand(rng, V))
 
