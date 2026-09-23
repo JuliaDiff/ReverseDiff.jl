@@ -47,6 +47,8 @@ end
                              (TrackedStyle{1}(), TrackedStyle{2}(), TrackedStyle{2}()),
                              (TrackedStyle{1}(), Unknown(), TrackedStyle{1}()),
                              (TrackedStyle{1}(), ForeignStyle(), TrackedStyle{Any}()),
+                             (TrackedStyle{Any}(), ForeignStyle(), TrackedStyle{Any}()),
+                             (TrackedStyle{Any}(), DefaultArrayStyle{1}(), TrackedStyle{Any}()),
                              # a scalar loses to a tuple, as in `Base`
                              (TrackedStyle{0}(), Style{Tuple}(), Style{Tuple}()),
                              (TrackedStyle{1}(), Style{Tuple}(), TrackedStyle{1}()))
@@ -64,6 +66,7 @@ end
     @test result_style(TrackedStyle{2}(), BroadcastStyle(typeof(d))) === TrackedStyle{2}()
     @test result_style(TrackedStyle{2}(), BroadcastStyle(typeof(u))) === TrackedStyle{2}()
     @test result_style(TrackedStyle{1}(), BroadcastStyle(typeof(s))) === TrackedStyle{1}()
+    @test result_style(TrackedStyle{Any}(), BroadcastStyle(typeof(s))) === TrackedStyle{Any}()
 
     tp = InstructionTape()
     @test track(a, tp) .* d isa TrackedArray
@@ -107,14 +110,28 @@ end
     end
 end
 
-@testset "`@forward` wrappers do not force the fallback path" begin
-    tp = InstructionTape()
-    x = track(rand(3, 3), tp)
+@testset "`@forward` and `@skip` wrappers do not force the fallback path" begin
+    for wrapper in (ReverseDiff.ForwardOptimize, ReverseDiff.SkipOptimize)
+        tp = InstructionTape()
+        x = track(rand(3, 3), tp)
 
-    y = broadcast(ReverseDiff.ForwardOptimize(exp), x)
+        y = broadcast(wrapper(exp), x)
+
+        @test y isa TrackedArray
+        @test length(tp) == 1
+    end
+end
+
+@testset "a type broadcast as a function does not force the fallback path" begin
+    tp = InstructionTape()
+    x = track(rand(3), tp)
+
+    y = Real.(x)
 
     @test y isa TrackedArray
     @test length(tp) == 1
+    @test tp[1].func === ReverseDiff.∇broadcast
+    @test ReverseDiff.gradient(v -> sum(Real.(v)), [1.0, 2.0]) == [1.0, 1.0]
 end
 
 @testset "scalar-array broadcasting preserves the derivative type" begin
@@ -232,6 +249,12 @@ end
     msg = "a broadcast argument with element type $E carries a perturbation that a derivative of type Float64 cannot hold"
 
     @test_throws ArgumentError(msg) ForwardDiff.derivative(g, 3.0)
+
+    # a widened element type is checked member by member
+    g2(a) = sum(ReverseDiff.gradient(x -> sum(x .* Union{Float64,typeof(a)}[1.0, a]), [1.0, 2.0]))
+    E2 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g2),Float64},Float64,1}
+    msg2 = "a broadcast argument with element type $E2 carries a perturbation that a derivative of type Float64 cannot hold"
+    @test_throws ArgumentError(msg2) ForwardDiff.derivative(g2, 3.0)
 
     # a tape whose derivatives are themselves `Dual`s can hold it, so it is left alone
     h(a) = ReverseDiff.gradient(x -> sum(x .* a), [ForwardDiff.Dual(1.0, 0.0)])
