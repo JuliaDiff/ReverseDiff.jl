@@ -257,10 +257,10 @@ end
         1.0, ForwardDiff.Dual{tagA}(2.0, 3.0)]
     nested = Union{Float64,ForwardDiff.Dual{tagB,Float64,1}}[1.0]
 
-    @test ReverseDiff.trackresults(tagB, concrete, identity, identity, (), Float64) === concrete
-    @test ReverseDiff.trackresults(tagB, widened, identity, identity, (), Float64) === widened
+    @test ReverseDiff.trackresults(tagB, concrete, identity, identity, (), (), Float64) === concrete
+    @test ReverseDiff.trackresults(tagB, widened, identity, identity, (), (), Float64) === widened
     @test_throws ForwardDiff.DualMismatchError ReverseDiff.trackresults(
-        tagA, nested, identity, identity, (), Float64)
+        tagA, nested, identity, identity, (), (), Float64)
 
     @test ReverseDiff.getpartial(tagA, ForwardDiff.Dual{tagA}(1.0, 2.0), 1) == 2.0
     @test ReverseDiff.getpartial(tagA, 1.0, 1) == 0.0

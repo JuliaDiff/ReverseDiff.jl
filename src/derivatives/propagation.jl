@@ -143,28 +143,31 @@ function diffresult_increment_deriv!(::Type{T}, input::TrackedReal, x::AbstractA
     return nothing
 end
 
-# a closed-form partial is named rather than stored, so `args` stands where an index would
-function diffresult_increment_deriv!(::Type, input::AbstractArray, x::AbstractArray,
-                                     results::Contract, args::Tuple)
+#############################
+# contract_increment_deriv! #
+#############################
+
+function contract_increment_deriv!(input::AbstractArray, x::AbstractArray, e::Contract,
+                                   args::Tuple)
     for i in eachindex(input, x)
-        increment_deriv!(input, _contract(results, x[i], i, args), i)
+        increment_deriv!(input, _contract(e, x[i], i, args), i)
     end
     return nothing
 end
 
-function diffresult_increment_deriv!(::Type, input::AbstractArray, x::AbstractArray,
-                                     results::Contract, args::Tuple, bound::CartesianIndex)
+function contract_increment_deriv!(input::AbstractArray, x::AbstractArray, e::Contract,
+                                   args::Tuple, bound::CartesianIndex)
     for i in CartesianIndices(size(x))
-        increment_deriv!(input, _contract(results, x[i], i, args), min(bound, i))
+        increment_deriv!(input, _contract(e, x[i], i, args), min(bound, i))
     end
     return nothing
 end
 
-function diffresult_increment_deriv!(::Type, input::TrackedReal, x::AbstractArray,
-                                     results::Contract, args::Tuple, ::Nothing)
+function contract_increment_deriv!(input::TrackedReal, x::AbstractArray, e::Contract,
+                                   args::Tuple, ::Nothing)
     isempty(x) && return nothing
     pull_deriv!(input)
-    input.deriv += sum(i -> _contract(results, x[i], i, args), eachindex(x))
+    input.deriv += sum(i -> _contract(e, x[i], i, args), eachindex(x))
     push_deriv!(input)
     return nothing
 end

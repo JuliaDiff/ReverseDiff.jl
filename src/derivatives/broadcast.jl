@@ -247,15 +247,14 @@ broadcastresults(entries::Tuple, slots, df, vals) =
     # known partials leave nothing to read off a `Dual`, so `f` is evaluated undualized
     vf(x::Vararg{Any,N}) where {N} = splatcall(f, x, untracked, inds)
     entries = knownpartials(f, args...)
-    return trackresults(T, broadcastresults(entries, slots, df, vals), df, vf, targs, D)
+    return trackresults(T, broadcastresults(entries, slots, df, vals), df, vf, targs, vals, D)
 end
 
 # the cache carries what the replay needs: `df` to recompute the stored partials, or, where
 # they are known already, `vf` for the values alone
-replaycache(::Type{T}, results::AbstractArray, df, vf, targs) where {T} =
+replaycache(::Type{T}, results::AbstractArray, df, _, _) where {T} =
     (df, map(y -> ForwardDiff.value(T, y), results))
-replaycache(::Type, ::KnownPartials, df, vf, targs) =
-    (vf, broadcast(vf, map(value, targs)...))
+replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
 
 # the seed is contracted with an argument, so a perturbation riding on one ends up in the
 # derivative and `D` has to be able to hold it; a widened element type is a `Union`
@@ -272,9 +271,10 @@ replaycache(::Type, ::KnownPartials, df, vf, targs) =
 end
 
 # `df` hands back `f`'s own result, so `results` keeps the element type `Base` would produce
-@inline function recordresults(::Type{T}, results, df, vf, targs, ::Type{D}) where {T, D}
-    foreach(t -> checkargtags(D, eltype(value(t))), targs)
-    g, outvalue = replaycache(T, results, df, vf, targs)
+@inline function recordresults(::Type{T}, results, df, vf, targs, vals,
+                               ::Type{D}) where {T, D}
+    foreach(v -> checkargtags(D, eltype(v)), vals)
+    g, outvalue = replaycache(T, results, df, vf, vals)
     tp = tape(targs...)
     out = track(outvalue, D, tp)
     cache = (results, g, T(), map(t -> index_bound(t, out), targs))
@@ -282,8 +282,8 @@ end
     return out
 end
 
-@inline trackresults(::Type{T}, results::KnownPartials, df, vf, targs,
-                     ::Type{D}) where {T, D} = recordresults(T, results, df, vf, targs, D)
+@inline trackresults(::Type{T}, results::KnownPartials, df, vf, targs, vals,
+                     ::Type{D}) where {T, D} = recordresults(T, results, df, vf, targs, vals, D)
 
 # an enclosing differentiation's tag is constant in our arguments, while one nested inside
 # `f` buries our partial; a widened element type is a `Union`, so every member is checked
@@ -302,13 +302,13 @@ end
 
 # a type-unstable `f`, such as one with an integer literal branch, leaves an abstract
 # element type that can still hide a `Dual{T}`
-@inline function trackresults(::Type{T}, results::AbstractArray, df, vf, targs,
+@inline function trackresults(::Type{T}, results::AbstractArray, df, vf, targs, vals,
                               ::Type{D}) where {T, D}
     if typeintersect(eltype(results), Dual{T}) === Union{}
         checktags(T, eltype(results))
         return results
     else
-        return recordresults(T, results, df, vf, targs, D)
+        return recordresults(T, results, df, vf, targs, vals, D)
     end
 end
 
@@ -327,29 +327,27 @@ end
     return nothing
 end
 
-# a per-element cache is indexed by the slot, a closed-form one is picked out by it
-selectpartial(results, ::Val{k}, args) where {k} = (results, k)
-selectpartial(p::KnownPartials, ::Val{k}, args) where {k} = (p.entries[k], args)
-
 _br_add_to_deriv!(::Type, _, ::Val{0}, _, _, ::CartesianIndex, _) = nothing
 _br_add_to_deriv!(::Type, _, ::Val{0}, _, _, ::Nothing, _) = nothing
 
 # an argument broadcast to the full output shape needs no index clamping
-function _br_add_to_deriv!(::Type{T}, x, slot::Val{k}, out_deriv, results,
-                           bound::CartesianIndex, args) where {T, k}
-    results, sel = selectpartial(results, slot, args)
+function _br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results,
+                           bound::CartesianIndex, args) where {T}
     if bound == CartesianIndex(size(out_deriv))
-        return diffresult_increment_deriv!(T, x, out_deriv, results, sel)
+        return _increment_deriv!(T, x, out_deriv, results, slot, args)
     else
-        return diffresult_increment_deriv!(T, x, out_deriv, results, sel, bound)
+        return _increment_deriv!(T, x, out_deriv, results, slot, args, bound)
     end
 end
 
-function _br_add_to_deriv!(::Type{T}, x, slot::Val{k}, out_deriv, results, ::Nothing,
-                           args) where {T, k}
-    results, sel = selectpartial(results, slot, args)
-    return diffresult_increment_deriv!(T, x, out_deriv, results, sel, nothing)
-end
+_br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results, ::Nothing, args) where {T} =
+    _increment_deriv!(T, x, out_deriv, results, slot, args, nothing)
+
+# a per-element cache is indexed by the slot, a closed-form one is picked out by it
+_increment_deriv!(::Type{T}, x, out_deriv, results, ::Val{k}, args, bound...) where {T, k} =
+    diffresult_increment_deriv!(T, x, out_deriv, results, k, bound...)
+_increment_deriv!(::Type, x, out_deriv, p::KnownPartials, ::Val{k}, args, bound...) where {k} =
+    contract_increment_deriv!(x, out_deriv, p.entries[k], args, bound...)
 
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input, output = instruction.input, instruction.output
