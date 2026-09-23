@@ -289,4 +289,24 @@ test_arr2arr_inplace(mul!, *, x, transpose(a), adjoint(b), tp)
 A = [1 2; 3 4]; x = [5, 6];
 @test ReverseDiff.gradient(y -> sum(y'*A), x) == [3, 7]
 
+# Derivatives w.r.t. structured factors (https://github.com/JuliaDiff/DiffTests.jl/issues/13)
+x = rand(3, 3)
+# For a structural projection `S`, d(S(Y) * Y) = S(dY) * Y + S(Y) * dY and
+# d(Y * S(Y)) = dY * S(Y) + Y * S(dY)
+mask(S) = Diagonal(vec(Matrix(S(ones(3, 3)))))
+jac_lmul(S) = kron(transpose(x), I(3)) * mask(S) + kron(I(3), Matrix(S(x)))
+jac_rmul(S) = kron(transpose(Matrix(S(x))), I(3)) + kron(I(3), x) * mask(S)
+for (f, J) in (
+    (y -> Diagonal(y) * y, jac_lmul(Diagonal)),
+    (y -> UpperTriangular(y) * y, jac_lmul(UpperTriangular)),
+    (y -> y * LowerTriangular(y), jac_rmul(LowerTriangular)),
+    (y -> transpose(UpperTriangular(transpose(y))) * y, jac_lmul(LowerTriangular)),
+    (y -> y * adjoint(LowerTriangular(adjoint(y))), jac_rmul(UpperTriangular)),
+)
+    test_println("*(A, B) functions with structured matrices", f)
+    test_approx(ReverseDiff.jacobian(f, x), J)
+    ctp = ReverseDiff.compile(ReverseDiff.JacobianTape(f, x))
+    test_approx(ReverseDiff.jacobian!(ctp, x), J)
+end
+
 end # module

@@ -165,6 +165,31 @@ mulargpullvalue!(x) = pull_value!(x)
 mulargpullvalue!(x::Adjoint) = pull_value!(adjoint(x))
 mulargpullvalue!(x::Transpose) = pull_value!(transpose(x))
 
+# derivatives w.r.t. structured matrices retain their structure
+function structured_mul!(
+    C::AbstractVecOrMat,
+    A::Union{Number,AbstractVecOrMat},
+    B::Union{Number,AbstractVecOrMat},
+)
+    return mul!(C, A, B)
+end
+function structured_mul!(C::Diagonal, A::AbstractVecOrMat, B::AbstractVecOrMat)
+    # `map!` does not check sizes
+    if size(A, 1) != size(C, 1) || size(B, 2) != size(C, 2)
+        throw(DimensionMismatch("cannot multiply arrays of size $(size(A)) and $(size(B)) into a `Diagonal` of size $(size(C))"))
+    end
+    map!(dot, C.diag, eachcol(adjoint(A)), eachcol(B))
+    return C
+end
+function structured_mul!(
+    C::Union{UpperTriangular,LowerTriangular,UnitUpperTriangular,UnitLowerTriangular},
+    A::AbstractVecOrMat,
+    B::AbstractVecOrMat,
+)
+    mul!(parent(C), A, B)
+    return C
+end
+
 # recording pass #
 #----------------#
 
@@ -276,12 +301,12 @@ function reverse_mul!(output, output_deriv, a, b, a_tmp, b_tmp)
             # involve outer-products of vectors, for such functions, the target
             # a_temp is a vector, but when b is a matrix, we cannot multiply into a vector,
             # so need to reshape memory to look like matrix (see PositiveFactorizations.jl)
-            increment_deriv!(a, mul!(reshape(a_tmp, :, 1), output_deriv, transpose(value(b))))
+            increment_deriv!(a, structured_mul!(reshape(a_tmp, :, 1), output_deriv, transpose(value(b))))
         else
-            increment_deriv!(a, mul!(a_tmp, output_deriv, transpose(value(b))))
+            increment_deriv!(a, structured_mul!(a_tmp, output_deriv, transpose(value(b))))
         end
     end
-    istracked(b) && increment_deriv!(b, mul!(b_tmp, transpose(value(a)), output_deriv))
+    istracked(b) && increment_deriv!(b, structured_mul!(b_tmp, transpose(value(a)), output_deriv))
 end
 
 for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
@@ -291,25 +316,25 @@ for (f, F) in ((:transpose, :Transpose), (:adjoint, :Adjoint))
             _b = ($f)(b)
             if istracked(a)
                 if a_tmp isa AbstractVector
-                    increment_deriv!(a, mul!(reshape(a_tmp, :, 1), output_deriv, mulargvalue(_b)))
+                    increment_deriv!(a, structured_mul!(reshape(a_tmp, :, 1), output_deriv, mulargvalue(_b)))
                 else
-                    increment_deriv!(a, mul!(a_tmp, output_deriv, mulargvalue(b)))
+                    increment_deriv!(a, structured_mul!(a_tmp, output_deriv, mulargvalue(b)))
                 end
             end
-            istracked(_b) && increment_deriv!(_b, ($f)(mul!(($f)(b_tmp), ($f)(output_deriv), value(a))))
+            istracked(_b) && increment_deriv!(_b, ($f)(structured_mul!(($f)(b_tmp), ($f)(output_deriv), value(a))))
         end
            # f(a) * b
         function reverse_mul!(output, output_deriv, a::$F, b, a_tmp, b_tmp)
             _a = ($f)(a)
-            istracked(_a) && increment_deriv!(_a, ($f)(mul!(a_tmp, output_deriv, ($f)(value(b)))))
-            istracked(b) && increment_deriv!(b, mul!(b_tmp, ($f)(mulargvalue(a)), ($f)(output_deriv)))
+            istracked(_a) && increment_deriv!(_a, ($f)(structured_mul!(a_tmp, output_deriv, ($f)(value(b)))))
+            istracked(b) && increment_deriv!(b, structured_mul!(b_tmp, ($f)(mulargvalue(a)), ($f)(output_deriv)))
         end
         # f(a) * f(b)
         function reverse_mul!(output, output_deriv, a::$F, b::$F, a_tmp, b_tmp)
             _a = ($f)(a)
             _b = ($f)(b)
-            istracked(_a) && increment_deriv!(_a, ($f)(mul!(a_tmp, ($f)(mulargvalue(b)), ($f)(output_deriv))))
-            istracked(_b) && increment_deriv!(_b, ($f)(mul!(b_tmp, ($f)(output_deriv), ($f)(mulargvalue(a)))))
+            istracked(_a) && increment_deriv!(_a, ($f)(structured_mul!(a_tmp, ($f)(mulargvalue(b)), ($f)(output_deriv))))
+            istracked(_b) && increment_deriv!(_b, ($f)(structured_mul!(b_tmp, ($f)(output_deriv), ($f)(mulargvalue(a)))))
         end
     end
 end
@@ -322,7 +347,7 @@ function reverse_mul!(output, output_deriv, a::Adjoint, b::Transpose, a_tmp, b_t
     if istracked(_a)
         reverse_mul!(output, output_deriv, transpose(_a), b, a_tmp, b_tmp)
     elseif istracked(_b)
-        increment_deriv!(_b, transpose(mul!(b_tmp, adjoint(output_deriv), adjoint(mulargvalue(a)))))
+        increment_deriv!(_b, transpose(structured_mul!(b_tmp, adjoint(output_deriv), adjoint(mulargvalue(a)))))
     end
 end
 
@@ -334,7 +359,7 @@ function reverse_mul!(output, output_deriv, a::Transpose, b::Adjoint, a_tmp, b_t
     if istracked(_b)
         reverse_mul!(output, output_deriv, a, transpose(_b), a_tmp, b_tmp)
     elseif istracked(_a)
-        increment_deriv!(_a, transpose(mul!(a_tmp, adjoint(mulargvalue(b)), adjoint(output_deriv))))
+        increment_deriv!(_a, transpose(structured_mul!(a_tmp, adjoint(mulargvalue(b)), adjoint(output_deriv))))
     end
 end
 
