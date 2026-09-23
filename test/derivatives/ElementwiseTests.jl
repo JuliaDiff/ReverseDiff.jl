@@ -454,4 +454,24 @@ end
     @test ReverseDiff.gradient(v -> sum(v .* Base.RefValue{Any}(2.0)), [0.3, 0.5]) == [2.0, 2.0]
 end
 
+@testset "`map` over a tracked scalar and an array" begin
+    c = [1.5, 2.5]
+
+    # `map` stops at its shortest argument, a scalar counting as a one-element collection,
+    # so each case is `atan` of the first elements alone
+    cases = ((t -> sum(map(atan, t[1], c)), (a, b) -> [c[1], 0] / (a^2 + c[1]^2)),
+             (t -> sum(map(atan, c, t[1])), (a, b) -> [-c[1], 0] / (a^2 + c[1]^2)),
+             (t -> sum(map(atan, t, t[2])), (a, b) -> [b, -a] / (a^2 + b^2)),
+             (t -> sum(map(atan, t[2], t)), (a, b) -> [-b, a] / (a^2 + b^2)))
+    for (f, ∇f) in cases
+        v = [0.5, 0.7]
+        @test ReverseDiff.gradient(f, v) ≈ ∇f(v...)
+
+        # the replay reaches the scalar through the tape
+        tape = ReverseDiff.GradientTape(f, v)
+        w = [0.2, 0.9]
+        @test ReverseDiff.gradient!(tape, w) ≈ ∇f(w...)
+    end
+end
+
 end # module

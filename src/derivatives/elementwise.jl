@@ -76,17 +76,11 @@ for g in (:map,), (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
         @eval @inline Base.$(g)(f::typeof($M.$f), t::TrackedArray) = $(g)(ForwardOptimize(f), t)
     elseif arity == 2
         (M, f) in SKIPPED_DIFFRULES && continue
-        @eval begin
-            @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
-            @inline Base.$(g)(f::typeof($M.$f), x::TrackedReal, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
-        end
+        @eval @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
         for A in ARRAY_TYPES
             @eval begin
                 @inline Base.$(g)(f::typeof($M.$f), x::$A, y::TrackedArray) = $(g)(ForwardOptimize(f), x, y)
                 @inline Base.$(g)(f::typeof($M.$f), x::TrackedArray, y::$A) = $(g)(ForwardOptimize(f), x, y)
-                @inline Base.$(g)(f::typeof($M.$f), x::$A, y::TrackedReal) = $(g)(ForwardOptimize(f), x, y)
-                @inline Base.$(g)(f::typeof($M.$f), x::TrackedReal, y::$A) = $(g)(ForwardOptimize(f), x, y)
             end
         end
         for R in REAL_TYPES
@@ -114,34 +108,6 @@ for g in (:map,)
         return out
     end
     for A in ARRAY_TYPES
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedReal{X,D}, y::$A) where {F,X,D}
-            result = DiffResults.DiffResult(zero(X), zero(D))
-            df = let result=result
-                (vx, vy) -> let vy=vy
-                    ForwardDiff.derivative!(result, s -> f.f(s, vy), vx)
-                end
-            end
-            results = $(g)(df, value(x), value(y))
-            tp = tape(x)
-            out = track(map(DiffResults.value, results), D, tp)
-            cache = (results, df, index_bound(x, out), index_bound(y, out))
-            record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
-            return out
-        end
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$A, y::TrackedReal{Y,D}) where {F,Y,D}
-            result = DiffResults.DiffResult(zero(Y), zero(D))
-            df = let result=result
-                (vx, vy) -> let vx=vx
-                    ForwardDiff.derivative!(result, s -> f.f(vx, s), vy)
-                end
-            end
-            results = $(g)(df, value(x), value(y))
-            tp = tape(y)
-            out = track(map(DiffResults.value, results), D, tp)
-            cache = (results, df, index_bound(x, out), index_bound(y, out))
-            record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
-            return out
-        end
         @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$A) where {F,X,D}
             result = DiffResults.GradientResult(SVector(zero(X)))
             df = (vx, vy) -> let vy=vy
@@ -168,18 +134,15 @@ for g in (:map,)
         end
     end
 
-    for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
-        TX == :TrackedReal && TY == :TrackedReal && continue
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$(TX){X,D}, y::$(TY){Y,D}) where {F,X,Y,D}
-            result = DiffResults.GradientResult(SVector(zero(D), zero(D)))
-            df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
-            results = $(g)(df, value(x), value(y))
-            tp = tape(x, y)
-            out = track(map(DiffResults.value, results), D, tp)
-            cache = (results, df, index_bound(x, out), index_bound(y, out))
-            record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
-            return out
-        end
+    @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {F,X,Y,D}
+        result = DiffResults.GradientResult(SVector(zero(D), zero(D)))
+        df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
+        results = $(g)(df, value(x), value(y))
+        tp = tape(x, y)
+        out = track(map(DiffResults.value, results), D, tp)
+        cache = (results, df, index_bound(x, out), index_bound(y, out))
+        record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
+        return out
     end
 end
 
