@@ -219,6 +219,22 @@ end
     @test ReverseDiff.gradient(x -> sum(relu.(x)), a) == [0.0, 1.0]
 end
 
+@testset "a non-`Real` result keeps its partials" begin
+    a = [1.0, 2.0]
+
+    # `real.(cis.(x))` would fuse into one broadcast with `Real` results, so the `Complex`
+    # and `Tuple` results are materialized in a broadcast of their own
+    @test ReverseDiff.gradient(x -> (y = cis.(x); sum(real.(y))), a) ≈ -sin.(a)
+    @test ReverseDiff.gradient(x -> (y = sincos.(x); sum(first.(y))), a) ≈ cos.(a)
+    @test ReverseDiff.gradient(x -> (y = broadcast(t -> (t, 2t), x); sum(last.(y))), a) ==
+        [2.0, 2.0]
+    @test ReverseDiff.gradient(x -> (y = x .* cis.(x); sum(abs2.(y))), a) ≈ 2 .* a
+    @test ReverseDiff.jacobian(x -> (y = cis.(x); imag.(y)), a) ≈ diagm(cos.(a))
+
+    tape = ReverseDiff.GradientTape(x -> (y = cis.(x); sum(real.(y))), a)
+    @test ReverseDiff.gradient!(tape, [0.5, 1.5]) ≈ -sin.([0.5, 1.5])
+end
+
 @testset "a foreign tag is never read as our own" begin
     tagA = typeof(ForwardDiff.Tag(sin, Float64))
     tagB = typeof(ForwardDiff.Tag(cos, Float64))

@@ -69,7 +69,7 @@ Broadcast.BroadcastStyle(::TrackedStyle{Any}, ::DefaultArrayStyle) = TrackedStyl
 # the untracked style decides where the fallback re-dispatches, and a `CuArray` backing a
 # `TrackedArray` has to keep its own
 recur_value(xs) = xs
-recur_value(xs::Union{TrackedReal, TrackedArray, AbstractArray{<:TrackedReal}}) = recur_value(value(xs))
+recur_value(xs::Union{TrackedReal, AbstractArray{<:TrackedReal}}) = recur_value(value(xs))
 
 remove_not_tracked(f) = f
 remove_not_tracked(f::NotTracked) = f.f
@@ -87,14 +87,15 @@ function Base.copy(_bc::Broadcasted{<:TrackedStyle})
     bc = remove_not_tracked(_bc)
     flattened_bc = Base.Broadcast.flatten(bc)
     f, args = flattened_bc.f, flattened_bc.args
-    # only the arguments are seeded, so a tracked value reaching `f` by another route, such
-    # as a closure capturing one, has to be traced scalar-wise
-    if mayhidetracked(_bc)
+    vals = map(value, args)
+    # only the arguments are seeded, not e.g. a closure's captures, and a `TrackedArray`
+    # holds only `Real`s
+    if mayhidetracked(_bc) || !(Broadcast.combine_eltypes(f, vals) <: Real)
         axs = flattened_bc.axes
-        style = typeof(Broadcast.combine_styles(map(recur_value, args)...))
+        style = typeof(Broadcast.combine_styles(map(recur_value, vals)...))
         return copy(Broadcasted{style, typeof(axs), typeof(f), typeof(args)}(f, args, axs))
     else
-        return ∇broadcast(f, args...)
+        return ∇broadcast(f, args, vals)
     end
 end
 
@@ -234,11 +235,11 @@ broadcastresults(entries::Tuple, slots, df, vals) =
 
 # at least one argument has to be a non-0-dimensional array: `copy` sends the scalar and
 # 0-dimensional cases down `Base`'s `TrackedStyle{0}` route onto the scalar rules instead
-@inline function ∇broadcast(f::F, args::Vararg{Any}) where {F}
+@inline function ∇broadcast(f::F, args::Tuple, argvals::Tuple) where {F}
     inds, targs, untracked = splitargs(args)
+    _, vals, _ = splitargs(argvals)
     D = mapreduce(getouttype, promote_type, targs)
     slots, valP = trackedslots(targs)
-    vals = map(value, targs)
     # one tag for the whole broadcast keeps `results` concretely typed
     T = typeof(ForwardDiff.Tag(f, reduce(promote_type, map(dualvaltype, slots, vals))))
     # `broadcast` calls `df` elementwise, so it receives one scalar per argument
