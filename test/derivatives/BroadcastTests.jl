@@ -111,15 +111,19 @@ end
 end
 
 @testset "`@forward` and `@skip` wrappers do not force the fallback path" begin
-    for wrapper in (ReverseDiff.ForwardOptimize, ReverseDiff.SkipOptimize)
-        tp = InstructionTape()
-        x = track(rand(3, 3), tp)
+    tp = InstructionTape()
+    x = track(rand(3, 3), tp)
+    y = broadcast(ReverseDiff.ForwardOptimize(exp), x)
+    @test y isa TrackedArray
+    @test length(tp) == 1
 
-        y = broadcast(wrapper(exp), x)
-
-        @test y isa TrackedArray
-        @test length(tp) == 1
-    end
+    # `@skip` results are untracked, as with `map` and scalars
+    tp = InstructionTape()
+    x = track(rand(3, 3), tp)
+    y = broadcast(ReverseDiff.SkipOptimize(exp), x)
+    @test y isa Matrix{Float64}
+    @test y == exp.(value(x))
+    @test isempty(tp)
 end
 
 @testset "a type broadcast as a function does not force the fallback path" begin
