@@ -339,4 +339,19 @@ for f in (transpose, adjoint)
     end
 end
 
+@testset "`+`/`-` with untracked elements (#175)" begin
+    # the diagonal entries are tracked, the off-diagonal zeros are not
+    dense(u) = reshape(u[1:9], 3, 3)
+    diagreal(u) = Real[u[10], u[11], u[12]]
+    E = Matrix(I(9))[:, [1, 5, 9]]
+    for (f, J) in (
+        (u -> dense(u) + Diagonal(diagreal(u)), [I(9) E]),
+        (u -> dense(u) - diagm(diagreal(u)), [I(9) -E]),
+        (u -> diagm(diagreal(u)) - dense(u), [-I(9) E]),
+        (u -> dense(u) + Real[i == j ? u[9 + i] : 0.0 for i in 1:3, j in 1:3], [I(9) E]),
+    )
+        test_jacobian(f, rand(12), J)
+    end
+end
+
 end # module
