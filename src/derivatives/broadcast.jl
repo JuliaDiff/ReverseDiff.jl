@@ -77,11 +77,12 @@ function remove_not_tracked(b::Broadcasted{style}) where {style}
     return Broadcasted{style}(remove_not_tracked(b.f), remove_not_tracked.(b.args), b.axes)
 end
 
-# scalars take `Base`'s 0-dimensional route onto the scalar derivative rules; `instantiate`
-# leaves an `AbstractArrayStyle{0}` without axes, so 0 dimensions shows up either way
-Base.copy(bc::Broadcasted{<:TrackedStyle, <:Union{Nothing, Tuple{}}}) = bc[CartesianIndex()]
-
 function Base.copy(_bc::Broadcasted{<:TrackedStyle})
+    # scalars take the scalar derivative rules; ask the axes, since `TrackedStyle{Any}` carries
+    # no dimension and `LinearAlgebra` may pass an uninstantiated `Broadcasted`
+    if axes(_bc) isa Tuple{}
+        return _bc[CartesianIndex()]
+    end
     bc = remove_not_tracked(_bc)
     flattened_bc = Base.Broadcast.flatten(bc)
     f, args = flattened_bc.f, flattened_bc.args
@@ -231,7 +232,7 @@ broadcastresults(entries::Tuple, slots, df, vals) =
     KnownPartials(trackedentries(slots, entries))
 
 # at least one argument has to be a non-0-dimensional array: `copy` sends the scalar and
-# 0-dimensional cases down `Base`'s `TrackedStyle{0}` route onto the scalar rules instead
+# 0-dimensional cases onto the scalar rules instead
 @inline function ∇broadcast(f::F, args::Tuple, argvals::Tuple) where {F}
     inds, targs, untracked = splitargs(args)
     _, vals, _ = splitargs(argvals)

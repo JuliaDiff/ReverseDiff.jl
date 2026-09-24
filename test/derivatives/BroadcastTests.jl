@@ -325,6 +325,25 @@ end
     @test ReverseDiff.gradient(v -> sum(v .* Foreign0d(2.0)), [1.0, 2.0]) ≈ [2.0, 2.0]
 end
 
+@testset "a `Broadcasted` that reaches `copy` uninstantiated" begin
+    # `LinearAlgebra` forwards a `Diagonal`'s broadcast to its diagonal without instantiating it
+    a = rand(3)
+    tp = InstructionTape()
+    x, tr = track(copy(a), tp), track(2.0, tp)
+
+    @test value(copy(Broadcast.broadcasted(exp, x))) ≈ exp.(a)
+    @test copy(Broadcast.broadcasted(exp, tr)) isa TrackedReal
+    @test copy(Broadcast.broadcasted(+, tr, Foreign0d(1.0))) isa TrackedReal
+
+    @test ReverseDiff.gradient(v -> sum(Diagonal(v) .* 2.0), a) == fill(2.0, 3)
+
+    # alongside a `TrackedArray`, the wrapper is an argument of `∇broadcast`
+    m = rand(3, 3)
+    gv, gm = ReverseDiff.gradient((v, w) -> sum(Diagonal(v) .* w), (a, m))
+    @test gv == diag(m)
+    @test gm == Diagonal(a)
+end
+
 @testset "`NotTracked`" begin
     f = ReverseDiff.NotTracked(t -> 2t)
 
