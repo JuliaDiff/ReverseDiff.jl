@@ -5,8 +5,6 @@
 [![Build status](https://github.com/JuliaDiff/ReverseDiff.jl/workflows/CI/badge.svg)](https://github.com/JuliaDiff/ReverseDiff.jl/actions)
 [![codecov.io](https://codecov.io/github/JuliaDiff/ReverseDiff.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
 
-[**See ReverseDiff Usage Examples**](https://github.com/JuliaDiff/ReverseDiff.jl/tree/master/examples)
-
 ReverseDiff is a fast and compile-able tape-based **reverse mode automatic differentiation (AD)** that 
 implements methods to take **gradients**, **Jacobians**, **Hessians**, and
 higher-order derivatives of native Julia functions (or any callable object, really).
@@ -45,13 +43,16 @@ of them (as far as I know at the time of this writing):
 - higher-order `map` and `broadcast` optimizations
 - it's well tested
 
-...and, simply put, it's fast (for gradients, at least). Using the code from `examples/gradient.jl`:
+...and, simply put, it's fast (for gradients, at least). For example:
 
 ```julia
-julia> using BenchmarkTools, Pkg
+julia> using BenchmarkTools, ReverseDiff
 
-# this script defines f and ∇f!
-julia> include(joinpath(Pkg.dir("ReverseDiff"), "examples/gradient.jl"));
+julia> f(a, b) = sum(a' * b + a * b');
+
+julia> compiled_f_tape = ReverseDiff.compile(ReverseDiff.GradientTape(f, (rand(100, 100), rand(100, 100))));
+
+julia> ∇f!(results, inputs) = ReverseDiff.gradient!(results, compiled_f_tape, inputs);
 
 julia> a, b = rand(100, 100), rand(100, 100);
 
