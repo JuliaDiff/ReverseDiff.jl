@@ -231,6 +231,12 @@ broadcastresults(::Nothing, slots, df, vals) = broadcast(df, vals...)
 broadcastresults(entries::Tuple, slots, df, vals) =
     KnownPartials(trackedentries(slots, entries))
 
+# marks the `Dual`s seeded by `∇broadcast`, so `value` can strip them as it strips tracking;
+# `F` gives each function its own tag, which `ForwardDiff` orders by first use, as `Tag(f, V)` would
+struct BroadcastTag{F} end
+
+value(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = ForwardDiff.value(T, x)
+
 # at least one argument has to be a non-0-dimensional array: `copy` sends the scalar and
 # 0-dimensional cases onto the scalar rules instead
 @inline function ∇broadcast(f::F, args::Tuple, argvals::Tuple) where {F}
@@ -239,7 +245,7 @@ broadcastresults(entries::Tuple, slots, df, vals) =
     D = mapreduce(getouttype, promote_type, targs)
     slots, valP = trackedslots(targs)
     # one tag for the whole broadcast keeps `results` concretely typed
-    T = typeof(ForwardDiff.Tag(f, reduce(promote_type, map(dualvaltype, slots, vals))))
+    T = typeof(ForwardDiff.Tag(BroadcastTag{F}(), reduce(promote_type, map(dualvaltype, slots, vals))))
     # `broadcast` calls `df` elementwise, so it receives one scalar per argument
     function df(x::Vararg{Any,N}) where {N}
         dx = map((slot, xi) -> dualize(T, slot, valP, xi), slots, x)

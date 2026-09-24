@@ -344,6 +344,23 @@ end
     @test gm == Diagonal(a)
 end
 
+@testset "`value` in a broadcast is not recorded" begin
+    a = rand(3)
+    tp = InstructionTape()
+    x = track(copy(a), tp)
+
+    d = value(Diagonal(x))
+    @test d isa Diagonal{Float64,Vector{Float64}}
+    @test d == Diagonal(a)
+    @test isempty(tp)
+
+    # also when fused with a differentiable function
+    y = value.(x .+ 1)
+    @test y isa Vector{Float64}
+    @test y ≈ a .+ 1
+    @test isempty(tp)
+end
+
 @testset "`NotTracked`" begin
     f = ReverseDiff.NotTracked(t -> 2t)
 
