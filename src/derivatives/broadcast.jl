@@ -15,14 +15,14 @@ struct NotTracked{F} <: Function
 end
 (f::NotTracked{<:Union{Function, Type}})(args...; kwargs...) = f.f(args...; kwargs...)
 
-# an argument is seeded itself, or elementwise, so its own tracked values are in plain sight; a
-# `Ref` is handed to `f` whole, so nothing inside one is
-mayhidetracked(b::F) where {F} = _mayhidetracked(F)
+# can `f` receive tracked values that `∇broadcast` does not seed?
+mayhidetracked(::F) where {F} = _mayhidetracked(F)
 mayhidetracked(::AbstractArray{F}) where {F} = _mayhidetracked(F)
 mayhidetracked(::Base.RefValue{F}) where {F} = _mayhidetracked(F)
 mayhidetracked(::AbstractArray{<:Real}) = false
 mayhidetracked(::Real) = false
-mayhidetracked(b::Type) = false
+mayhidetracked(::Type) = false
+mayhidetracked(t::Tuple) = any(x -> istracked(x) || mayhidetracked(x), t)
 mayhidetracked(b::ForwardOptimize) = mayhidetracked(b.f)
 mayhidetracked(b::SkipOptimize) = mayhidetracked(b.f)
 mayhidetracked(b::Broadcasted) = mayhidetracked(b.f) || any(mayhidetracked, b.args)
@@ -131,8 +131,7 @@ end
 
 @generated function splitargs(args::T) where {T <: Tuple}
     N = length(T.types)
-    RealOrArray = Union{Real, AbstractArray}
-    inds = [i for i in 1:N if T.types[i] <: RealOrArray]
+    inds = [i for i in 1:N if T.types[i] <: Union{Real, AbstractArray, Tuple}]
     indsval = :(Val{$(Expr(:tuple, [:($i) for i in inds]...))}())
     maybetracked = Expr(:tuple, [:(args[$i]) for i in inds]...)
     untracked = Expr(:tuple, [:(args[$i]) for i in 1:N if !(i in inds)]...)
@@ -144,7 +143,8 @@ end
 @inline incr(::Val{k}) where {k} = Val(k + 1)
 
 # argument `i` has partial `slots[i]` (`Val(0)` if untracked), partial `k` belongs to argument
-# `positions[k]`. Built on the way out of the recursion to stay constant-folded.
+# `positions[k]`, numbered from the last tracked argument. Built on the way out of the recursion
+# to stay constant-folded.
 @inline trackedslots(::Tuple{}) = (), (), Val(0)
 @inline function trackedslots(args::Tuple)
     slots, positions, n = trackedslots(Base.tail(args))
@@ -174,18 +174,10 @@ end
 const RealOrArray = Union{Real, AbstractArray{<:Real}}
 
 # an argument read at the output's own index has to span the whole output
-_sameshape(x, y) = x isa Real || y isa Real || axes(x) == axes(y)
+ifsameshape(c::Contract, x, y) = x isa Real || y isa Real || axes(x) == axes(y) ? c : nothing
 
-function ifsameshape(c::Contract, x, y)
-    if _sameshape(x, y)
-        return c
-    else
-        return nothing
-    end
-end
-
-# partial with respect to argument `i`, or `nothing`. Annotating every argument ensures that
-# a named argument is one `splitargs` keeps.
+# partial with respect to argument `i`, or `nothing`. Requiring every argument to be
+# `RealOrArray` makes positions in `args` positions in the arguments `splitargs` keeps.
 knownpartial(f, ::Val, args) = nothing
 
 knownpartial(::Union{typeof(+), typeof(identity)}, ::Val, ::Tuple{Vararg{RealOrArray}}) =
@@ -256,8 +248,8 @@ replaycache(::Type{T}, results::AbstractArray, df, _, _) where {T} =
     (df, map(y -> ForwardDiff.value(T, y), results))
 replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
 
-# the seed is contracted with an argument, so a perturbation riding on one ends up in the
-# derivative and `D` has to be able to hold it; a widened element type is a `Union`
+# a perturbation riding on an argument ends up in the derivative, so `D` has to be able to hold
+# it; a widened element type is a `Union`
 @inline function checkargtags(::Type{D}, ::Type{E}) where {D, E}
     if E isa Union
         checkargtags(D, E.a)
@@ -270,15 +262,15 @@ replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
     return nothing
 end
 
-# `df` hands back `f`'s own result, so `results` keeps the element type `Base` would produce
 @inline function recordresults(::Type{T}, results, df, vf, targs, vals,
                                ::Type{D}) where {T, D}
     foreach(v -> checkargtags(D, eltype(v)), vals)
     g, outvalue = replaycache(T, results, df, vf, vals)
     tp = tape(targs...)
     out = track(outvalue, D, tp)
-    _, positions, _ = trackedslots(targs)
-    cache = (results, g, T(), map(p -> index_bound(getat(targs, p), out), positions))
+    _, positions, n = trackedslots(targs)
+    bounds = map(p -> index_bound(getat(targs, p), out), positions)
+    cache = (results, g, T(), map(tuple, positions, ntuple(Val, n), bounds))
     record!(tp, SpecialInstruction, ∇broadcast, targs, out, cache)
     return out
 end
@@ -317,12 +309,13 @@ end
     input = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
-    results, _, tag, bounds = instruction.cache
+    results, _, tag, targets = instruction.cache
     T = typeof(tag)
-    _, positions, n = trackedslots(input)
     partials = reversepartials(results, input)
-    map((p, k, bound) -> _br_add_to_deriv!(T, getat(input, p), k, output_deriv, partials, bound),
-        positions, ntuple(Val, n), bounds)
+    map(targets) do (p, k, bound)
+        x = getat(input, p)
+        istracked(x) && _br_add_to_deriv!(T, x, k, output_deriv, partials, bound)
+    end
     unseed!(output)
     return nothing
 end

@@ -6,7 +6,7 @@ amount scaled by the output's derivative(s). Sometimes, extra partial informatio
 form of normal scalars/arrays, or `Dual` numbers) needs to accounted for as well.
 
 Often, a function's input and output values are not similarly shaped. To account for these
-cases, `diffresult` and `reduce` versions of the propagation functions have been implemented.
+cases, `diffresult` and `contract` versions of the propagation functions have been implemented.
 Accumulations into a scalar derivative go through `sum`, whose pairwise reduction is both more
 accurate and faster than a sequential loop.
 

@@ -365,6 +365,46 @@ end
     @test isempty(tp)
 end
 
+@testset "tuple arguments" begin
+    a = [1.0, 2.0, 3.0]
+    c = (4.0, 5.0, 6.0)
+
+    tp = InstructionTape()
+    y = track(copy(a), tp) .* c
+    @test y isa TrackedArray
+    @test length(tp) == 1
+    @test tp[1].func === ReverseDiff.∇broadcast
+    @test ReverseDiff.gradient(x -> sum(x .* c), a) == collect(c)
+
+    tape = ReverseDiff.GradientTape(x -> sum(exp.(x .* c)), a)
+    @test ReverseDiff.gradient!(tape, a) ≈ collect(c) .* exp.(a .* c)
+
+    # a tracked element is not seeded, so it takes the scalar rules
+    f = x -> sum(x .* (x[1], 5.0, 6.0))
+    @test ReverseDiff.gradient(f, a) ≈ ForwardDiff.gradient(f, a)
+
+    # a tuple's elements are checked in turn, including a nested tuple's
+    h = x -> sum(x .* first.(((x[1], 1.0), (2.0, 3.0), (4.0, 5.0))))
+    @test ReverseDiff.gradient(h, a) ≈ ForwardDiff.gradient(h, a)
+
+    tp = InstructionTape()
+    track(copy(a), tp) .* first.(((1.0, 2.0), (3.0, 4.0), (5.0, 6.0)))
+    @test length(tp) == 1
+end
+
+@testset "a `TrackedReal` without a tape is a constant" begin
+    a = [1.0, 2.0]
+    c = TrackedReal(2.0, 0.0)
+
+    for (f, expected) in ((x -> x .* c, [2.0, 2.0]), (x -> exp.(x .* c), 2 .* exp.(2 .* a)))
+        tp = InstructionTape()
+        x = track(copy(a), tp)
+        ReverseDiff.seed!(sum(f(x)))
+        ReverseDiff.reverse_pass!(tp)
+        @test deriv(x) ≈ expected
+    end
+end
+
 @testset "`NotTracked`" begin
     f = ReverseDiff.NotTracked(t -> 2t)
 
@@ -382,8 +422,8 @@ end
         return @allocated f(targs...)
     end
 
-    # the output's value and derivative take 8 B per element each, and one `Dual` per
-    # element would add at least 16 B more
+    # bytes allocated by the whole recording: the output's value and derivative take 8 B per
+    # element each, and one `Dual` per element would add at least 16 B more
     for f in (t -> t .* 2.0, t -> 2.0 .* t, t -> t .+ 1.0, t -> 1.0 .- t, t -> t ./ 4.0,
               t -> 4.0 .\ t, t -> identity.(t), t -> .-t)
         @test recordbytes(f, v) < 24n

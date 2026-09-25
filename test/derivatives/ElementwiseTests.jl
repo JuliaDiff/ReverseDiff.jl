@@ -52,8 +52,10 @@ function test_elementwise(f, fopt, x, tp)
     # record
     yt = broadcast(fopt, xt)
     @test yt == y
-    # a function constant in its argument has no derivative and is left off the tape
-    @test length(tp) == (yt isa ReverseDiff.TrackedArray ? 1 : 0)
+    # a function that returns no `Dual` has no derivative and is left off the tape
+    tracked = f(ForwardDiff.Dual(first(x), 1.0)) isa ForwardDiff.Dual
+    @test (yt isa ReverseDiff.TrackedArray) == tracked
+    @test length(tp) == tracked
 
     # reverse
     out = similar(y, (length(x), length(x)))
