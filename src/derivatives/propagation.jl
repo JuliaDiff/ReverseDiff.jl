@@ -6,7 +6,7 @@ amount scaled by the output's derivative(s). Sometimes, extra partial informatio
 form of normal scalars/arrays, or `Dual` numbers) needs to accounted for as well.
 
 Often, a function's input and output values are not similarly shaped. To account for these
-cases, `broadcast` and `reduce` versions of the propagation functions have been implemented.
+cases, `diffresult` and `contract` versions of the propagation functions have been implemented.
 Accumulations into a scalar derivative go through `sum`, whose pairwise reduction is both more
 accurate and faster than a sequential loop.
 
@@ -96,122 +96,78 @@ end
 # diffresult_increment_deriv! #
 ###############################
 
-@inline getpartial(r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p) where {V,D<:AbstractArray} = DiffResults.derivative(r)[p]
-@inline getpartial(r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p) where {V,D<:Number} = DiffResults.derivative(r)
+@inline getpartial(::Type, r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p) where {V,D<:AbstractArray} = DiffResults.derivative(r)[p]
+@inline getpartial(::Type, r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p) where {V,D<:Number} = DiffResults.derivative(r)
+@inline getpartial(::Type{T}, d::ForwardDiff.Dual, p) where {T} = ForwardDiff.partials(T, d, p)
+@inline getpartial(::Type, x::Real, p) = zero(x)
 
-function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
-                                     results, p::Int)
+# a partial known in closed form: the argument collects `op(seed, args...)` per element, with
+# `args` naming broadcast arguments. `op` meets the seed, so `/` forms no reciprocal.
+struct Contract{Op,A<:Tuple}
+    op::Op
+    args::A
+end
+
+_at(::Val{j}, i, args) where {j} = _elem(args[j], i)
+_elem(v::Real, i) = v
+_elem(v::AbstractArray, i) = v[i]
+
+_contract(e::Contract, seed, i, args) = e.op(seed, map(a -> _at(a, i, args), e.args)...)
+
+function diffresult_increment_deriv!(::Type{T}, input::AbstractArray, x::AbstractArray,
+                                     results::AbstractArray, p::Int) where {T}
     for i in eachindex(x, results)
-        increment_deriv!(input, x[i] * getpartial(results[i], p), i)
+        increment_deriv!(input, x[i] * getpartial(T, results[i], p), i)
     end
     return nothing
 end
 
-function diffresult_increment_deriv!(input::AbstractArray, x::AbstractArray,
-                                     results, p::Int, bound::CartesianIndex)
+function diffresult_increment_deriv!(::Type{T}, input::AbstractArray, x::AbstractArray,
+                                     results::AbstractArray, p::Int,
+                                     bound::CartesianIndex) where {T}
     axes(x) == axes(results) ||
         throw(DimensionMismatch("`x` and `results` must have the same indices"))
     for (xi, r, i) in zip(x, results, CartesianIndices(size(x)))
-        increment_deriv!(input, xi * getpartial(r, p), min(bound, i))
+        increment_deriv!(input, xi * getpartial(T, r, p), min(bound, i))
     end
     return nothing
 end
 
-function diffresult_increment_deriv!(input::TrackedReal, x::AbstractArray,
-                                     results, p::Int, ::Nothing)
+function diffresult_increment_deriv!(::Type{T}, input::TrackedReal, x::AbstractArray,
+                                     results::AbstractArray, p::Int, ::Nothing) where {T}
     inds = eachindex(x, results)
     isempty(inds) && return nothing
     pull_deriv!(input)
-    input.deriv += sum(i -> x[i] * getpartial(results[i], p), inds)
+    input.deriv += sum(i -> x[i] * getpartial(T, results[i], p), inds)
     push_deriv!(input)
     return nothing
 end
 
-##############################
-# broadcast_increment_deriv! #
-##############################
+#############################
+# contract_increment_deriv! #
+#############################
 
-# without partials #
-#------------------#
-
-function broadcast_increment_deriv!(input::AbstractArray, x::AbstractArray,
-                                    bound::CartesianIndex)
-    for (xi, i) in zip(x, CartesianIndices(size(x)))
-        increment_deriv!(input, xi, min(bound, i))
+function contract_increment_deriv!(input::AbstractArray, x::AbstractArray, e::Contract,
+                                   args::Tuple)
+    for i in eachindex(input, x)
+        increment_deriv!(input, _contract(e, x[i], i, args), i)
     end
     return nothing
 end
 
-function broadcast_increment_deriv!(input::TrackedReal, x::AbstractArray, ::Nothing)
+function contract_increment_deriv!(input::AbstractArray, x::AbstractArray, e::Contract,
+                                   args::Tuple, bound::CartesianIndex)
+    for i in CartesianIndices(size(x))
+        increment_deriv!(input, _contract(e, x[i], i, args), min(bound, i))
+    end
+    return nothing
+end
+
+function contract_increment_deriv!(input::TrackedReal, x::AbstractArray, e::Contract,
+                                   args::Tuple, ::Nothing)
     isempty(x) && return nothing
     pull_deriv!(input)
-    input.deriv += sum(x)
-    push_deriv!(input)
-    return nothing
-end
-
-# with partials #
-#---------------#
-
-@inline broadcast_increment_deriv!(input, x, partials, input_bound, partials_bound) =
-    _broadcast_increment_deriv!(*, input, x, partials, input_bound, partials_bound)
-
-@inline broadcast_increment_div_deriv!(input, x, partials, input_bound, partials_bound) =
-    _broadcast_increment_deriv!(/, input, x, partials, input_bound, partials_bound)
-
-# with partial array #
-#--------------------#
-
-function _broadcast_increment_deriv!(op::F, input::AbstractArray, x::AbstractArray,
-                                     partials::AbstractArray,
-                                     input_bound::CartesianIndex,
-                                     partials_bound::CartesianIndex) where {F}
-    for (xi, i) in zip(x, CartesianIndices(size(x)))
-        current_deriv = op(xi, partials[min(partials_bound, i)])
-        increment_deriv!(input, current_deriv, min(input_bound, i))
-    end
-    return nothing
-end
-
-function _broadcast_increment_deriv!(op::F, input::TrackedReal, x::AbstractArray,
-                                     partials::AbstractArray, ::Nothing,
-                                     ::CartesianIndex) where {F}
-    inds = eachindex(x, partials)
-    isempty(inds) && return nothing
-    pull_deriv!(input)
-    input.deriv += sum(i -> op(x[i], partials[i]), inds)
-    push_deriv!(input)
-    return nothing
-end
-
-# with partial scalar #
-#---------------------#
-
-function _broadcast_increment_deriv!(op::F, input::AbstractArray, x::AbstractArray,
-                                     partial::Real, input_bound::CartesianIndex,
-                                     ::Nothing) where {F}
-    for (xi, i) in zip(x, CartesianIndices(size(x)))
-        increment_deriv!(input, op(xi, partial), min(input_bound, i))
-    end
-    return nothing
-end
-
-##############################
-# broadcast_decrement_deriv! #
-##############################
-
-function broadcast_decrement_deriv!(input::AbstractArray, x::AbstractArray,
-                                    bound::CartesianIndex)
-    for (xi, i) in zip(x, CartesianIndices(size(x)))
-        decrement_deriv!(input, xi, min(bound, i))
-    end
-    return nothing
-end
-
-function broadcast_decrement_deriv!(input::TrackedReal, x::AbstractArray, ::Nothing)
-    isempty(x) && return nothing
-    pull_deriv!(input)
-    input.deriv -= sum(x)
+    input.deriv += sum(i -> _contract(e, x[i], i, args), eachindex(x))
     push_deriv!(input)
     return nothing
 end

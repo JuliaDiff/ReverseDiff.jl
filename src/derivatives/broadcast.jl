@@ -2,10 +2,8 @@
 ## Broadcasting ##
 ##################
 
-using Base.Broadcast: BroadcastStyle, ArrayStyle, Broadcasted, broadcasted
+using Base.Broadcast: AbstractArrayStyle, BroadcastStyle, Broadcasted, DefaultArrayStyle
 using ForwardDiff: ForwardDiff, Dual
-import Base.Broadcast: materialize
-const RDBroadcasted{F, T} = Broadcasted{<:Any, <:Any, F, T}
 
 """
     NotTracked(f::Function)
@@ -17,14 +15,23 @@ struct NotTracked{F} <: Function
 end
 (f::NotTracked{<:Union{Function, Type}})(args...; kwargs...) = f.f(args...; kwargs...)
 
-istypeorclosure(::F) where {F} = _istypeorclosure(F)
-istypeorclosure(::AbstractArray{F}) where {F} = _istypeorclosure(F)
-istypeorclosure(::Base.RefValue{F}) where {F} = _istypeorclosure(F)
-istypeorclosure(::AbstractArray{<:Real}) = false
-istypeorclosure(::TrackedArray) = false
-istypeorclosure(::AbstractArray{<:TrackedReal}) = true
-istypeorclosure(::Real) = false
-@generated function _istypeorclosure(::Type{F}) where {F}
+# can `f` receive tracked values that `∇broadcast` does not seed?
+mayhidetracked(::F) where {F} = _mayhidetracked(F)
+mayhidetracked(::AbstractArray{F}) where {F} = _mayhidetracked(F)
+mayhidetracked(::Base.RefValue{F}) where {F} = _mayhidetracked(F)
+mayhidetracked(::AbstractArray{<:Real}) = false
+mayhidetracked(::Real) = false
+mayhidetracked(::Type) = false
+mayhidetracked(t::Tuple) = any(x -> istracked(x) || mayhidetracked(x), t)
+mayhidetracked(b::ForwardOptimize) = mayhidetracked(b.f)
+mayhidetracked(b::SkipOptimize) = mayhidetracked(b.f)
+mayhidetracked(b::Broadcasted) = mayhidetracked(b.f) || any(mayhidetracked, b.args)
+
+# below the argument nothing is seeded, so a tracked value is hidden wherever it sits: recurse
+# into what a container holds rather than ask about the container
+_mayhidetracked(::Type{<:NotTracked}) = false
+_mayhidetracked(::Type{<:AbstractArray{F}}) where {F} = _mayhidetracked(F)
+@generated function _mayhidetracked(::Type{F}) where {F}
     # `fieldcount` errors for types without a definite number of fields, such as
     # `Type{T}` and abstract types; be conservative in that case.
     hasfields = try
@@ -35,28 +42,33 @@ istypeorclosure(::Real) = false
     return :($hasfields)
 end
 
-mayhavetracked(b) = istypeorclosure(b)
-mayhavetracked(b::Type) = false
-mayhavetracked(b::NotTracked) = false
-mayhavetracked(b::Base.RefValue{<:NotTracked}) = false
-mayhavetracked(b::Broadcasted) = mayhavetracked(b.f) || any(mayhavetracked, b.args)
+struct TrackedStyle{N} <: AbstractArrayStyle{N} end
 
-struct TrackedStyle <: BroadcastStyle end
+(::Type{<:TrackedStyle})(::Val{N}) where {N} = TrackedStyle{N}()
 
-Broadcast.BroadcastStyle(::Type{<:Union{TrackedArray, TrackedReal}}) = TrackedStyle()
-Broadcast.BroadcastStyle(::TrackedStyle, b::BroadcastStyle) = TrackedStyle()
+Broadcast.BroadcastStyle(::Type{<:TrackedReal}) = TrackedStyle{0}()
+Broadcast.BroadcastStyle(::Type{<:AbstractArray{<:TrackedReal{<:Any,D},N}}) where {D,N} =
+    TrackedStyle{N}()
 
-# We have to re-build the original broadcast struct to get the appropriate array
-# style. We need this primarily to support CuArrays' broadcasting fixes.
-broadcast_rebuild(xs) = recur_value(xs)
+# `AbstractArrayStyle{Any}` carries `Any` as its dimension, which `max` cannot compare
+_maxdim(M::Int, N::Int) = max(M, N)
+_maxdim(_, _) = Any
+
+# tracked values must stay tracked, so take precedence over every other array style
+Broadcast.BroadcastStyle(::TrackedStyle{M}, ::AbstractArrayStyle{N}) where {M,N} =
+    TrackedStyle{_maxdim(M, N)}()
+
+# resolve the overlap with `Base`'s three `DefaultArrayStyle` rules, preserving their results
+Broadcast.BroadcastStyle(::TrackedStyle{M}, ::DefaultArrayStyle{N}) where {M,N} =
+    TrackedStyle{_maxdim(M, N)}()
+Broadcast.BroadcastStyle(::TrackedStyle{N}, ::DefaultArrayStyle{N}) where {N} = TrackedStyle{N}()
+Broadcast.BroadcastStyle(::TrackedStyle{Any}, ::DefaultArrayStyle) = TrackedStyle{Any}()
+
+# the untracked style decides where the fallback re-dispatches, and a `CuArray` backing a
+# `TrackedArray` has to keep its own
 recur_value(xs) = xs
-recur_value(xs::Union{TrackedReal, TrackedArray}) = recur_value(value(xs))
+recur_value(xs::Union{TrackedReal, AbstractArray{<:TrackedReal}}) = recur_value(value(xs))
 
-function broadcast_rebuild(bc::Broadcasted)
-    broadcasted(bc.f, broadcast_rebuild.(bc.args)...)
-end
-
-getstyle(::Broadcasted{Style}) where {Style} = Style
 remove_not_tracked(f) = f
 remove_not_tracked(f::NotTracked) = f.f
 remove_not_tracked(f::Base.RefValue{<:NotTracked}) = Ref(remove_not_tracked(f[]))
@@ -65,59 +77,40 @@ function remove_not_tracked(b::Broadcasted{style}) where {style}
     return Broadcasted{style}(remove_not_tracked(b.f), remove_not_tracked.(b.args), b.axes)
 end
 
-onlyrealarrays(args::Tuple) = onlyrealarray(first(args)) && onlyrealarrays(Base.tail(args))
-onlyrealarrays(::Tuple{}) = true
-onlyrealarray(::AbstractArray{<:Real}) = true
-onlyrealarray(::AbstractArray) = false
-onlyrealarray(::Any) = true
-
-anyreals(args::Tuple) = first(args) isa Real || anyreals(Base.tail(args))
-anyreals(args::Tuple{}) = false
-
-function get_implementation(bc, f, T, args)
-    outputisreal = (T <: AbstractArray{<:Real}) && (T !== Union{})
-    # Each arg is either a real number, an array of untraked reals, a tracked array of reals or an array of untracked non-reals,
-    # Output is real, and
-    # No tracked closure or arguments, except TrackedReal and TrackedArray.
-    if !mayhavetracked(bc) && outputisreal && (anyreals(args) || !onlyrealarrays(args))
-        return Val(:tracker)
-    # No arg is a real number and array args must be arrays of untracked reals or tracked arrays of reals,
-    # Output is real, and
-    # No tracked closure or arguments, except TrackedReal and TrackedArray.
-    elseif !mayhavetracked(bc) && outputisreal
-        return Val(:reversediff)
-    # Function or any arg is possibly a tracked non-real or an array of tracked reals/non-reals,
-    # Or output is not an array of reals
-    else
-        return Val(:fallback)
+function Base.copy(_bc::Broadcasted{<:TrackedStyle})
+    # scalars take the scalar derivative rules; ask the axes, since `TrackedStyle{Any}` carries
+    # no dimension and `LinearAlgebra` may pass an uninstantiated `Broadcasted`
+    if axes(_bc) isa Tuple{}
+        return _bc[CartesianIndex()]
     end
-end
-function Base.copy(_bc::Broadcasted{TrackedStyle})
     bc = remove_not_tracked(_bc)
     flattened_bc = Base.Broadcast.flatten(bc)
-    untracked_bc = broadcast_rebuild(bc)
-    T = Core.Compiler.return_type(copy, Tuple{typeof(untracked_bc)})
     f, args = flattened_bc.f, flattened_bc.args
-    implementation = get_implementation(_bc, f, T, args)
-    if implementation isa Val{:reversediff}
-        return ∇broadcast(f, args...)
-    elseif implementation isa Val{:tracker}
-        return tracker_∇broadcast(f, args...)
+    vals = map(value, args)
+    # only the arguments are seeded, not e.g. a closure's captures, and a `TrackedArray`
+    # holds only `Real`s
+    if mayhidetracked(_bc) || !(Broadcast.combine_eltypes(f, vals) <: Real)
+        axs = flattened_bc.axes
+        style = typeof(Broadcast.combine_styles(map(recur_value, vals)...))
+        return copy(Broadcasted{style, typeof(axs), typeof(f), typeof(args)}(f, args, axs))
     else
-        flattened_untracked_bc = Base.Broadcast.flatten(untracked_bc)
-        style, axes = getstyle(flattened_untracked_bc), flattened_bc.axes
-        return copy(Broadcasted{style, typeof(axes), typeof(f), typeof(args)}(f, args, axes))
+        return ∇broadcast(f, args, vals)
     end
 end
 
+_no_tracked_dest() = throw(ArgumentError("`TrackedArray`s do not support `setindex!` and cannot be used as a broadcast destination. Use `y = f.(x)` instead."))
+
+Base.copyto!(::TrackedArray, ::Broadcasted{<:TrackedStyle}) = _no_tracked_dest()
+Base.copyto!(::TrackedArray, ::Broadcasted{<:DefaultArrayStyle}) = _no_tracked_dest()
+
 getouttype(::TrackedReal{<:Any, D}) where {D} = D
-getouttype(::TrackedArray{<:Any, D}) where {D} = D
+getouttype(::AbstractArray{<:TrackedReal{<:Any, D}}) where {D} = D
 getouttype(::Any) = Union{}
 
 deref(x) = x
 deref(x::Base.RefValue) = x[]
 
-@generated function splatcall(f, x::SVector{N}, utargs::T, ::Val{tinds}) where {N, T <: Tuple, tinds}
+@generated function splatcall(f, x::NTuple{N,Any}, utargs::T, ::Val{tinds}) where {N, T <: Tuple, tinds}
     args = []
     ti = 1
     uti = 1
@@ -138,8 +131,7 @@ end
 
 @generated function splitargs(args::T) where {T <: Tuple}
     N = length(T.types)
-    RealOrArray = Union{Real, AbstractArray}
-    inds = [i for i in 1:N if T.types[i] <: RealOrArray]
+    inds = [i for i in 1:N if T.types[i] <: Union{Real, AbstractArray, Tuple}]
     indsval = :(Val{$(Expr(:tuple, [:($i) for i in inds]...))}())
     maybetracked = Expr(:tuple, [:(args[$i]) for i in inds]...)
     untracked = Expr(:tuple, [:(args[$i]) for i in 1:N if !(i in inds)]...)
@@ -148,157 +140,231 @@ end
 
 ## A generalization of the broadcasting approach in ReverseDiff for general functions
 
-@inline function ∇broadcast(f::F, args::Vararg{Any}) where {F}
-    inds, targs, untracked = splitargs(args)
-    N = length(targs)
-    D = promote_type(getouttype.(targs)...)
-    result = DiffResults.GradientResult(zero(SVector{N, D}))
-    function df(x...)
-        return ForwardDiff.gradient!(
-            result,
-            s -> splatcall(f, s, untracked, inds),
-            SVector(x),
-        )
+@inline incr(::Val{k}) where {k} = Val(k + 1)
+
+# argument `i` has partial `slots[i]` (`Val(0)` if untracked), partial `k` belongs to argument
+# `positions[k]`, numbered from the last tracked argument. Built on the way out of the recursion
+# to stay constant-folded.
+@inline trackedslots(::Tuple{}) = (), (), Val(0)
+@inline function trackedslots(args::Tuple)
+    slots, positions, n = trackedslots(Base.tail(args))
+    positions = map(incr, positions)
+    if istracked(first(args))
+        k = incr(n)
+        return (k, slots...), (positions..., Val(1)), k
+    else
+        return (Val(0), slots...), positions, n
     end
-    results = broadcast(df, value.(targs)...)
+end
+
+@inline getat(xs::Tuple, ::Val{i}) where {i} = xs[i]
+
+# `DiffRules` leaves partials such as the order of `besselj` as `NaN`, which `NaN * 0`
+# would spread to every slot, so untracked arguments are not dualized
+@inline dualize(::Type, ::Val{0}, ::Val, x) = x
+@inline function dualize(::Type{T}, ::Val{k}, valP::Val, x) where {T, k}
+    return Dual{T}(x, ntuple(j -> j == k, valP))
+end
+
+# `f`'s partials in closed form, one per tracked argument
+struct KnownPartials{E<:Tuple}
+    entries::E
+end
+
+const RealOrArray = Union{Real, AbstractArray{<:Real}}
+
+# an argument read at the output's own index has to span the whole output
+ifsameshape(c::Contract, x, y) = x isa Real || y isa Real || axes(x) == axes(y) ? c : nothing
+
+# partial with respect to argument `i`, or `nothing`. Requiring every argument to be
+# `RealOrArray` makes positions in `args` positions in the arguments `splitargs` keeps.
+knownpartial(f, ::Val, args) = nothing
+
+knownpartial(::Union{typeof(+), typeof(identity)}, ::Val, ::Tuple{Vararg{RealOrArray}}) =
+    Contract(identity, ())
+knownpartial(::typeof(-), ::Val{1}, ::Tuple{RealOrArray}) = Contract(-, ())
+knownpartial(::typeof(-), ::Val{1}, ::Tuple{RealOrArray,RealOrArray}) = Contract(identity, ())
+knownpartial(::typeof(-), ::Val{2}, ::Tuple{RealOrArray,RealOrArray}) = Contract(-, ())
+
+# a denominator's partial `-x/y^2` is no argument of the broadcast
+knownpartial(::typeof(*), ::Val{1}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
+    ifsameshape(Contract(*, (Val(2),)), x, y)
+knownpartial(::typeof(*), ::Val{2}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
+    ifsameshape(Contract(*, (Val(1),)), x, y)
+knownpartial(::typeof(/), ::Val{1}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
+    ifsameshape(Contract(/, (Val(2),)), x, y)
+knownpartial(::typeof(\), ::Val{2}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
+    ifsameshape(Contract(/, (Val(1),)), x, y)
+
+# `nothing` unless every tracked argument's partial is known
+knownpartials(f, args, ::Tuple{}) = ()
+function knownpartials(f, args, positions::Tuple)
+    rest = knownpartials(f, args, Base.tail(positions))
+    if rest === nothing
+        return nothing
+    end
+    p = knownpartial(f, first(positions), args)
+    if p === nothing
+        return nothing
+    else
+        return (p, rest...)
+    end
+end
+
+# marks the `Dual`s seeded by `∇broadcast`, so `value` can strip them as it strips tracking;
+# `F` gives each function its own tag, which `ForwardDiff` orders by first use, as `Tag(f, V)` would
+struct BroadcastTag{F} end
+
+value(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = ForwardDiff.value(T, x)
+
+# at least one argument has to be a non-0-dimensional array: `copy` sends the scalar and
+# 0-dimensional cases onto the scalar rules instead
+@inline function ∇broadcast(f::F, args::Tuple, argvals::Tuple) where {F}
+    inds, targs, untracked = splitargs(args)
+    _, vals, _ = splitargs(argvals)
+    D = mapreduce(getouttype, promote_type, targs)
+    slots, positions, valP = trackedslots(targs)
+    # one tag per broadcast, and a new one under an enclosing differentiation
+    T = typeof(ForwardDiff.Tag(BroadcastTag{F}(), D))
+    # `broadcast` calls `df` elementwise, so it receives one scalar per argument
+    function df(x::Vararg{Any,N}) where {N}
+        dx = map((slot, xi) -> dualize(T, slot, valP, xi), slots, x)
+        return splatcall(f, dx, untracked, inds)
+    end
+    # known partials leave nothing to read off a `Dual`, so `f` is evaluated undualized
+    vf(x::Vararg{Any,N}) where {N} = splatcall(f, x, untracked, inds)
+    entries = knownpartials(f, args, positions)
+    if entries === nothing
+        results = broadcast(df, vals...)
+    else
+        results = KnownPartials(entries)
+    end
+    return trackresults(T, results, df, vf, targs, vals, D)
+end
+
+# the cache carries what the replay needs: `df` to recompute the stored partials, or, where
+# they are known already, `vf` for the values alone
+replaycache(::Type{T}, results::AbstractArray, df, _, _) where {T} =
+    (df, map(y -> ForwardDiff.value(T, y), results))
+replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
+
+# a perturbation riding on an argument ends up in the derivative, so `D` has to be able to hold
+# it; a widened element type is a `Union`
+@inline function checkargtags(::Type{D}, ::Type{E}) where {D, E}
+    if E isa Union
+        checkargtags(D, E.a)
+        checkargtags(D, E.b)
+    elseif ForwardDiff.tagtype(E) !== Nothing && !(promote_type(D, E) <: D)
+        throw(ArgumentError(LazyString("a broadcast argument with element type ", E,
+                                       " carries a perturbation that a derivative of type ", D,
+                                       " cannot hold")))
+    end
+    return nothing
+end
+
+@inline function recordresults(::Type{T}, results, df, vf, targs, vals,
+                               ::Type{D}) where {T, D}
+    foreach(v -> checkargtags(D, eltype(v)), vals)
+    g, outvalue = replaycache(T, results, df, vf, vals)
     tp = tape(targs...)
-    out_value = DiffResults.value.(results)
-    eltype(out_value) == Bool && return out_value
-    out = track(out_value, D, tp)
-	cache = (results, df, index_bound.(targs, (out,)))
-	record!(tp, SpecialInstruction, ∇broadcast, targs, out, cache)
+    out = track(outvalue, D, tp)
+    _, positions, n = trackedslots(targs)
+    bounds = map(p -> index_bound(getat(targs, p), out), positions)
+    cache = (results, g, T(), map(tuple, positions, ntuple(Val, n), bounds))
+    record!(tp, SpecialInstruction, ∇broadcast, targs, out, cache)
     return out
 end
+
+@inline trackresults(::Type{T}, results::KnownPartials, df, vf, targs, vals,
+                     ::Type{D}) where {T, D} = recordresults(T, results, df, vf, targs, vals, D)
+
+# an enclosing differentiation's tag is constant in our arguments, while one nested inside
+# `f` buries our partial; a widened element type is a `Union`, so every member is checked
+@inline function checktags(::Type{T}, ::Type{E}) where {T, E}
+    if E isa Union
+        checktags(T, E.a)
+        checktags(T, E.b)
+    else
+        S = ForwardDiff.tagtype(E)
+        if S !== Nothing && !ForwardDiff.:≺(S, T)
+            throw(ForwardDiff.DualMismatchError(T, S))
+        end
+    end
+    return nothing
+end
+
+# a type-unstable `f`, such as one with an integer literal branch, leaves an abstract
+# element type that can still hide a `Dual{T}`
+@inline function trackresults(::Type{T}, results::AbstractArray, df, vf, targs, vals,
+                              ::Type{D}) where {T, D}
+    if typeintersect(eltype(results), Dual{T}) === Union{}
+        checktags(T, eltype(results))
+        return results
+    else
+        return recordresults(T, results, df, vf, targs, vals, D)
+    end
+end
+
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
-    results, _, bounds = instruction.cache
-    N = length(input)
-    if N == 1 || all(isequal(size(input[1])), size.(Base.tail(input)))
-        _br_add_to_deriv!(input, output_deriv, results)
-    else
-        _br_add_to_deriv!(input, output_deriv, results, bounds)
+    results, _, tag, targets = instruction.cache
+    T = typeof(tag)
+    partials = reversepartials(results, input)
+    map(targets) do (p, k, bound)
+        x = getat(input, p)
+        istracked(x) && _br_add_to_deriv!(T, x, k, output_deriv, partials, bound)
     end
     unseed!(output)
     return nothing
 end
 
-@generated function _br_add_to_deriv!(xs::T, o, r) where {T <: Tuple}
-    N = length(T.types)
-    return Expr(:block, [:(_br_add_to_deriv!(xs[$i], o, r, Val($i))) for i in 1:N]...)
-end
-_br_add_to_deriv!(_, _, _, _) = nothing
-function _br_add_to_deriv!(x::Union{TrackedReal, TrackedArray}, out_deriv, results, ::Val{i}) where {i}
-    return istracked(x) && diffresult_increment_deriv!(x, out_deriv, results, i)
+struct PartialsWithArgs{E<:Tuple,A<:Tuple}
+    entries::E
+    args::A
 end
 
-@generated function _br_add_to_deriv!(xs::T, o, r, bounds) where {T <: Tuple}
-    N = length(T.types)
-    return Expr(:block, [:(_br_add_to_deriv!(xs[$i], o, r, Val($i), bounds[$i])) for i in 1:N]...)
+# the partials of one reverse pass. Only known partials read the argument values, so the
+# per-element cache skips computing them, which copies an array of `TrackedReal`s.
+reversepartials(results::AbstractArray, _) = results
+reversepartials(p::KnownPartials, input) = PartialsWithArgs(p.entries, map(value, input))
+
+# an argument broadcast to the full output shape needs no index clamping
+function _br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results,
+                           bound::CartesianIndex) where {T}
+    if bound == CartesianIndex(size(out_deriv))
+        return _increment_deriv!(T, x, out_deriv, results, slot)
+    else
+        return _increment_deriv!(T, x, out_deriv, results, slot, bound)
+    end
 end
-_br_add_to_deriv!(_, _, _, _, _) = nothing
-function _br_add_to_deriv!(x::Union{TrackedReal,TrackedArray}, out_deriv, results, ::Val{i}, bound) where {i}
-    return istracked(x) && diffresult_increment_deriv!(x, out_deriv, results, i, bound)
-end
+
+_br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results, ::Nothing) where {T} =
+    _increment_deriv!(T, x, out_deriv, results, slot, nothing)
+
+# a per-element cache is indexed by the slot, a closed-form one is picked out by it
+_increment_deriv!(::Type{T}, x, out_deriv, results, ::Val{k}, bound...) where {T, k} =
+    diffresult_increment_deriv!(T, x, out_deriv, results, k, bound...)
+_increment_deriv!(::Type, x, out_deriv, p::PartialsWithArgs, ::Val{k}, bound...) where {k} =
+    contract_increment_deriv!(x, out_deriv, p.entries[k], p.args, bound...)
 
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input, output = instruction.input, instruction.output
-    results, df, _ = instruction.cache
-    pull_value!.(input)
-    broadcast!(df, results, value.(input)...)
-    output_value = value(output)
-    output_value .= DiffResults.value.(results)
+    results, df, tag, _ = instruction.cache
+    foreach(pull_value!, input)
+    _replay!(typeof(tag), value(output), results, df, map(value, input))
     return nothing
 end
 
-## Tracker style broadcasting
-## Good for broadcasting real numbers or arrays of non-tracked structs
-
-trim(x, Δ) = reshape(Δ, ntuple(i -> size(Δ, i), Val(ndims(x))))
-
-unbroadcast(x::AbstractArray, Δ) =
-  size(x) == size(Δ) ? Δ :
-  length(x) == length(Δ) ? trim(x, Δ) :
-    trim(x, sum(Δ, dims = ntuple(i -> size(x, i) == 1 ? i : ndims(Δ)+1, Val(ndims(Δ)))))
-
-unbroadcast(x::Number, Δ) = sum(Δ)
-unbroadcast(x::Base.RefValue, _) = nothing
-
-dual(x, p) = x
-dual(x::Real, p) = Dual(x, p)
-
-function _deriv(f, G, ::Val{i}, args::Vararg{Any, N}) where {N, i}
-    dargs = ntuple(j -> dual(args[j], i==j), Val(N))
-    return f(dargs...).partials[1] * G
-end
-@generated function _derivs(f, G, args::Vararg{Any, N}) where {N}
-    return Expr(:tuple, [:(_deriv.(f, G, Val($i), args...)) for i in 1:N]...)
-end
-@inline function tracker_∇broadcast(f, args::Vararg{Any, N}) where {N}
-    args_values = map(value, args)
-    out_value = broadcast(f, args_values...)
-    tp = tape(args...)
-    eltype(out_value) == Bool && return out_value
-	out = track(out_value, tp)
-    cache = (f,)
-	record!(tp, SpecialInstruction, tracker_∇broadcast, args, out, cache)
-    return out
-end
-
-@noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(tracker_∇broadcast)})
-    input, output = instruction.input, instruction.output
-    f = instruction.cache[1]
-    output_value = value(output)
-    pull_value!.(input)
-    broadcast!(f, output_value, value.(input)...)
+function _replay!(::Type{T}, out_value, results::AbstractArray, df, vals) where {T}
+    broadcast!(df, results, vals...)
+    map!(y -> ForwardDiff.value(T, y), out_value, results)
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(tracker_∇broadcast)})
-    input = instruction.input
-    output = instruction.output
-    f = instruction.cache[1]
-    output_deriv = deriv(output)
-    N = length(input)
-    Δargs = _derivs(f, output_deriv, value.(input)...)
-    dxs = map(unbroadcast, input, Δargs)
-    map(_add_to_deriv!, input, dxs)
-    unseed!(output)
+# known partials stay valid, so only the values are recomputed
+function _replay!(::Type, out_value, results::KnownPartials, vf, vals)
+    broadcast!(vf, out_value, vals...)
     return nothing
-end
-
-## Limited ReverseDiff broadcasting
-## Efficient broadcasting for specific functions, e.g. +, -
-
-@inline _materialize(f, args) = broadcast(f, args...)
-
-for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
-    if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
-        @warn "$M.$f is not available and hence rule for it can not be defined"
-        continue  # Skip rules for methods not defined in the current scope
-    end
-    if arity == 1
-        @eval @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedArray}}) = _materialize(bc.f, bc.args)
-    elseif arity == 2
-        @eval begin
-            @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedArray,TrackedArray}}) = _materialize(bc.f, bc.args)
-            @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedArray,TrackedReal}}) = _materialize(bc.f, bc.args)
-            @noinline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedReal,TrackedArray}}) = _materialize(bc.f, bc.args)
-        end
-        for A in ARRAY_TYPES
-            @eval begin
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{$A{<:Number},TrackedArray}}) = _materialize(bc.f, bc.args)
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedArray, $A{<:Number}}}) = _materialize(bc.f, bc.args)
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{$A{<:Number}, TrackedReal}}) = _materialize(bc.f, bc.args)
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedReal,$A{<:Number}}}) = _materialize(bc.f, bc.args)
-            end
-        end
-        for R in REAL_TYPES
-            @eval begin
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{$R,TrackedArray}}) = _materialize(bc.f, bc.args)
-                @inline materialize(bc::RDBroadcasted{typeof($M.$f), <:Tuple{TrackedArray,$R}}) = _materialize(bc.f, bc.args)
-            end
-        end
-    end
 end
