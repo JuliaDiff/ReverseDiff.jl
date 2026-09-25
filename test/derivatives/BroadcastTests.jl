@@ -436,7 +436,8 @@ end
     @test ReverseDiff.gradient(t -> sum(t .* t[1]), v) == [2 * v[1] + sum(v[2:end]), 1.0, 1.0]
 
     # an argument `splitargs` holds back is not one a partial may name
-    @test ReverseDiff.gradient(t -> sum(broadcast(*, t, w, Ref(2.0))), v) == 2 .* w
+    @test ReverseDiff.gradient(t -> sum(Ref(2.0) .* t), v) == fill(2.0, 3)
+    @test ReverseDiff.gradient(t -> sum(t .* Ref(2.0)), v) == fill(2.0, 3)
 
     ga, gb = ReverseDiff.gradient((a, b) -> sum(a .- b), (v, w))
     @test ga == fill(1.0, 3)
@@ -458,9 +459,9 @@ end
     @test ReverseDiff.gradient!(tape, x) ≈ 2 .* exp.(2 .* x)
 
     # an argument a partial names is read at replay time, not at record time
-    scaled(t) = t .* [2.0, 3.0, 4.0]
-    tape2 = ReverseDiff.GradientTape(t -> sum(scaled(t)), [1.0, 2.0, 3.0])
-    @test ReverseDiff.gradient!(tape2, x) == [2.0, 3.0, 4.0]
+    tape2 = ReverseDiff.GradientTape(t -> sum(t .* t), [1.0, 2.0, 3.0])
+    @test ReverseDiff.gradient!(tape2, x) == 2 .* x
+    @test ReverseDiff.gradient!(ReverseDiff.compile(tape2), x) == 2 .* x
 end
 
 end # module

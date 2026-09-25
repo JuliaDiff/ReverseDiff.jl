@@ -326,35 +326,44 @@ end
     results, _, tag, bounds = instruction.cache
     T = typeof(tag)
     slots, _ = trackedslots(input)
-    vals = map(value, input)
-    map((x, slot, bound) ->
-            _br_add_to_deriv!(T, x, slot, output_deriv, results, bound, vals),
+    partials = reversepartials(results, input)
+    map((x, slot, bound) -> _br_add_to_deriv!(T, x, slot, output_deriv, partials, bound),
         input, slots, bounds)
     unseed!(output)
     return nothing
 end
 
-_br_add_to_deriv!(::Type, _, ::Val{0}, _, _, ::CartesianIndex, _) = nothing
-_br_add_to_deriv!(::Type, _, ::Val{0}, _, _, ::Nothing, _) = nothing
+struct PartialsWithArgs{E<:Tuple,A<:Tuple}
+    entries::E
+    args::A
+end
+
+# the partials of one reverse pass. Only known partials read the argument values, so the
+# per-element cache skips computing them, which copies an array of `TrackedReal`s.
+reversepartials(results::AbstractArray, _) = results
+reversepartials(p::KnownPartials, input) = PartialsWithArgs(p.entries, map(value, input))
+
+_br_add_to_deriv!(::Type, _, ::Val{0}, _, _, ::CartesianIndex) = nothing
+_br_add_to_deriv!(::Type, _, ::Val{0}, _, _, ::Nothing) = nothing
 
 # an argument broadcast to the full output shape needs no index clamping
 function _br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results,
-                           bound::CartesianIndex, args) where {T}
+                           bound::CartesianIndex) where {T}
     if bound == CartesianIndex(size(out_deriv))
-        return _increment_deriv!(T, x, out_deriv, results, slot, args)
+        return _increment_deriv!(T, x, out_deriv, results, slot)
     else
-        return _increment_deriv!(T, x, out_deriv, results, slot, args, bound)
+        return _increment_deriv!(T, x, out_deriv, results, slot, bound)
     end
 end
 
-_br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results, ::Nothing, args) where {T} =
-    _increment_deriv!(T, x, out_deriv, results, slot, args, nothing)
+_br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results, ::Nothing) where {T} =
+    _increment_deriv!(T, x, out_deriv, results, slot, nothing)
 
 # a per-element cache is indexed by the slot, a closed-form one is picked out by it
-_increment_deriv!(::Type{T}, x, out_deriv, results, ::Val{k}, args, bound...) where {T, k} =
+_increment_deriv!(::Type{T}, x, out_deriv, results, ::Val{k}, bound...) where {T, k} =
     diffresult_increment_deriv!(T, x, out_deriv, results, k, bound...)
-_increment_deriv!(::Type, x, out_deriv, p::KnownPartials, ::Val{k}, args, bound...) where {k} =
-    contract_increment_deriv!(x, out_deriv, p.entries[k], args, bound...)
+_increment_deriv!(::Type, x, out_deriv, p::PartialsWithArgs, ::Val{k}, bound...) where {k} =
+    contract_increment_deriv!(x, out_deriv, p.entries[k], p.args, bound...)
 
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input, output = instruction.input, instruction.output
