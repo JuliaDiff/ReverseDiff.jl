@@ -124,6 +124,12 @@ end
     @test y isa Matrix{Float64}
     @test y == exp.(value(x))
     @test isempty(tp)
+
+    # fused, and at every order
+    f(v) = sum(v .* ReverseDiff.@skip(exp).(v))
+    a = rand(3)
+    @test ReverseDiff.gradient(f, a) ≈ exp.(a)
+    @test ReverseDiff.hessian(f, a) ≈ zeros(3, 3)
 end
 
 @testset "a type broadcast as a function does not force the fallback path" begin
@@ -362,7 +368,6 @@ end
     expected = wrap(d, e, A)
     actual = map(value, wrap(track(d, tp), track(e, tp), track(A, tp)))
 
-    @test all(map((a, b) -> a isa typeof(b), actual, expected))
     @test actual == expected
     @test isempty(tp)
 

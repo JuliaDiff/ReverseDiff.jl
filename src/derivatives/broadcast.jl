@@ -212,6 +212,11 @@ function knownpartials(f, args, positions::Tuple)
     end
 end
 
+# marks the `Dual`s `∇broadcast` seeds, so `@skip` can drop them as it drops tracking
+struct BroadcastTag{F} end
+
+skipvalue(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = skipvalue(ForwardDiff.value(T, x))
+
 # at least one argument has to be a non-0-dimensional array: `copy` sends the scalar and
 # 0-dimensional cases onto the scalar rules instead
 @inline function ∇broadcast(f::F, args::Tuple, argvals::Tuple) where {F}
@@ -219,7 +224,7 @@ end
     _, vals, _ = splitargs(argvals)
     slots, positions, valP = trackedslots(targs)
     # one tag per broadcast, and a new one under an enclosing differentiation
-    T = typeof(ForwardDiff.Tag(f, reduce(promote_type, map(dualvaltype, slots, vals))))
+    T = typeof(ForwardDiff.Tag(BroadcastTag{F}(), reduce(promote_type, map(dualvaltype, slots, vals))))
     # `broadcast` calls `df` elementwise, so it receives one scalar per argument
     function df(x::Vararg{Any,N}) where {N}
         dx = map((slot, xi) -> dualize(T, slot, valP, xi), slots, x)
