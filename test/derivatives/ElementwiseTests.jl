@@ -486,4 +486,21 @@ end
     end
 end
 
+@testset "`map` over a `TrackedArray` and an array that may hold `TrackedReal`s" begin
+    c = [1.0, 2.0, 3.0]
+    ∇hypot(a, b) = [a ./ hypot.(a, b); b ./ hypot.(a, b)]
+
+    cases = ((t -> sum(map(hypot, t[1:3], [t[4], t[5], t[6]])), t -> ∇hypot(t[1:3], t[4:6])),
+             (t -> sum(map(hypot, [t[1], t[2], t[3]], t[4:6])), t -> ∇hypot(t[1:3], t[4:6])),
+             (t -> sum(map(hypot, t[1:3], Real[c...])), t -> [∇hypot(t[1:3], c)[1:3]; zeros(3)]))
+    for (f, ∇f) in cases
+        v = rand(6)
+        @test ReverseDiff.gradient(f, v) ≈ ∇f(v)
+
+        tape = ReverseDiff.GradientTape(f, v)
+        w = rand(6)
+        @test ReverseDiff.gradient!(tape, w) ≈ ∇f(w)
+    end
+end
+
 end # module

@@ -12,15 +12,11 @@ end
 for f in SKIPPED_BINARY_SCALAR_FUNCS
     @eval begin
         @inline Base.map(f::typeof($f), x::TrackedArray, y::TrackedArray) = map(SkipOptimize(f), x, y)
-        @inline Base.map(f::typeof($f), x::TrackedArray, y::TrackedReal) = map(SkipOptimize(f), x, y)
-        @inline Base.map(f::typeof($f), x::TrackedReal, y::TrackedArray) = map(SkipOptimize(f), x, y)
     end
     for A in ARRAY_TYPES
         @eval begin
             @inline Base.map(f::typeof($f), x::$A, y::TrackedArray) = map(SkipOptimize(f), x, y)
             @inline Base.map(f::typeof($f), x::TrackedArray, y::$A) = map(SkipOptimize(f), x, y)
-            @inline Base.map(f::typeof($f), x::$A, y::TrackedReal) = map(SkipOptimize(f), x, y)
-            @inline Base.map(f::typeof($f), x::TrackedReal, y::$A) = map(SkipOptimize(f), x, y)
         end
     end
     for R in REAL_TYPES
@@ -37,14 +33,10 @@ end
 @inline Base.map(f::SkipOptimize{F}, t::TrackedArray) where {F} = map(f.f, value(t))
 
 @inline Base.map(f::SkipOptimize{F}, x::TrackedArray, y::TrackedArray) where {F} = map(f.f, value(x), value(y))
-@inline Base.map(f::SkipOptimize{F}, x::TrackedArray, y::TrackedReal) where {F} = map(f.f, value(x), value(y))
-@inline Base.map(f::SkipOptimize{F}, x::TrackedReal, y::TrackedArray) where {F} = map(f.f, value(x), value(y))
 for A in ARRAY_TYPES
     @eval begin
         @inline Base.map(f::SkipOptimize{F}, x::$A, y::TrackedArray) where {F} = map(f.f, value(x), value(y))
         @inline Base.map(f::SkipOptimize{F}, x::TrackedArray, y::$A) where {F} = map(f.f, value(x), value(y))
-        @inline Base.map(f::SkipOptimize{F}, x::$A, y::TrackedReal) where {F} = map(f.f, value(x), value(y))
-        @inline Base.map(f::SkipOptimize{F}, x::TrackedReal, y::$A) where {F} = map(f.f, value(x), value(y))
     end
 end
 for R in REAL_TYPES
@@ -101,8 +93,12 @@ function Base.map(f::ForwardOptimize{F}, x::TrackedArray{X,D}) where {F,X,D}
     return out
 end
 
+# an array of `TrackedReal`s is differentiated like a `TrackedArray`
 for A in ARRAY_TYPES
     @eval function Base.map(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$A) where {F,X,D}
+        if istracked(y)
+            return record_map(f, x, y, D)
+        end
         result = DiffResults.GradientResult(SVector(zero(X)))
         df = (vx, vy) -> let vy=vy
             ForwardDiff.gradient!(result, s -> f.f(s[1], vy), SVector(vx))
@@ -115,6 +111,9 @@ for A in ARRAY_TYPES
         return out
     end
     @eval function Base.map(f::ForwardOptimize{F}, x::$A, y::TrackedArray{Y,D}) where {F,Y,D}
+        if istracked(x)
+            return record_map(f, x, y, D)
+        end
         result = DiffResults.GradientResult(SVector(zero(Y)))
         df = (vx, vy) -> let vx=vx
             ForwardDiff.gradient!(result, s -> f.f(vx, s[1]), SVector(vy))
@@ -128,7 +127,10 @@ for A in ARRAY_TYPES
     end
 end
 
-function Base.map(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {F,X,Y,D}
+Base.map(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {F,X,Y,D} =
+    record_map(f, x, y, D)
+
+function record_map(f::ForwardOptimize, x, y, ::Type{D}) where {D}
     result = DiffResults.GradientResult(SVector(zero(D), zero(D)))
     df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
     results = map(df, value(x), value(y))
