@@ -1,6 +1,6 @@
 module LinAlgTests
 
-using ReverseDiff, ForwardDiff, Test, LinearAlgebra
+using ReverseDiff, ForwardDiff, Test, LinearAlgebra, StaticArrays
 
 if get(ENV, "DOWNGRADE_TEST", "false")::String != "true"
     @test Base.get_extension(ReverseDiff, :StatisticsExt) === nothing
@@ -351,6 +351,33 @@ end
         (u -> dense(u) + Real[i == j ? u[9 + i] : 0.0 for i in 1:3, j in 1:3], [I(9) E]),
     )
         test_jacobian(f, rand(12), J)
+    end
+end
+
+@testset "`StaticArray`s (#153)" begin
+    sv = SVector(1.0, 2.0)
+    sm = SMatrix{2,2}(1.0, 2.0, 3.0, 4.0)
+    x = rand(2)
+    for (f, J) in (
+        (u -> sv + u, I(2)),
+        (u -> u + sv, I(2)),
+        (u -> sv - u, -I(2)),
+        (u -> u - sv, I(2)),
+        (u -> sm * u, sm),
+        (u -> SVector(u[1], u[2]) + u, 2I(2)),
+        (u -> u - SVector(u[1], u[2]), zeros(2, 2)),
+        (u -> SMatrix{2,2}(u[1], u[2], u[1], u[2]) * u, [2x[1]+x[2] x[1]; x[2] x[1]+2x[2]]),
+        (u -> SVector(u[1], u[2]) .* u[1], [2x[1] 0; x[2] x[1]]),
+    )
+        test_jacobian(f, x, J)
+    end
+    # replaying the tape overwrites the static values in place
+    for (f, g) in (
+        (u -> sum(abs2, sm * u + sv), u -> 2 * sm' * (sm * u + sv)),
+        (u -> sum(abs2, u' * sm), u -> 2 * sm * sm' * u),
+    )
+        tp = ReverseDiff.GradientTape(f, rand(2))
+        test_approx(ReverseDiff.gradient!(tp, x), g(x))
     end
 end
 

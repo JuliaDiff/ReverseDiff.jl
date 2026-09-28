@@ -519,7 +519,16 @@ track(x::AbstractArray, tp::InstructionTape = InstructionTape()) = track(x, elty
 
 track(x::Real, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = TrackedReal(x, zero(D), tp)
 
-track(x::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = TrackedArray(x, fill!(similar(x, D), zero(D)), tp)
+function track(x::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D}
+    v = writable(x)
+    return TrackedArray(v, fill!(similar(v, D), zero(D)), tp)
+end
+
+# the tape recomputes values in place
+writable(x::AbstractArray) = x
+writable(x::SArray) = copyto!(similar(x), x)
+writable(x::Adjoint) = adjoint(writable(parent(x)))
+writable(x::Transpose) = transpose(writable(parent(x)))
 
 track!(t::TrackedArray, x::AbstractArray) = (value!(t, x); unseed!(t); t)
 

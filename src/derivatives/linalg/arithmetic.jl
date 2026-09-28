@@ -28,10 +28,12 @@ end
 
 @inline Base.:+(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_plus(x, y, D)
 
-for A in ARRAY_TYPES
-    @eval @inline Base.:+(x::TrackedArray{V,D}, y::$(A)) where {V,D} = record_plus(x, y, D)
-    @eval @inline Base.:+(x::$(A), y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
-end
+@inline Base.:+(x::TrackedArray{V,D}, y::AbstractArray) where {V,D} = record_plus(x, y, D)
+@inline Base.:+(x::AbstractArray, y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
+
+# avoid ambiguities with StaticArrays
+@inline Base.:+(x::TrackedArray{V,D}, y::StaticArray) where {V,D} = record_plus(x, y, D)
+@inline Base.:+(x::StaticArray, y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
 
 function record_plus(x, y, ::Type{D}) where D
     tp = tape(x, y)
@@ -103,10 +105,12 @@ end
 
 Base.:-(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_minus(x, y, D)
 
-for A in ARRAY_TYPES
-    @eval Base.:-(x::TrackedArray{V,D}, y::$(A)) where {V,D} = record_minus(x, y, D)
-    @eval Base.:-(x::$(A), y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
-end
+Base.:-(x::TrackedArray{V,D}, y::AbstractArray) where {V,D} = record_minus(x, y, D)
+Base.:-(x::AbstractArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
+
+# avoid ambiguities with StaticArrays
+Base.:-(x::TrackedArray{V,D}, y::StaticArray) where {V,D} = record_minus(x, y, D)
+Base.:-(x::StaticArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
 
 function Base.:-(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
@@ -272,6 +276,9 @@ end
 else
     LinearAlgebra.:*(x::Diagonal, y::TrackedVector{V,D}) where {V,D} = record_mul(x, y, D)
 end
+
+# avoid ambiguities with StaticArrays
+LinearAlgebra.:*(x::StaticMatrix, y::TrackedVector{V,D}) where {V,D} = record_mul(x, y, D)
 
 # forward pass #
 #--------------#
