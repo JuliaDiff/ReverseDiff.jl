@@ -261,10 +261,10 @@ end
         1.0, ForwardDiff.Dual{tagA}(2.0, 3.0)]
     nested = Union{Float64,ForwardDiff.Dual{tagB,Float64,1}}[1.0]
 
-    @test ReverseDiff.trackresults(tagB, concrete, identity, identity, (), (), Float64) === concrete
-    @test ReverseDiff.trackresults(tagB, widened, identity, identity, (), (), Float64) === widened
+    @test ReverseDiff.trackresults(tagB, concrete, identity, identity, (), ()) === concrete
+    @test ReverseDiff.trackresults(tagB, widened, identity, identity, (), ()) === widened
     @test_throws ForwardDiff.DualMismatchError ReverseDiff.trackresults(
-        tagA, nested, identity, identity, (), (), Float64)
+        tagA, nested, identity, identity, (), ())
 
     @test ReverseDiff.getpartial(tagA, ForwardDiff.Dual{tagA}(1.0, 2.0), 1) == 2.0
     @test ReverseDiff.getpartial(tagA, 1.0, 1) == 0.0
@@ -290,6 +290,10 @@ end
     # a tape whose derivatives are themselves `Dual`s can hold it, so it is left alone
     h(a) = ReverseDiff.gradient(x -> sum(x .* a), [ForwardDiff.Dual(1.0, 0.0)])
     @test h(3.0) == [ForwardDiff.Dual(3.0, 0.0)]
+
+    # also when the perturbation comes from an enclosing broadcast
+    f(x) = sum(broadcast(a -> ReverseDiff.gradient(y -> sum(y .* a), [1.0])[1], x))
+    @test_throws ArgumentError ReverseDiff.gradient(f, [2.0, 3.0])
 end
 
 @testset "zero-dimensional arrays (#265)" begin
@@ -348,21 +352,24 @@ end
     @test gm == Diagonal(a)
 end
 
-@testset "`value` in a broadcast is not recorded" begin
-    a = rand(3)
+@testset "`value` of a wrapped `TrackedArray` is not recorded" begin
+    wrap(d, e, A) = (Diagonal(d), Bidiagonal(d, e, :L), Tridiagonal(e, d, e), SymTridiagonal(d, e),
+                     UpperTriangular(A), LowerTriangular(A), UnitUpperTriangular(A),
+                     UnitLowerTriangular(A), UpperHessenberg(A), Symmetric(A, :L),
+                     Hermitian(A, :L), adjoint(A), transpose(A))
+    d, e, A = rand(3), rand(2), rand(3, 3)
     tp = InstructionTape()
-    x = track(copy(a), tp)
+    expected = wrap(d, e, A)
+    actual = map(value, wrap(track(d, tp), track(e, tp), track(A, tp)))
 
-    d = value(Diagonal(x))
-    @test d isa Diagonal{Float64,Vector{Float64}}
-    @test d == Diagonal(a)
+    @test all(map((a, b) -> a isa typeof(b), actual, expected))
+    @test actual == expected
     @test isempty(tp)
 
-    # also when fused with a differentiable function
-    y = value.(x .+ 1)
-    @test y isa Vector{Float64}
-    @test y ≈ a .+ 1
-    @test isempty(tp)
+    # the test covers every `StructuredMatrix` type
+    covered = map(nameof ∘ typeof, expected)
+    structured = Base.uniontypes(Base.unwrap_unionall(LinearAlgebra.StructuredMatrix))
+    @test issubset(map(nameof, structured), covered)
 end
 
 @testset "tuple arguments" begin

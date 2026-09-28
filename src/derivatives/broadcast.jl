@@ -143,17 +143,15 @@ end
 @inline incr(::Val{k}) where {k} = Val(k + 1)
 
 # argument `i` has partial `slots[i]` (`Val(0)` if untracked), partial `k` belongs to argument
-# `positions[k]`, numbered from the last tracked argument. Built on the way out of the recursion
-# to stay constant-folded.
+# `positions[k]`. Built on the way out of the recursion to stay constant-folded.
 @inline trackedslots(::Tuple{}) = (), (), Val(0)
 @inline function trackedslots(args::Tuple)
-    slots, positions, n = trackedslots(Base.tail(args))
-    positions = map(incr, positions)
-    if istracked(first(args))
+    slots, positions, n = trackedslots(Base.front(args))
+    if istracked(last(args))
         k = incr(n)
-        return (k, slots...), (positions..., Val(1)), k
+        return (slots..., k), (positions..., Val(length(args))), k
     else
-        return (Val(0), slots...), positions, n
+        return (slots..., Val(0)), positions, n
     end
 end
 
@@ -161,6 +159,9 @@ end
 
 # `DiffRules` leaves partials such as the order of `besselj` as `NaN`, which `NaN * 0`
 # would spread to every slot, so untracked arguments are not dualized
+@inline dualvaltype(::Val{0}, v) = Union{}
+@inline dualvaltype(::Val, v) = eltype(v)
+
 @inline dualize(::Type, ::Val{0}, ::Val, x) = x
 @inline function dualize(::Type{T}, ::Val{k}, valP::Val, x) where {T, k}
     return Dual{T}(x, ntuple(j -> j == k, valP))
@@ -174,7 +175,7 @@ end
 const RealOrArray = Union{Real, AbstractArray{<:Real}}
 
 # an argument read at the output's own index has to span the whole output
-ifsameshape(c::Contract, x, y) = x isa Real || y isa Real || axes(x) == axes(y) ? c : nothing
+ifsameshape(c::Contract, x, y) = (x isa Real || y isa Real || axes(x) == axes(y)) ? c : nothing
 
 # partial with respect to argument `i`, or `nothing`. Requiring every argument to be
 # `RealOrArray` makes positions in `args` positions in the arguments `splitargs` keeps.
@@ -211,21 +212,14 @@ function knownpartials(f, args, positions::Tuple)
     end
 end
 
-# marks the `Dual`s seeded by `∇broadcast`, so `value` can strip them as it strips tracking;
-# `F` gives each function its own tag, which `ForwardDiff` orders by first use, as `Tag(f, V)` would
-struct BroadcastTag{F} end
-
-value(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = ForwardDiff.value(T, x)
-
 # at least one argument has to be a non-0-dimensional array: `copy` sends the scalar and
 # 0-dimensional cases onto the scalar rules instead
 @inline function ∇broadcast(f::F, args::Tuple, argvals::Tuple) where {F}
     inds, targs, untracked = splitargs(args)
     _, vals, _ = splitargs(argvals)
-    D = mapreduce(getouttype, promote_type, targs)
     slots, positions, valP = trackedslots(targs)
     # one tag per broadcast, and a new one under an enclosing differentiation
-    T = typeof(ForwardDiff.Tag(BroadcastTag{F}(), D))
+    T = typeof(ForwardDiff.Tag(f, reduce(promote_type, map(dualvaltype, slots, vals))))
     # `broadcast` calls `df` elementwise, so it receives one scalar per argument
     function df(x::Vararg{Any,N}) where {N}
         dx = map((slot, xi) -> dualize(T, slot, valP, xi), slots, x)
@@ -235,11 +229,10 @@ value(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = ForwardDiff.value
     vf(x::Vararg{Any,N}) where {N} = splatcall(f, x, untracked, inds)
     entries = knownpartials(f, args, positions)
     if entries === nothing
-        results = broadcast(df, vals...)
+        return trackresults(T, broadcast(df, vals...), df, vf, targs, vals)
     else
-        results = KnownPartials(entries)
+        return recordresults(T, KnownPartials(entries), df, vf, targs, vals)
     end
-    return trackresults(T, results, df, vf, targs, vals, D)
 end
 
 # the cache carries what the replay needs: `df` to recompute the stored partials, or, where
@@ -262,8 +255,8 @@ replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
     return nothing
 end
 
-@inline function recordresults(::Type{T}, results, df, vf, targs, vals,
-                               ::Type{D}) where {T, D}
+@inline function recordresults(::Type{T}, results, df, vf, targs, vals) where {T}
+    D = mapreduce(getouttype, promote_type, targs)
     foreach(v -> checkargtags(D, eltype(v)), vals)
     g, outvalue = replaycache(T, results, df, vf, vals)
     tp = tape(targs...)
@@ -274,9 +267,6 @@ end
     record!(tp, SpecialInstruction, ∇broadcast, targs, out, cache)
     return out
 end
-
-@inline trackresults(::Type{T}, results::KnownPartials, df, vf, targs, vals,
-                     ::Type{D}) where {T, D} = recordresults(T, results, df, vf, targs, vals, D)
 
 # an enclosing differentiation's tag is constant in our arguments, while one nested inside
 # `f` buries our partial; a widened element type is a `Union`, so every member is checked
@@ -295,13 +285,12 @@ end
 
 # a type-unstable `f`, such as one with an integer literal branch, leaves an abstract
 # element type that can still hide a `Dual{T}`
-@inline function trackresults(::Type{T}, results::AbstractArray, df, vf, targs, vals,
-                              ::Type{D}) where {T, D}
+@inline function trackresults(::Type{T}, results::AbstractArray, df, vf, targs, vals) where {T}
     if typeintersect(eltype(results), Dual{T}) === Union{}
         checktags(T, eltype(results))
         return results
     else
-        return recordresults(T, results, df, vf, targs, vals, D)
+        return recordresults(T, results, df, vf, targs, vals)
     end
 end
 
@@ -325,10 +314,13 @@ struct PartialsWithArgs{E<:Tuple,A<:Tuple}
     args::A
 end
 
-# the partials of one reverse pass. Only known partials read the argument values, so the
-# per-element cache skips computing them, which copies an array of `TrackedReal`s.
+# the partials of one reverse pass. Only known partials read argument values, and only of the
+# arguments they name, since unwrapping an array of `TrackedReal`s copies it.
 reversepartials(results::AbstractArray, _) = results
-reversepartials(p::KnownPartials, input) = PartialsWithArgs(p.entries, map(value, input))
+function reversepartials(p::KnownPartials, input)
+    args = map(e -> map(j -> value(getat(input, j)), e.args), p.entries)
+    return PartialsWithArgs(p.entries, args)
+end
 
 # an argument broadcast to the full output shape needs no index clamping
 function _br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results,
@@ -347,7 +339,7 @@ _br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results, ::Nothing) where 
 _increment_deriv!(::Type{T}, x, out_deriv, results, ::Val{k}, bound...) where {T, k} =
     diffresult_increment_deriv!(T, x, out_deriv, results, k, bound...)
 _increment_deriv!(::Type, x, out_deriv, p::PartialsWithArgs, ::Val{k}, bound...) where {k} =
-    contract_increment_deriv!(x, out_deriv, p.entries[k], p.args, bound...)
+    contract_increment_deriv!(x, out_deriv, p.entries[k], p.args[k], bound...)
 
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input, output = instruction.input, instruction.output

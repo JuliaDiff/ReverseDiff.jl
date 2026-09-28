@@ -108,11 +108,11 @@ struct Contract{Op,A<:Tuple}
     args::A
 end
 
-_at(::Val{j}, i, args) where {j} = _elem(args[j], i)
 _elem(v::Real, i) = v
 _elem(v::AbstractArray, i) = v[i]
 
-_contract(e::Contract, seed, i, args) = e.op(seed, map(a -> _at(a, i, args), e.args)...)
+# `vals` holds the values of the arguments `e` names
+_contract(e::Contract, seed, i, vals) = e.op(seed, map(v -> _elem(v, i), vals)...)
 
 function diffresult_increment_deriv!(::Type{T}, input::AbstractArray, x::AbstractArray,
                                      results::AbstractArray, p::Int) where {T}

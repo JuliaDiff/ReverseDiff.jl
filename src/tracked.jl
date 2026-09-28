@@ -106,6 +106,18 @@ end
 @inline value(x::AbstractArray) = istracked(x) ? map(value, x) : x
 @inline value(t::TrackedReal) = t.value
 @inline value(t::TrackedArray) = t.value
+value(A::Adjoint) = adjoint(value(parent(A)))
+value(A::Transpose) = transpose(value(parent(A)))
+value(D::Diagonal) = Diagonal(value(D.diag))
+value(B::Bidiagonal) = Bidiagonal(value(B.dv), value(B.ev), Symbol(B.uplo))
+value(T::Tridiagonal) = Tridiagonal(value(T.dl), value(T.d), value(T.du))
+value(S::SymTridiagonal) = SymTridiagonal(value(S.dv), value(S.ev))
+value(S::Symmetric) = Symmetric(value(parent(S)), Symbol(S.uplo))
+value(H::Hermitian) = Hermitian(value(parent(H)), Symbol(H.uplo))
+value(H::UpperHessenberg) = UpperHessenberg(value(parent(H)))
+for W in (:UpperTriangular, :LowerTriangular, :UnitUpperTriangular, :UnitLowerTriangular)
+    @eval value(A::$W) = $W(value(parent(A)))
+end
 
 @inline deriv(t::TrackedArray) = t.deriv
 @inline deriv(t::TrackedReal) =  t.deriv
