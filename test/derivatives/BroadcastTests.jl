@@ -77,6 +77,18 @@ end
     @test ReverseDiff.gradient(x -> sum(x .* d), a) ≈ Matrix(d)
     @test ReverseDiff.gradient(x -> sum(x .* u), a) ≈ Matrix(u)
     @test ReverseDiff.gradient(x -> sum(x .* s), v) ≈ s
+
+    # a closure takes the scalar rules, and still broadcasts a static value statically
+    c = 3.0
+    tp = InstructionTape()
+    xs = track(SVector(1.0, 2.0), tp)
+    y, z = (t -> t * c).(xs), ((t, u) -> t * u * c).(xs, SVector(1.0, 2.0))
+    @test y isa SVector
+    @test z isa SVector
+    ReverseDiff.seed!(sum(y) + sum(z))
+    ReverseDiff.reverse_pass!(tp)
+    @test deriv(xs) == [6.0, 9.0]
+    @test ReverseDiff.gradient(x -> sum((t -> t * c).(x)), SVector(1.0, 2.0)) == [3.0, 3.0]
 end
 
 @testset "no `BroadcastStyle` ambiguities" begin
@@ -130,6 +142,11 @@ end
     a = rand(3)
     @test ReverseDiff.gradient(f, a) ≈ exp.(a)
     @test ReverseDiff.hessian(f, a) ≈ zeros(3, 3)
+
+    # arrays too
+    s = ReverseDiff.SkipOptimize(v -> sum(exp, v))
+    @test ReverseDiff.gradient(v -> sum(v) * s(v), a) ≈ fill(sum(exp, a), 3)
+    @test ReverseDiff.hessian(v -> sum(v) * s(v), a) == zeros(3, 3)
 end
 
 @testset "a type broadcast as a function does not force the fallback path" begin
@@ -238,6 +255,16 @@ end
     @test y isa TrackedArray
     @test value(y) == [0.0, 2.0]
     @test ReverseDiff.gradient(x -> sum(relu.(x)), a) == [0.0, 1.0]
+
+    # recorded with every element on the constant branch, replayed on the other
+    relu0(t) = t > 0 ? t : 0.0
+    for f in (x -> sum(relu.(x)) + sum(x), x -> sum(relu0.(x)) + sum(x),
+              x -> sum(ifelse.(x .> 0, x, 0.0)) + sum(x))
+        tape = ReverseDiff.GradientTape(f, [-1.0, -2.0])
+        @test ReverseDiff.gradient!(tape, [1.0, 2.0]) == [2.0, 2.0]
+        @test ReverseDiff.gradient!(ReverseDiff.compile(tape), [1.0, 2.0]) == [2.0, 2.0]
+    end
+    @test relu0.(track([-1.0, -2.0], InstructionTape())) isa TrackedArray
 end
 
 @testset "a non-`Real` result keeps its partials" begin
@@ -262,15 +289,13 @@ end
     # `Tag`s are ordered by first use, so pin the order before relying on it
     @test ForwardDiff.:≺(tagA, tagB)
 
-    concrete = ForwardDiff.Dual{tagA,Float64,1}[ForwardDiff.Dual{tagA}(2.0, 3.0)]
-    widened = Union{Float64,ForwardDiff.Dual{tagA,Float64,1}}[
-        1.0, ForwardDiff.Dual{tagA}(2.0, 3.0)]
-    nested = Union{Float64,ForwardDiff.Dual{tagB,Float64,1}}[1.0]
+    # `trackresults` asks for the element type `df` infers on `vals`
+    outer = [ForwardDiff.Dual{tagA}(2.0, 3.0)]
+    nested = [ForwardDiff.Dual{tagB}(2.0, 3.0)]
 
-    @test ReverseDiff.trackresults(tagB, concrete, identity, identity, (), ()) === concrete
-    @test ReverseDiff.trackresults(tagB, widened, identity, identity, (), ()) === widened
+    @test ReverseDiff.trackresults(tagB, outer, i -> outer[i], identity, (), ([1],)) === outer
     @test_throws ForwardDiff.DualMismatchError ReverseDiff.trackresults(
-        tagA, nested, identity, identity, (), ())
+        tagA, nested, i -> nested[i], identity, (), ([1],))
 
     @test ReverseDiff.getpartial(tagA, ForwardDiff.Dual{tagA}(1.0, 2.0), 1) == 2.0
     @test ReverseDiff.getpartial(tagA, 1.0, 1) == 0.0
@@ -287,15 +312,50 @@ end
 
     @test_throws ArgumentError(msg) ForwardDiff.derivative(g, 3.0)
 
-    # a widened element type is checked member by member
+    # an abstract element type is checked element by element
     g2(a) = sum(ReverseDiff.gradient(x -> sum(x .* Union{Float64,typeof(a)}[1.0, a]), [1.0, 2.0]))
     E2 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g2),Float64},Float64,1}
     msg2 = "a broadcast argument with element type $E2 carries a perturbation that a derivative of type Float64 cannot hold"
     @test_throws ArgumentError(msg2) ForwardDiff.derivative(g2, 3.0)
+    g3(a) = sum(ReverseDiff.gradient(x -> sum(ifelse.(x .> 5, x, Real[1.0, a])), [1.0, 2.0]))
+    E3 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g3),Float64},Float64,1}
+    msg3 = "a broadcast argument with element type $E3 carries a perturbation that a derivative of type Float64 cannot hold"
+    @test_throws ArgumentError(msg3) ForwardDiff.derivative(g3, 3.0)
 
     # a tape whose derivatives are themselves `Dual`s can hold it, so it is left alone
     h(a) = ReverseDiff.gradient(x -> sum(x .* a), [ForwardDiff.Dual(1.0, 0.0)])
     @test h(3.0) == [ForwardDiff.Dual(3.0, 0.0)]
+
+    # also when the tag without the perturbation was created first
+    ReverseDiff.gradient(x -> sum(atan.(x, 2.0)), [1.0, 2.0])
+    k(a) = sum(ReverseDiff.gradient(x -> sum(atan.(x, a)), [1.0, 2.0],
+                                    ReverseDiff.GradientConfig([1.0, 2.0], typeof(a))))
+    xs = [1.0, 2.0]
+    @test ForwardDiff.derivative(k, 3.0) ≈ sum(@. (xs^2 - 9) / (xs^2 + 9)^2)
+
+    # the scalar rules bury the tracked value in the `Dual`, which must not give a zero derivative
+    msg4 = "ForwardDiff cannot differentiate through ReverseDiff (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"
+    for g4 in (a -> sum(ReverseDiff.gradient(x -> x[1] * a, [1.0, 2.0])),
+               a -> sum(ReverseDiff.gradient(x -> sum(x .* Real[1.0, a]), [1.0, 2.0])),
+               a -> sum(ReverseDiff.jacobian(x -> [x[1] * a, x[2]], [1.0, 2.0])))
+        @test_throws ArgumentError(msg4) ForwardDiff.derivative(g4, 3.0)
+    end
+    # storing the `Dual` as a tracked number would cut it off the tape
+    msg5 = "this nesting of ForwardDiff and ReverseDiff is not supported: a `Dual` of tracked numbers cannot be converted to a tracked number (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"
+    function g5(a)
+        return sum(ReverseDiff.gradient([1.0, 2.0]) do x
+            v = [x[1], x[2]]
+            v[1] = x[1] * a
+            return sum(v)
+        end)
+    end
+    @test_throws ArgumentError(msg5) ForwardDiff.derivative(g5, 3.0)
+
+    # the other way around is fine, also next to tracked numbers
+    @test ReverseDiff.gradient(x -> ForwardDiff.derivative(a -> x[1] * a^2, 2.0), [1.0, 2.0]) ==
+        [4.0, 0.0]
+    @test ReverseDiff.gradient(x -> ForwardDiff.derivative(a -> sum([x[1] * a^2, x[2]]), 2.0),
+                               [1.0, 2.0]) == [4.0, 0.0]
 
     # also when the perturbation comes from an enclosing broadcast
     f(x) = sum(broadcast(a -> ReverseDiff.gradient(y -> sum(y .* a), [1.0])[1], x))

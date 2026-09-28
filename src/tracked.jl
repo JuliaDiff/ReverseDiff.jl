@@ -205,7 +205,14 @@ push_deriv!(x::AbstractArray) = (istracked(x) && foreach(push_deriv!, x); nothin
 # seed/unseed #
 #-------------#
 
-seed!(::Real) = nothing
+# a `Dual` of an enclosing differentiation buries a tracked value, whose derivative would
+# silently be zero
+checkoutput(x) = nothing
+function checkoutput(::Dual{<:Any,<:TrackedReal})
+    throw(ArgumentError("ForwardDiff cannot differentiate through ReverseDiff (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"))
+end
+
+seed!(x::Real) = checkoutput(x)
 seed!(t::TrackedReal) = (t.deriv = one(derivtype(t)); push_deriv!(t); nothing)
 seed!(t::TrackedArray, i) = (t.deriv[i] = one(derivtype(t)); nothing)
 seed!(x::AbstractArray, i) = seed!(x[i])
@@ -272,6 +279,11 @@ function Base.convert(::Type{T}, x::R) where {T<:TrackedReal, R<:Real}
     )
 end
 
+# wrapping cuts the tracked value off its tape
+function Base.convert(::Type{<:TrackedReal}, ::Dual{<:Any,<:TrackedReal})
+    throw(ArgumentError("this nesting of ForwardDiff and ReverseDiff is not supported: a `Dual` of tracked numbers cannot be converted to a tracked number (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"))
+end
+
 Base.convert(::Type{T}, t::T) where {T<:TrackedReal} = t
 Base.convert(::Type{T}, t::T) where {T<:TrackedArray} = t
 
@@ -291,6 +303,9 @@ end
 # Avoid method ambiguities for ForwardDiff.Dual
 Base.promote_rule(::Type{TrackedReal{V1,D,O}}, ::Type{Dual{T,V2,N}}) where {V1,D,O,T,V2,N} = TrackedReal{promote_type(V1,Dual{T,V2,N}),D,O}
 Base.promote_rule(::Type{Dual{T,V1,N}}, ::Type{TrackedReal{V2,D,O}}) where {T,V1,N,V2,D,O} = TrackedReal{promote_type(Dual{T,V1,N},V2),D,O}
+# a `Dual` around a tracked value would be cut off its tape, so there is no common type
+Base.promote_rule(::Type{TrackedReal{V1,D,O}}, ::Type{Dual{T,V2,N}}) where {V1,D,O,T,V2<:TrackedReal,N} = Union{}
+Base.promote_rule(::Type{Dual{T,V1,N}}, ::Type{TrackedReal{V2,D,O}}) where {T,V1<:TrackedReal,N,V2,D,O} = Union{}
 
 Base.promote_rule(::Type{TrackedReal{V1,D1,O1}}, ::Type{TrackedReal{V2,D2,O2}}) where {V1,V2,D1,D2,O1,O2} = TrackedReal{promote_type(V1,V2),promote_type(D1,D2),Nothing}
 

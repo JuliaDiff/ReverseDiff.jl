@@ -64,10 +64,17 @@ Broadcast.BroadcastStyle(::TrackedStyle{M}, ::DefaultArrayStyle{N}) where {M,N} 
 Broadcast.BroadcastStyle(::TrackedStyle{N}, ::DefaultArrayStyle{N}) where {N} = TrackedStyle{N}()
 Broadcast.BroadcastStyle(::TrackedStyle{Any}, ::DefaultArrayStyle) = TrackedStyle{Any}()
 
-# the untracked style decides where the fallback re-dispatches, and a `CuArray` backing a
-# `TrackedArray` has to keep its own
-recur_value(xs) = xs
-recur_value(xs::Union{TrackedReal, AbstractArray{<:TrackedReal}}) = recur_value(value(xs))
+# the style the arguments have untracked, which picks the fallback's output container
+untrackedstyle(x) = Broadcast.BroadcastStyle(typeof(x))
+untrackedstyle(x::Union{TrackedReal, AbstractArray{<:TrackedReal}}) = untrackedstyle(value(x))
+# unwrapping would copy
+untrackedstyle(::Array{<:TrackedReal,N}) where {N} = DefaultArrayStyle{N}()
+
+# a static value's elements, as a static array that `StaticArrays` broadcasts over itself
+staticelements(x) = x
+function staticelements(t::TrackedArray{<:Any,<:Any,<:Any,VA}) where {VA<:StaticArray}
+    return similar_type(VA, eltype(t))(ntuple(i -> t[i], Val(length(VA))))
+end
 
 remove_not_tracked(f) = f
 remove_not_tracked(f::NotTracked) = f.f
@@ -83,19 +90,19 @@ function Base.copy(_bc::Broadcasted{<:TrackedStyle})
     if axes(_bc) isa Tuple{}
         return _bc[CartesianIndex()]
     end
-    bc = remove_not_tracked(_bc)
-    flattened_bc = Base.Broadcast.flatten(bc)
+    flattened_bc = Base.Broadcast.flatten(remove_not_tracked(_bc))
     f, args = flattened_bc.f, flattened_bc.args
-    vals = map(value, args)
     # only the arguments are seeded, not e.g. a closure's captures, and a `TrackedArray`
     # holds only `Real`s
-    if mayhidetracked(_bc) || !(Broadcast.combine_eltypes(f, vals) <: Real)
-        axs = flattened_bc.axes
-        style = typeof(Broadcast.combine_styles(map(recur_value, vals)...))
-        return copy(Broadcasted{style, typeof(axs), typeof(f), typeof(args)}(f, args, axs))
-    else
-        return ∇broadcast(f, args, vals)
+    if !mayhidetracked(_bc)
+        vals = map(value, args)
+        if Broadcast.combine_eltypes(f, vals) <: Real
+            return ∇broadcast(f, args, vals)
+        end
     end
+    elargs = map(staticelements, args)
+    style = typeof(reduce(Broadcast.result_style, map(untrackedstyle, elargs)))
+    return copy(Broadcast.instantiate(Broadcasted{style}(f, elargs)))
 end
 
 _no_tracked_dest() = throw(ArgumentError("`TrackedArray`s do not support `setindex!` and cannot be used as a broadcast destination. Use `y = f.(x)` instead."))
@@ -159,9 +166,6 @@ end
 
 # `DiffRules` leaves partials such as the order of `besselj` as `NaN`, which `NaN * 0`
 # would spread to every slot, so untracked arguments are not dualized
-@inline dualvaltype(::Val{0}, v) = Union{}
-@inline dualvaltype(::Val, v) = eltype(v)
-
 @inline dualize(::Type, ::Val{0}, ::Val, x) = x
 @inline function dualize(::Type{T}, ::Val{k}, valP::Val, x) where {T, k}
     return Dual{T}(x, ntuple(j -> j == k, valP))
@@ -187,11 +191,11 @@ knownpartial(::typeof(-), ::Val{1}, ::Tuple{RealOrArray}) = Contract(-, ())
 knownpartial(::typeof(-), ::Val{1}, ::Tuple{RealOrArray,RealOrArray}) = Contract(identity, ())
 knownpartial(::typeof(-), ::Val{2}, ::Tuple{RealOrArray,RealOrArray}) = Contract(-, ())
 
-# a denominator's partial `-x/y^2` is no argument of the broadcast
 knownpartial(::typeof(*), ::Val{1}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
     ifsameshape(Contract(*, (Val(2),)), x, y)
 knownpartial(::typeof(*), ::Val{2}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
     ifsameshape(Contract(*, (Val(1),)), x, y)
+# a denominator's partial `-x/y^2` is no argument of the broadcast
 knownpartial(::typeof(/), ::Val{1}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
     ifsameshape(Contract(/, (Val(2),)), x, y)
 knownpartial(::typeof(\), ::Val{2}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
@@ -223,8 +227,8 @@ skipvalue(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = skipvalue(For
     inds, targs, untracked = splitargs(args)
     _, vals, _ = splitargs(argvals)
     slots, positions, valP = trackedslots(targs)
-    # one tag per broadcast, and a new one under an enclosing differentiation
-    T = typeof(ForwardDiff.Tag(BroadcastTag{F}(), reduce(promote_type, map(dualvaltype, slots, vals))))
+    # keyed on every argument's type, so an enclosing differentiation's `Dual` makes a newer tag
+    T = typeof(ForwardDiff.Tag(BroadcastTag{F}(), typeof(argvals)))
     # `broadcast` calls `df` elementwise, so it receives one scalar per argument
     function df(x::Vararg{Any,N}) where {N}
         dx = map((slot, xi) -> dualize(T, slot, valP, xi), slots, x)
@@ -246,13 +250,9 @@ replaycache(::Type{T}, results::AbstractArray, df, _, _) where {T} =
     (df, map(y -> ForwardDiff.value(T, y), results))
 replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
 
-# a perturbation riding on an argument ends up in the derivative, so `D` has to be able to hold
-# it; a widened element type is a `Union`
+# a perturbation riding on an argument ends up in the derivative, so `D` has to be able to hold it
 @inline function checkargtags(::Type{D}, ::Type{E}) where {D, E}
-    if E isa Union
-        checkargtags(D, E.a)
-        checkargtags(D, E.b)
-    elseif ForwardDiff.tagtype(E) !== Nothing && !(promote_type(D, E) <: D)
+    if ForwardDiff.tagtype(E) !== Nothing && !(promote_type(D, E) <: D)
         throw(ArgumentError(LazyString("a broadcast argument with element type ", E,
                                        " carries a perturbation that a derivative of type ", D,
                                        " cannot hold")))
@@ -260,9 +260,19 @@ replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
     return nothing
 end
 
+# an abstract element type such as `Real` can hide a perturbation
+function checkargvalues(::Type{D}, v) where {D}
+    if isconcretetype(eltype(v))
+        checkargtags(D, eltype(v))
+    else
+        foreach(x -> checkargvalues(D, x), v)
+    end
+    return nothing
+end
+
 @inline function recordresults(::Type{T}, results, df, vf, targs, vals) where {T}
     D = mapreduce(getouttype, promote_type, targs)
-    foreach(v -> checkargtags(D, eltype(v)), vals)
+    foreach(v -> checkargvalues(D, v), vals)
     g, outvalue = replaycache(T, results, df, vf, vals)
     tp = tape(targs...)
     out = track(outvalue, D, tp)
@@ -288,14 +298,15 @@ end
     return nothing
 end
 
-# a type-unstable `f`, such as one with an integer literal branch, leaves an abstract
-# element type that can still hide a `Dual{T}`
+# inferred, not read off the results, since a replay can take other branches and writes into
+# the results
 @inline function trackresults(::Type{T}, results::AbstractArray, df, vf, targs, vals) where {T}
-    if typeintersect(eltype(results), Dual{T}) === Union{}
-        checktags(T, eltype(results))
+    E = Broadcast.combine_eltypes(df, vals)
+    if typeintersect(E, Dual{T}) === Union{}
+        checktags(T, E)
         return results
     else
-        return recordresults(T, results, df, vf, targs, vals)
+        return recordresults(T, convert(AbstractArray{E}, results), df, vf, targs, vals)
     end
 end
 
@@ -306,7 +317,7 @@ end
     results, _, tag, targets = instruction.cache
     T = typeof(tag)
     partials = reversepartials(results, input)
-    map(targets) do (p, k, bound)
+    foreach(targets) do (p, k, bound)
         x = getat(input, p)
         istracked(x) && _br_add_to_deriv!(T, x, k, output_deriv, partials, bound)
     end

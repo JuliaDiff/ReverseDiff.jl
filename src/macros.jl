@@ -164,6 +164,7 @@ end
 
 skipvalue(x) = value(x)
 skipvalue(x::TrackedReal) = skipvalue(value(x))
+skipvalue(x::AbstractArray{<:TrackedReal}) = skipvalue(value(x))
 
 @inline (self::SkipOptimize{F})(args...) where {F} = self.f(map(skipvalue, args)...)
 

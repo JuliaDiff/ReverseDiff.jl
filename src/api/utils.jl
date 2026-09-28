@@ -34,6 +34,7 @@ function seeded_reverse_pass!(result, output::TrackedReal, input, tape)
 end
 
 function seeded_reverse_pass!(result, output::Number, input, tape)
+    checkoutput(output)
     result = extract_result!(result, output, input)
     return result
 end
