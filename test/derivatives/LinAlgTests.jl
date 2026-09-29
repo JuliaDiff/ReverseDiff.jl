@@ -1,6 +1,6 @@
 module LinAlgTests
 
-using ReverseDiff, ForwardDiff, Test, LinearAlgebra
+using ReverseDiff, ForwardDiff, Test, LinearAlgebra, StaticArrays
 
 if get(ENV, "DOWNGRADE_TEST", "false")::String != "true"
     @test Base.get_extension(ReverseDiff, :StatisticsExt) === nothing
@@ -351,6 +351,56 @@ end
         (u -> dense(u) + Real[i == j ? u[9 + i] : 0.0 for i in 1:3, j in 1:3], [I(9) E]),
     )
         test_jacobian(f, rand(12), J)
+    end
+end
+
+@testset "`StaticArray`s (#153)" begin
+    x = rand(2)
+    X = rand(2, 2)
+    for (sv, sm) in (
+        (SVector(1.0, 2.0), SMatrix{2,2}(1.0, 2.0, 3.0, 4.0)),
+        (MVector(1.0, 2.0), MMatrix{2,2}(1.0, 2.0, 3.0, 4.0)),
+        (SizedVector{2}([1.0, 2.0]), SizedMatrix{2,2}([1.0 3.0; 2.0 4.0])),
+        (SVector{2,BigFloat}(1, 2), SMatrix{2,2,BigFloat}(1, 2, 3, 4)),
+    )
+        for (f, J) in (
+            (u -> sv + u, I(2)),
+            (u -> u + sv, I(2)),
+            (u -> sv - u, -I(2)),
+            (u -> u - sv, I(2)),
+            (u -> sm * u, sm),
+        )
+            test_jacobian(f, x, J)
+        end
+        for (f, J) in (
+            (U -> sm + U, I(4)),
+            (U -> U + sm, I(4)),
+            (U -> sm - U, -I(4)),
+            (U -> U - sm, I(4)),
+            (U -> sm * U, kron(I(2), Matrix(sm))),
+            (U -> U * sm, kron(transpose(Matrix(sm)), I(2))),
+            (U -> U * sv, kron(transpose(Vector(sv)), I(2))),
+        )
+            test_jacobian(f, X, J)
+        end
+        # record at another input so that replaying must recompute the static values
+        for (f, g) in (
+            (u -> sum(abs2, sm * u + sv), u -> 2 * sm' * (sm * u + sv)),
+            (u -> sum(abs2, u' * sm), u -> 2 * sm * sm' * u),
+            (u -> sum(abs2, transpose(u) * sm), u -> 2 * sm * transpose(sm) * u),
+        )
+            tp = ReverseDiff.GradientTape(f, rand(2))
+            test_approx(ReverseDiff.gradient!(tp, x), g(x))
+        end
+    end
+    for (f, J) in (
+        (u -> SVector(u[1], u[2]) + u, 2I(2)),
+        (u -> u - SVector(u[1], u[2]), zeros(2, 2)),
+        (u -> SMatrix{2,2}(u[1], u[2], u[1], u[2]) * u, [2x[1]+x[2] x[1]; x[2] x[1]+2x[2]]),
+    )
+        test_jacobian(f, x, J)
+        tp = ReverseDiff.JacobianTape(f, rand(2))
+        test_approx(ReverseDiff.jacobian!(tp, x), J)
     end
 end
 
