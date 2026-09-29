@@ -31,16 +31,8 @@ mayhidetracked(b::Broadcasted) = mayhidetracked(b.f) || any(mayhidetracked, b.ar
 # into what a container holds rather than ask about the container
 _mayhidetracked(::Type{<:NotTracked}) = false
 _mayhidetracked(::Type{<:AbstractArray{F}}) where {F} = _mayhidetracked(F)
-@generated function _mayhidetracked(::Type{F}) where {F}
-    # `fieldcount` errors for types without a definite number of fields, such as
-    # `Type{T}` and abstract types; be conservative in that case.
-    hasfields = try
-        fieldcount(F) > 0
-    catch
-        true
-    end
-    return :($hasfields)
-end
+# a type that is not concrete, such as `Type{T}` or an abstract type, may have fields
+_mayhidetracked(::Type{F}) where {F} = !isconcretetype(F) || fieldcount(F) > 0
 
 struct TrackedStyle{N} <: AbstractArrayStyle{N} end
 
@@ -265,7 +257,13 @@ function checkargvalues(::Type{D}, v) where {D}
     if isconcretetype(eltype(v))
         checkargtags(D, eltype(v))
     else
-        foreach(x -> checkargvalues(D, x), v)
+        for x in v
+            if x isa Dual
+                checkargtags(D, typeof(x))
+            elseif !(x isa Real)
+                checkargvalues(D, x)
+            end
+        end
     end
     return nothing
 end
@@ -306,9 +304,13 @@ end
         checktags(T, E)
         return results
     else
-        return recordresults(T, convert(AbstractArray{E}, results), df, vf, targs, vals)
+        return recordresults(T, writable(results, E), df, vf, targs, vals)
     end
 end
+
+# the replay writes into the results, which a static array may reject
+writable(results::AbstractArray, ::Type{E}) where {E} = convert(AbstractArray{E}, results)
+writable(results::StaticArray, ::Type{E}) where {E} = copyto!(similar(results, E), results)
 
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input = instruction.input

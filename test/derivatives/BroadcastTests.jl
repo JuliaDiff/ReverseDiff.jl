@@ -265,6 +265,17 @@ end
         @test ReverseDiff.gradient!(ReverseDiff.compile(tape), [1.0, 2.0]) == [2.0, 2.0]
     end
     @test relu0.(track([-1.0, -2.0], InstructionTape())) isa TrackedArray
+
+    # a static array whose widened element type is not isbits
+    tape = ReverseDiff.GradientTape(x -> sum(relu.(x)), MVector(-1.0, 2.0))
+    @test ReverseDiff.gradient!(tape, MVector(1.0, 2.0)) == [1.0, 1.0]
+end
+
+@testset "the cached partials have a concrete element type" begin
+    # the inferred element type decides what is recorded
+    tp = InstructionTape()
+    track(rand(3), tp) .^ 2
+    @test isconcretetype(eltype(first(tp[1].cache)))
 end
 
 @testset "a non-`Real` result keeps its partials" begin
