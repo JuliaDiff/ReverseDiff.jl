@@ -228,19 +228,19 @@ skipvalue(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = skipvalue(For
     _, vals, _ = splitargs(argvals)
     slots, positions, valP = trackedslots(targs)
     # keyed on every argument's type, so an enclosing differentiation's `Dual` makes a newer tag
-    T = typeof(ForwardDiff.Tag(BroadcastTag{F}(), typeof(argvals)))
+    tag = ForwardDiff.Tag(BroadcastTag{F}(), typeof(argvals))
     # `broadcast` calls `df` elementwise, so it receives one scalar per argument
     function df(x::Vararg{Any,N}) where {N}
-        dx = map((slot, xi) -> dualize(T, slot, valP, xi), slots, x)
+        dx = map((slot, xi) -> dualize(typeof(tag), slot, valP, xi), slots, x)
         return splatcall(f, dx, untracked, inds)
     end
     # known partials leave nothing to read off a `Dual`, so `f` is evaluated undualized
     vf(x::Vararg{Any,N}) where {N} = splatcall(f, x, untracked, inds)
     entries = knownpartials(f, args, positions)
     if entries === nothing
-        return trackresults(T, broadcast(df, vals...), df, vf, targs, vals)
+        return trackresults(typeof(tag), broadcast(df, vals...), df, vf, targs, vals)
     else
-        return recordresults(T, KnownPartials(entries), df, vf, targs, vals)
+        return recordresults(typeof(tag), KnownPartials(entries), df, vf, targs, vals)
     end
 end
 
