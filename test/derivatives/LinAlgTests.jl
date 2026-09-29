@@ -369,14 +369,18 @@ end
             (u -> sv - u, -I(2)),
             (u -> u - sv, I(2)),
             (u -> sm * u, sm),
+            (u -> sm' * u, sm'),
         )
             test_jacobian(f, x, J)
         end
         for (f, J) in (
             (U -> sm + U, I(4)),
+            (U -> U + sm, I(4)),
+            (U -> sm - U, -I(4)),
             (U -> U - sm, I(4)),
             (U -> sm * U, kron(I(2), Matrix(sm))),
             (U -> U * sm, kron(transpose(Matrix(sm)), I(2))),
+            (U -> U * sv, kron(transpose(Vector(sv)), I(2))),
         )
             test_jacobian(f, X, J)
         end
@@ -396,6 +400,8 @@ end
         (u -> SMatrix{2,2}(u[1], u[2], u[1], u[2]) * u, [2x[1]+x[2] x[1]; x[2] x[1]+2x[2]]),
     )
         test_jacobian(f, x, J)
+        tp = ReverseDiff.JacobianTape(f, rand(2))
+        test_approx(ReverseDiff.jacobian!(tp, x), J)
     end
 end
 

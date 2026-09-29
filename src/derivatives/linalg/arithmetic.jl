@@ -69,14 +69,14 @@ end
 
 # Base allocating version
 
-Base.:-(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_minus(x, y, D)
+@inline Base.:-(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_minus(x, y, D)
 
-Base.:-(x::TrackedArray{V,D}, y::AbstractArray) where {V,D} = record_minus(x, y, D)
-Base.:-(x::AbstractArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
+@inline Base.:-(x::TrackedArray{V,D}, y::AbstractArray) where {V,D} = record_minus(x, y, D)
+@inline Base.:-(x::AbstractArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
 
 # avoid ambiguities with StaticArrays
-Base.:-(x::TrackedArray{V,D}, y::StaticArray) where {V,D} = record_minus(x, y, D)
-Base.:-(x::StaticArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
+@inline Base.:-(x::TrackedArray{V,D}, y::StaticArray) where {V,D} = record_minus(x, y, D)
+@inline Base.:-(x::StaticArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
 
 function Base.:-(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
