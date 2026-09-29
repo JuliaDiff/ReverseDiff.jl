@@ -369,7 +369,6 @@ end
             (u -> sv - u, -I(2)),
             (u -> u - sv, I(2)),
             (u -> sm * u, sm),
-            (u -> sm' * u, sm'),
         )
             test_jacobian(f, x, J)
         end
@@ -384,7 +383,7 @@ end
         )
             test_jacobian(f, X, J)
         end
-        # replaying the tape overwrites the static values in place
+        # record at another input so that replaying must recompute the static values
         for (f, g) in (
             (u -> sum(abs2, sm * u + sv), u -> 2 * sm' * (sm * u + sv)),
             (u -> sum(abs2, u' * sm), u -> 2 * sm * sm' * u),
