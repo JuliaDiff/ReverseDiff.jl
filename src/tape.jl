@@ -4,10 +4,35 @@
 
 abstract type AbstractInstruction end
 
-const InstructionTape = Vector{AbstractInstruction}
+"""
+    InstructionTape()
 
-function record!(tp::InstructionTape, ::Type{InstructionType}, args...) where InstructionType
-    tp !== NULL_TAPE && push!(tp, InstructionType(args...))
+An append-only tape of recorded instructions.
+
+Recording onto the same tape from multiple threads is supported. Reading or replaying
+a tape is only safe once recording has finished.
+"""
+struct InstructionTape <: AbstractVector{AbstractInstruction}
+    instructions::Vector{AbstractInstruction}
+    lock::Threads.SpinLock
+end
+
+InstructionTape() = InstructionTape(AbstractInstruction[], Threads.SpinLock())
+
+Base.size(tp::InstructionTape) = size(tp.instructions)
+Base.IndexStyle(::Type{InstructionTape}) = IndexLinear()
+Base.@propagate_inbounds Base.getindex(tp::InstructionTape, i::Int) = tp.instructions[i]
+
+function Base.empty!(tp::InstructionTape)
+    @lock tp.lock empty!(tp.instructions)
+    return tp
+end
+
+@inline function record!(tp::InstructionTape, ::Type{InstructionType}, args...) where {InstructionType<:AbstractInstruction}
+    if tp !== NULL_TAPE
+        instruction = InstructionType(args...)
+        @lock tp.lock push!(tp.instructions, instruction)
+    end
     return nothing
 end
 
