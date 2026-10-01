@@ -1,10 +1,10 @@
 module StatisticsExt
 
 using ReverseDiff: ReverseDiff, SpecialInstruction, TrackedArray, deriv, increment_deriv!,
-                   istracked, record!, tape, track, unseed!, value, value!
+    istracked, record!, tape, track, unseed!, value, value!
 using Statistics: Statistics, mean
 
-function Statistics.mean(x::TrackedArray{V,D}) where {V,D}
+function Statistics.mean(x::TrackedArray{V, D}) where {V, D}
     tp = tape(x)
     out = track(mean(value(x)), D, tp)
     record!(tp, SpecialInstruction, mean, x, out)

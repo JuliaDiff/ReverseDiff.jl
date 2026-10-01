@@ -40,6 +40,7 @@ function test_arr2num(f, x, tp; ignore_tape_length = false)
     ReverseDiff.value!(xt, x)
 
     empty!(tp)
+    return nothing
 end
 
 function test_arr2arr(f, x, tp)
@@ -64,6 +65,7 @@ function test_arr2arr(f, x, tp)
     ReverseDiff.value!(xt, x)
 
     empty!(tp)
+    return nothing
 end
 
 function test_arr2arr(f, a, b, tp)
@@ -137,6 +139,7 @@ function test_arr2arr(f, a, b, tp)
     ReverseDiff.value!(bt, b)
 
     empty!(tp)
+    return nothing
 end
 
 function test_arr2arr_inplace(f!, f, c, a, b, tp)
@@ -213,20 +216,21 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     ReverseDiff.value!(bt, b)
 
     empty!(tp)
+    return nothing
 end
 
 for f in (
-    sum,
-    det,
-    mean,
-    y -> dot(vec(y), vec(y)),
-    y -> vec(y)' * vec(y),
-    y -> transpose(vec(y)) * vec(y),
-    y -> vec(y)' * ones(length(y)),
-    y -> transpose(vec(y)) * ones(length(y)),
-    y -> ones(length(y))' * vec(y),
-    y -> transpose(ones(length(y))) * vec(y),
-)
+        sum,
+        det,
+        mean,
+        y -> dot(vec(y), vec(y)),
+        y -> vec(y)' * vec(y),
+        y -> transpose(vec(y)) * vec(y),
+        y -> vec(y)' * ones(length(y)),
+        y -> transpose(vec(y)) * ones(length(y)),
+        y -> ones(length(y))' * vec(y),
+        y -> transpose(ones(length(y))) * vec(y),
+    )
     test_println("Array -> Number functions", f)
     test_arr2num(f, x, tp)
 end
@@ -238,11 +242,11 @@ function norm_hermitian(v)
 end
 
 for f in (
-    y -> vec(y)' * Matrix{Float64}(I, length(y), length(y)) * vec(y),
-    norm_hermitian,
-)
+        y -> vec(y)' * Matrix{Float64}(I, length(y), length(y)) * vec(y),
+        norm_hermitian,
+    )
     test_println("Array -> Number functions", f)
-    test_arr2num(f, x, tp, ignore_tape_length=true)
+    test_arr2num(f, x, tp, ignore_tape_length = true)
 end
 
 for f in (-, inv)
@@ -287,7 +291,7 @@ test_arr2arr_inplace(mul!, *, x, transpose(a), adjoint(b), tp)
 
 # Prevent regression on https://github.com/JuliaDiff/ReverseDiff.jl/issues/235
 A = [1 2; 3 4]; x = [5, 6];
-@test ReverseDiff.gradient(y -> sum(y'*A), x) == [3, 7]
+@test ReverseDiff.gradient(y -> sum(y' * A), x) == [3, 7]
 
 # Derivatives w.r.t. structured factors (https://github.com/JuliaDiff/DiffTests.jl/issues/13)
 x = rand(3, 3)
@@ -297,12 +301,12 @@ mask(S) = Diagonal(vec(Matrix(S(ones(3, 3)))))
 jac_lmul(S) = kron(transpose(x), I(3)) * mask(S) + kron(I(3), Matrix(S(x)))
 jac_rmul(S) = kron(transpose(Matrix(S(x))), I(3)) + kron(I(3), x) * mask(S)
 for (f, J) in (
-    (y -> Diagonal(y) * y, jac_lmul(Diagonal)),
-    (y -> UpperTriangular(y) * y, jac_lmul(UpperTriangular)),
-    (y -> y * LowerTriangular(y), jac_rmul(LowerTriangular)),
-    (y -> transpose(UpperTriangular(transpose(y))) * y, jac_lmul(LowerTriangular)),
-    (y -> y * adjoint(LowerTriangular(adjoint(y))), jac_rmul(UpperTriangular)),
-)
+        (y -> Diagonal(y) * y, jac_lmul(Diagonal)),
+        (y -> UpperTriangular(y) * y, jac_lmul(UpperTriangular)),
+        (y -> y * LowerTriangular(y), jac_rmul(LowerTriangular)),
+        (y -> transpose(UpperTriangular(transpose(y))) * y, jac_lmul(LowerTriangular)),
+        (y -> y * adjoint(LowerTriangular(adjoint(y))), jac_rmul(UpperTriangular)),
+    )
     test_println("*(A, B) functions with structured matrices", f)
     test_approx(ReverseDiff.jacobian(f, x), J)
     ctp = ReverseDiff.compile(ReverseDiff.JacobianTape(f, x))
@@ -313,6 +317,7 @@ function test_jacobian(f, x, J)
     test_approx(ReverseDiff.jacobian(f, x), J)
     ctp = ReverseDiff.compile(ReverseDiff.JacobianTape(f, x))
     test_approx(ReverseDiff.jacobian!(ctp, x), J)
+    return nothing
 end
 
 # Constant structured factors
@@ -329,12 +334,12 @@ v, V, M = rand(3), rand(2, 1), rand(3, 2)
 for f in (transpose, adjoint)
     test_println("*(A, B) functions with row vectors", f)
     for (h, x) in (
-        ((f, u) -> u * f(u), rand(3)),
-        ((f, u) -> u * f(v), rand(2, 1)),
-        ((f, u) -> V * f(u), rand(3)),
-        ((f, u) -> f(u) * M, rand(3)),
-        ((f, u) -> f(v) * u, rand(3, 2)),
-    )
+            ((f, u) -> u * f(u), rand(3)),
+            ((f, u) -> u * f(v), rand(2, 1)),
+            ((f, u) -> V * f(u), rand(3)),
+            ((f, u) -> f(u) * M, rand(3)),
+            ((f, u) -> f(v) * u, rand(3, 2)),
+        )
         test_jacobian(u -> h(f, u), x, ReverseDiff.jacobian(u -> h(x -> reshape(x, 1, :), u), x))
     end
 end
@@ -345,11 +350,11 @@ end
     diagreal(u) = Real[u[10], u[11], u[12]]
     E = Matrix(I(9))[:, [1, 5, 9]]
     for (f, J) in (
-        (u -> dense(u) + Diagonal(diagreal(u)), [I(9) E]),
-        (u -> dense(u) - diagm(diagreal(u)), [I(9) -E]),
-        (u -> diagm(diagreal(u)) - dense(u), [-I(9) E]),
-        (u -> dense(u) + Real[i == j ? u[9 + i] : 0.0 for i in 1:3, j in 1:3], [I(9) E]),
-    )
+            (u -> dense(u) + Diagonal(diagreal(u)), [I(9) E]),
+            (u -> dense(u) - diagm(diagreal(u)), [I(9) -E]),
+            (u -> diagm(diagreal(u)) - dense(u), [-I(9) E]),
+            (u -> dense(u) + Real[i == j ? u[9 + i] : 0.0 for i in 1:3, j in 1:3], [I(9) E]),
+        )
         test_jacobian(f, rand(12), J)
     end
 end
@@ -358,46 +363,46 @@ end
     x = rand(2)
     X = rand(2, 2)
     for (sv, sm) in (
-        (SVector(1.0, 2.0), SMatrix{2,2}(1.0, 2.0, 3.0, 4.0)),
-        (MVector(1.0, 2.0), MMatrix{2,2}(1.0, 2.0, 3.0, 4.0)),
-        (SizedVector{2}([1.0, 2.0]), SizedMatrix{2,2}([1.0 3.0; 2.0 4.0])),
-        (SVector{2,BigFloat}(1, 2), SMatrix{2,2,BigFloat}(1, 2, 3, 4)),
-    )
-        for (f, J) in (
-            (u -> sv + u, I(2)),
-            (u -> u + sv, I(2)),
-            (u -> sv - u, -I(2)),
-            (u -> u - sv, I(2)),
-            (u -> sm * u, sm),
+            (SVector(1.0, 2.0), SMatrix{2, 2}(1.0, 2.0, 3.0, 4.0)),
+            (MVector(1.0, 2.0), MMatrix{2, 2}(1.0, 2.0, 3.0, 4.0)),
+            (SizedVector{2}([1.0, 2.0]), SizedMatrix{2, 2}([1.0 3.0; 2.0 4.0])),
+            (SVector{2, BigFloat}(1, 2), SMatrix{2, 2, BigFloat}(1, 2, 3, 4)),
         )
+        for (f, J) in (
+                (u -> sv + u, I(2)),
+                (u -> u + sv, I(2)),
+                (u -> sv - u, -I(2)),
+                (u -> u - sv, I(2)),
+                (u -> sm * u, sm),
+            )
             test_jacobian(f, x, J)
         end
         for (f, J) in (
-            (U -> sm + U, I(4)),
-            (U -> U + sm, I(4)),
-            (U -> sm - U, -I(4)),
-            (U -> U - sm, I(4)),
-            (U -> sm * U, kron(I(2), Matrix(sm))),
-            (U -> U * sm, kron(transpose(Matrix(sm)), I(2))),
-            (U -> U * sv, kron(transpose(Vector(sv)), I(2))),
-        )
+                (U -> sm + U, I(4)),
+                (U -> U + sm, I(4)),
+                (U -> sm - U, -I(4)),
+                (U -> U - sm, I(4)),
+                (U -> sm * U, kron(I(2), Matrix(sm))),
+                (U -> U * sm, kron(transpose(Matrix(sm)), I(2))),
+                (U -> U * sv, kron(transpose(Vector(sv)), I(2))),
+            )
             test_jacobian(f, X, J)
         end
         # record at another input so that replaying must recompute the static values
         for (f, g) in (
-            (u -> sum(abs2, sm * u + sv), u -> 2 * sm' * (sm * u + sv)),
-            (u -> sum(abs2, u' * sm), u -> 2 * sm * sm' * u),
-            (u -> sum(abs2, transpose(u) * sm), u -> 2 * sm * transpose(sm) * u),
-        )
+                (u -> sum(abs2, sm * u + sv), u -> 2 * sm' * (sm * u + sv)),
+                (u -> sum(abs2, u' * sm), u -> 2 * sm * sm' * u),
+                (u -> sum(abs2, transpose(u) * sm), u -> 2 * sm * transpose(sm) * u),
+            )
             tp = ReverseDiff.GradientTape(f, rand(2))
             test_approx(ReverseDiff.gradient!(tp, x), g(x))
         end
     end
     for (f, J) in (
-        (u -> SVector(u[1], u[2]) + u, 2I(2)),
-        (u -> u - SVector(u[1], u[2]), zeros(2, 2)),
-        (u -> SMatrix{2,2}(u[1], u[2], u[1], u[2]) * u, [2x[1]+x[2] x[1]; x[2] x[1]+2x[2]]),
-    )
+            (u -> SVector(u[1], u[2]) + u, 2I(2)),
+            (u -> u - SVector(u[1], u[2]), zeros(2, 2)),
+            (u -> SMatrix{2, 2}(u[1], u[2], u[1], u[2]) * u, [2x[1] + x[2] x[1]; x[2] x[1] + 2x[2]]),
+        )
         test_jacobian(f, x, J)
         tp = ReverseDiff.JacobianTape(f, rand(2))
         test_approx(ReverseDiff.jacobian!(tp, x), J)
