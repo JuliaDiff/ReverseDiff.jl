@@ -39,19 +39,19 @@ for Config in (GradientConfig, JacobianConfig)
 end
 
 cfg = JacobianConfig(z, x, tp)
-zt = similar(z, ReverseDiff.TrackedReal{eltype(z),eltype(z),Nothing})
+zt = similar(z, ReverseDiff.TrackedReal{eltype(z), eltype(z), Nothing})
 @test issimilar(cfg.input, track(x, eltype(z), tp))
 @test issimilar(cfg.output, track!(zt, z, tp))
 @test cfg.tape === tp
 
 cfg = JacobianConfig(z, (x, y), tp)
-zt = similar(z, ReverseDiff.TrackedReal{eltype(z),eltype(z),Nothing})
+zt = similar(z, ReverseDiff.TrackedReal{eltype(z), eltype(z), Nothing})
 @test issimilar(cfg.output, track!(zt, z, tp))
 @test issimilar(cfg.input, (track(x, eltype(z), tp), track(y, eltype(z), tp)))
 @test cfg.tape === tp
 
 cfg1 = JacobianConfig(z, (x, y), tp)
-zt = similar(z, ReverseDiff.TrackedReal{eltype(z),eltype(z),Nothing})
+zt = similar(z, ReverseDiff.TrackedReal{eltype(z), eltype(z), Nothing})
 cfg2 = JacobianConfig(DiffResults.JacobianResult(z), (x, y), tp)
 @test issimilar(cfg1, cfg2)
 

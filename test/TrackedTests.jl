@@ -19,16 +19,20 @@ function samefields(a::TrackedReal, b::TrackedReal)
             same_origin = true
         end
     end
-    return (ReverseDiff.value(a) == ReverseDiff.value(b) &&
+    return (
+        ReverseDiff.value(a) == ReverseDiff.value(b) &&
             ReverseDiff.deriv(a) == ReverseDiff.deriv(b) &&
             ReverseDiff.tape(a) === ReverseDiff.tape(b) &&
-            a.index === b.index && same_origin)
+            a.index === b.index && same_origin
+    )
 end
 
 function samefields(a::TrackedArray, b::TrackedArray)
-    return (ReverseDiff.value(a) == ReverseDiff.value(b) &&
+    return (
+        ReverseDiff.value(a) == ReverseDiff.value(b) &&
             ReverseDiff.deriv(a) == ReverseDiff.deriv(b) &&
-            ReverseDiff.tape(a) === ReverseDiff.tape(b))
+            ReverseDiff.tape(a) === ReverseDiff.tape(b)
+    )
 end
 
 ################
@@ -49,7 +53,7 @@ t = TrackedReal(v, d, tp, 1, o)
 @test t.tape === tp
 @test t.index === 1
 @test t.origin === o
-@test isa(t, TrackedReal{Float64,Int,Vector{Float64}})
+@test isa(t, TrackedReal{Float64, Int, Vector{Float64}})
 
 t = TrackedReal(v, d, tp)
 
@@ -58,7 +62,7 @@ t = TrackedReal(v, d, tp)
 @test t.tape === tp
 @test t.index === ReverseDiff.NULL_INDEX
 @test t.origin === nothing
-@test isa(t, TrackedReal{Float64,Int,Nothing})
+@test isa(t, TrackedReal{Float64, Int, Nothing})
 
 t = TrackedReal(v, d)
 
@@ -67,7 +71,7 @@ t = TrackedReal(v, d)
 @test t.tape === ReverseDiff.NULL_TAPE
 @test t.index === ReverseDiff.NULL_INDEX
 @test t.origin === nothing
-@test isa(t, TrackedReal{Float64,Int,Nothing})
+@test isa(t, TrackedReal{Float64, Int, Nothing})
 
 # TrackedArray #
 #--------------#
@@ -81,7 +85,7 @@ t = TrackedArray(v, d, tp)
 @test t.value === v
 @test t.deriv === d
 @test t.tape === tp
-@test isa(t, TrackedArray{Float64,Int,3,Array{Float64,3},Array{Int,3}})
+@test isa(t, TrackedArray{Float64, Int, 3, Array{Float64, 3}, Array{Int, 3}})
 
 ###########
 # getters #
@@ -106,7 +110,7 @@ t = TrackedArray(v, d, tp)
 @test ReverseDiff.istracked(Real[1.0])
 @test ReverseDiff.istracked(Number[1.0])
 @test ReverseDiff.istracked(AbstractVector[[1.0]])
-@test ReverseDiff.istracked(Union{Float64,TrackedReal{Float64,Float64,Nothing}}[1.0])
+@test ReverseDiff.istracked(Union{Float64, TrackedReal{Float64, Float64, Nothing}}[1.0])
 
 # a vector of `TrackedArray`s is tracked, and `value` and `tape` see through it
 let ta = TrackedArray(rand(2), rand(2), InstructionTape()), v = [ta, ta]
@@ -145,9 +149,9 @@ any_varr = Any[v]
 # valtype #
 #---------#
 
-@test ReverseDiff.valtype(TrackedReal(1,0)) === Int
+@test ReverseDiff.valtype(TrackedReal(1, 0)) === Int
 @test ReverseDiff.valtype(TrackedReal(1.0, 0)) === Float64
-@test ReverseDiff.valtype(typeof(TrackedReal(1,0))) === Int
+@test ReverseDiff.valtype(typeof(TrackedReal(1, 0))) === Int
 @test ReverseDiff.valtype(typeof(TrackedReal(1.0, 0))) === Float64
 @test ReverseDiff.valtype(TrackedArray([1], [0], InstructionTape())) === Int
 @test ReverseDiff.valtype(TrackedArray([1.0], [0], InstructionTape())) === Float64
@@ -157,9 +161,9 @@ any_varr = Any[v]
 # derivtype #
 #-----------#
 
-@test ReverseDiff.derivtype(TrackedReal(1,0)) === Int
+@test ReverseDiff.derivtype(TrackedReal(1, 0)) === Int
 @test ReverseDiff.derivtype(TrackedReal(1, 0.0)) === Float64
-@test ReverseDiff.derivtype(typeof(TrackedReal(1,0))) === Int
+@test ReverseDiff.derivtype(typeof(TrackedReal(1, 0))) === Int
 @test ReverseDiff.derivtype(typeof(TrackedReal(1, 0.0))) === Float64
 @test ReverseDiff.derivtype(TrackedArray([1], [0], InstructionTape())) === Int
 @test ReverseDiff.derivtype(TrackedArray([1], [0.0], InstructionTape())) === Float64
@@ -178,10 +182,14 @@ any_varr = Any[v]
 
 tp = InstructionTape()
 
-null_tape_items = (nothing, rand(), [1], Any[1], [TrackedReal(1, 1)], TrackedReal(1, 1),
-                   TrackedArray(rand(1), rand(1), ReverseDiff.NULL_TAPE))
-tape_items = ([3, TrackedReal(1, 1, tp)], TrackedReal(1, 1, tp),
-              TrackedArray(rand(1), rand(1), tp))
+null_tape_items = (
+    nothing, rand(), [1], Any[1], [TrackedReal(1, 1)], TrackedReal(1, 1),
+    TrackedArray(rand(1), rand(1), ReverseDiff.NULL_TAPE),
+)
+tape_items = (
+    [3, TrackedReal(1, 1, tp)], TrackedReal(1, 1, tp),
+    TrackedArray(rand(1), rand(1), tp),
+)
 
 for i in null_tape_items
     @test ReverseDiff.tape(i) === ReverseDiff.NULL_TAPE
@@ -266,7 +274,7 @@ varr_copy = copy(ReverseDiff.value(ta))
 trs = Any[tr, ta[1], ta[2]]
 
 @test ReverseDiff.pull_value!(nothing) === nothing
-@test ReverseDiff.pull_value!([1,2,3]) === nothing
+@test ReverseDiff.pull_value!([1, 2, 3]) === nothing
 @test ReverseDiff.pull_value!(1.0) === nothing
 
 ReverseDiff.value(ta)[1] = v_new
@@ -308,7 +316,7 @@ darr_copy = copy(ReverseDiff.deriv(ta))
 trs = Any[tr, ta[1], ta[2]]
 
 @test ReverseDiff.pull_deriv!(nothing) === nothing
-@test ReverseDiff.pull_deriv!([1,2,3]) === nothing
+@test ReverseDiff.pull_deriv!([1, 2, 3]) === nothing
 @test ReverseDiff.pull_deriv!(1.0) === nothing
 
 ReverseDiff.deriv(ta)[1] = d_new
@@ -350,7 +358,7 @@ darr_copy = copy(ReverseDiff.deriv(ta))
 trs = Any[tr, ta[1], ta[2]]
 
 @test ReverseDiff.push_deriv!(nothing) === nothing
-@test ReverseDiff.push_deriv!([1,2,3]) === nothing
+@test ReverseDiff.push_deriv!([1, 2, 3]) === nothing
 @test ReverseDiff.push_deriv!(1.0) === nothing
 
 ReverseDiff.deriv!(ta1, d_new)
@@ -390,10 +398,10 @@ tr = TrackedReal(v, d)
 trs = Any[tr, ta[1], ta[2]]
 
 @test ReverseDiff.seed!(nothing) === nothing
-@test ReverseDiff.seed!([1,2,3]) === nothing
+@test ReverseDiff.seed!([1, 2, 3]) === nothing
 @test ReverseDiff.seed!(1.0) === nothing
 @test ReverseDiff.unseed!(nothing) === nothing
-@test ReverseDiff.unseed!([1,2,3]) === nothing
+@test ReverseDiff.unseed!([1, 2, 3]) === nothing
 @test ReverseDiff.unseed!(1.0) === nothing
 
 ReverseDiff.seed!(ta)
@@ -600,10 +608,10 @@ tp = InstructionTape()
 ta = TrackedArray(varr, darr, tp)
 tr = TrackedReal(v, d)
 ta1 = ta[1]
-A = TrackedArray{BigInt,Float64,1,Array{BigInt,1},Array{Float64,1}}
-T = TrackedReal{BigInt,Float64,A}
+A = TrackedArray{BigInt, Float64, 1, Array{BigInt, 1}, Array{Float64, 1}}
+T = TrackedReal{BigInt, Float64, A}
 
-t2 = convert(TrackedReal{BigFloat,BigFloat,Nothing}, ta1)
+t2 = convert(TrackedReal{BigFloat, BigFloat, Nothing}, ta1)
 @test length(tp) == 1
 instr = tp[1]
 @test instr.func === convert
@@ -616,7 +624,7 @@ empty!(tp)
 @test_throws ArgumentError convert(BigFloat, tr)
 
 @test samefields(convert(T, 1), T(big(1), 0.0))
-@test samefields(convert(TrackedReal{BigInt,Float64,Nothing}, 1), TrackedReal(big(1), 0.0))
+@test samefields(convert(TrackedReal{BigInt, Float64, Nothing}, 1), TrackedReal(big(1), 0.0))
 
 @test convert(typeof(tr), tr) === tr
 @test convert(typeof(ta), ta) === ta
@@ -625,18 +633,18 @@ empty!(tp)
 @test promote_type(T, Bool) === T
 @test promote_type(T, Int32) === T
 @test promote_type(T, Int64) === T
-@test promote_type(T, Integer) === TrackedReal{BigInt,Float64,A}
-@test promote_type(T, typeof(ℯ)) === TrackedReal{BigFloat,Float64,A}
-@test promote_type(T, typeof(π)) === TrackedReal{BigFloat,Float64,A}
-@test promote_type(T, typeof(log2π)) === TrackedReal{BigFloat,Float64,A}
-@test promote_type(T, Rational{Int}) === TrackedReal{Rational{BigInt},Float64,A}
-@test promote_type(T, BigFloat) === TrackedReal{BigFloat,Float64,A}
+@test promote_type(T, Integer) === TrackedReal{BigInt, Float64, A}
+@test promote_type(T, typeof(ℯ)) === TrackedReal{BigFloat, Float64, A}
+@test promote_type(T, typeof(π)) === TrackedReal{BigFloat, Float64, A}
+@test promote_type(T, typeof(log2π)) === TrackedReal{BigFloat, Float64, A}
+@test promote_type(T, Rational{Int}) === TrackedReal{Rational{BigInt}, Float64, A}
+@test promote_type(T, BigFloat) === TrackedReal{BigFloat, Float64, A}
 @test promote_type(T, BigInt) === T
-@test promote_type(T, Float64) === TrackedReal{BigFloat,Float64,A}
-@test promote_type(T, AbstractFloat) === TrackedReal{BigFloat,Float64,A}
-@test promote_type(T, Real) === TrackedReal{Real,Float64,A}
-@test promote_type(T, ForwardDiff.Dual{:tag,Float64,1}) === TrackedReal{ForwardDiff.Dual{:tag,BigFloat,1},Float64,A}
-@test promote_type(T, TrackedReal{BigFloat,BigFloat,Nothing}) === TrackedReal{BigFloat,BigFloat,Nothing}
+@test promote_type(T, Float64) === TrackedReal{BigFloat, Float64, A}
+@test promote_type(T, AbstractFloat) === TrackedReal{BigFloat, Float64, A}
+@test promote_type(T, Real) === TrackedReal{Real, Float64, A}
+@test promote_type(T, ForwardDiff.Dual{:tag, Float64, 1}) === TrackedReal{ForwardDiff.Dual{:tag, BigFloat, 1}, Float64, A}
+@test promote_type(T, TrackedReal{BigFloat, BigFloat, Nothing}) === TrackedReal{BigFloat, BigFloat, Nothing}
 @test promote_type(T, T) === T
 
 ###########################
@@ -656,7 +664,7 @@ for T in (UInt, Int)
     @test samefields(ta[S(2), T(3)], TrackedReal(varr[2, 3], darr[2, 3], tp, 8, ta))
 end
 
-ta_sub = ta[:,:]
+ta_sub = ta[:, :]
 idx = ReverseDiff.index_iterable(axes(ta), (:, :))
 @test collect(idx) == [(i, j) for i in 1:3, j in 1:3]
 @test samefields(ta_sub, ta)
@@ -669,41 +677,41 @@ instr = tp[1]
 empty!(tp)
 
 for T in (UInt, Int)
-    ta_sub = ta[:,T(1):T(2)]
+    ta_sub = ta[:, T(1):T(2)]
     idx = ReverseDiff.index_iterable(axes(ta), (:, T(1):T(2)))
     @test collect(idx) == [(i, j) for i in 1:3, j in 1:2]
-    @test samefields(ta_sub, TrackedArray(varr[:,1:2], darr[:,1:2], tp))
+    @test samefields(ta_sub, TrackedArray(varr[:, 1:2], darr[:, 1:2], tp))
     @test length(tp) == 1
     instr = tp[1]
     @test instr.func === getindex
     @test instr.input === (ta, idx)
-    @test samefields(instr.output, TrackedArray(varr[:,1:2], darr[:,1:2], tp))
+    @test samefields(instr.output, TrackedArray(varr[:, 1:2], darr[:, 1:2], tp))
     @test instr.cache === nothing
     empty!(tp)
 
-    ta_sub = ta[T(2):T(3),:]
+    ta_sub = ta[T(2):T(3), :]
     idx = ReverseDiff.index_iterable(axes(ta), (T(2):T(3), :))
     @test collect(idx) == [(i, j) for i in 2:3, j in 1:3]
-    @test samefields(ta_sub, TrackedArray(varr[2:3,:], darr[2:3,:], tp))
+    @test samefields(ta_sub, TrackedArray(varr[2:3, :], darr[2:3, :], tp))
     @test length(tp) == 1
     instr = tp[1]
     @test instr.func === getindex
     @test instr.input === (ta, idx)
-    @test samefields(instr.output, TrackedArray(varr[2:3,:], darr[2:3,:], tp))
+    @test samefields(instr.output, TrackedArray(varr[2:3, :], darr[2:3, :], tp))
     @test instr.cache === nothing
     empty!(tp)
 
     S = T === UInt ? Int : UInt
     for U in (S, T)
-        ta_sub = ta[S(1):S(2),T(2):T(3)]
+        ta_sub = ta[S(1):S(2), T(2):T(3)]
         idx = ReverseDiff.index_iterable(axes(ta), (S(1):S(2), T(2):T(3)))
         @test collect(idx) == [(i, j) for i in 1:2, j in 2:3]
-        @test samefields(ta_sub, TrackedArray(varr[1:2,2:3], darr[1:2,2:3], tp))
+        @test samefields(ta_sub, TrackedArray(varr[1:2, 2:3], darr[1:2, 2:3], tp))
         @test length(tp) == 1
         instr = tp[1]
         @test instr.func === getindex
         @test instr.input === (ta, idx)
-        @test samefields(instr.output, TrackedArray(varr[1:2,2:3], darr[1:2,2:3], tp))
+        @test samefields(instr.output, TrackedArray(varr[1:2, 2:3], darr[1:2, 2:3], tp))
         @test instr.cache === nothing
         empty!(tp)
     end
@@ -808,7 +816,7 @@ tr_float32 = TrackedReal(Float32(v_float), Float32(d), tp)
 @test deepcopy(tr_float) === tr_float
 @test copy(tr_float) === tr_float
 
-@test samefields(float(tr_int), TrackedReal{Float64,Float64,Nothing}(float(v_int), zero(d), tp))
+@test samefields(float(tr_int), TrackedReal{Float64, Float64, Nothing}(float(v_int), zero(d), tp))
 @test float(tr_float) === tr_float
 @test float(tr_float32) === tr_float32
 
@@ -817,14 +825,14 @@ tr_float32 = TrackedReal(Float32(v_float), Float32(d), tp)
 @test samefields(zero(tr_float), typeof(tr_float)(zero(v_float)))
 
 # an eltype whose origin is free still has both identities (#172)
-@test samefields(one(TrackedReal{Float64,Float64}), TrackedReal{Float64,Float64,Nothing}(1.0))
-@test samefields(zero(TrackedReal{Float64,Float64}), TrackedReal{Float64,Float64,Nothing}(0.0))
+@test samefields(one(TrackedReal{Float64, Float64}), TrackedReal{Float64, Float64, Nothing}(1.0))
+@test samefields(zero(TrackedReal{Float64, Float64}), TrackedReal{Float64, Float64, Nothing}(0.0))
 
-tr_rand = rand(TrackedReal{Int,Float64,Nothing})
-@test samefields(tr_rand, TrackedReal{Int,Float64,Nothing}(ReverseDiff.value(tr_rand)))
+tr_rand = rand(TrackedReal{Int, Float64, Nothing})
+@test samefields(tr_rand, TrackedReal{Int, Float64, Nothing}(ReverseDiff.value(tr_rand)))
 
-tr_rand = rand(MersenneTwister(1), TrackedReal{Int,Float64,Nothing})
-@test samefields(tr_rand, TrackedReal{Int,Float64,Nothing}(ReverseDiff.value(tr_rand)))
+tr_rand = rand(MersenneTwister(1), TrackedReal{Int, Float64, Nothing})
+@test samefields(tr_rand, TrackedReal{Int, Float64, Nothing}(ReverseDiff.value(tr_rand)))
 
 @test eps(tr_float) === eps(v_float)
 @test eps(typeof(tr_float)) === eps(Float64)
@@ -866,7 +874,7 @@ end
 
 f = rand()
 tr1 = ReverseDiff.TrackedReal(f, rand(), tp)
-tr2 = ReverseDiff.TrackedReal(2*f, rand(), tp)
+tr2 = ReverseDiff.TrackedReal(2 * f, rand(), tp)
 tr3 = ReverseDiff.TrackedReal(f + eps(f), rand(), tp)
 
 @test isapprox(tr1, tr2) == false
@@ -902,7 +910,7 @@ ta = TrackedArray(varr, darr, tp)
 trs = similar(ta)
 tp2 = InstructionTape()
 @test isa(trs, Vector{eltype(ta)})
-trs = similar(ta, TrackedReal{Float64,Float64,Nothing})
+trs = similar(ta, TrackedReal{Float64, Float64, Nothing})
 track!(trs, ta, tp2)
 for i in eachindex(trs)
     @test samefields(trs[i], track(varr[i], tp2))

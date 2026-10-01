@@ -86,7 +86,7 @@ end
 ###########################
 
 """
-    ReverseDiff.jacobian!(tape::Union{JacobianTape,CompiledJacobian}, input)
+    ReverseDiff.jacobian!(tape::Union{JacobianTape, CompiledJacobian}, input)
 
 If `input` is an `AbstractArray`, assume `tape` represents a function of the form
 `f(::AbstractArray{<:Real})::AbstractArray{<:Real}` or `f!(::AbstractArray{<:Real},
@@ -102,14 +102,14 @@ execute `tape` with new `input` values. There is no way to re-run `tape`'s tape 
 `output` values; since `f!` can mutate `output`, there exists no stable "hook" for loading
 new `output` values into the tape.
 """
-function jacobian!(tape::Union{JacobianTape,CompiledJacobian}, input)
+function jacobian!(tape::Union{JacobianTape, CompiledJacobian}, input)
     result = construct_result(output_hook(tape), input_hook(tape))
     result = jacobian!(result, tape, input)
     return result
 end
 
 """
-    ReverseDiff.jacobian!(result, tape::Union{JacobianTape,CompiledJacobian}, input)
+    ReverseDiff.jacobian!(result, tape::Union{JacobianTape, CompiledJacobian}, input)
 
 This method is exactly like `ReverseDiff.jacobian!(tape, input)`, except it stores the
 resulting Jacobian(s) in `result` rather than allocating new memory.
@@ -120,7 +120,7 @@ case the primal value of the target function will be stored in it as well. An im
 `DiffResult` cannot be updated in place and is replaced, so use the returned value:
 `result = ReverseDiff.jacobian!(result, tape, input)`.
 """
-function jacobian!(result, tape::Union{JacobianTape,CompiledJacobian}, input)
+function jacobian!(result, tape::Union{JacobianTape, CompiledJacobian}, input)
     seeded_forward_pass!(tape, input)
     result = seeded_reverse_pass!(result, tape)
     return result

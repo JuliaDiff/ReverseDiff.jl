@@ -67,7 +67,7 @@ end
 # dispatch #
 #----------#
 
-for g! in (:map!, :broadcast!), (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+for g! in (:map!, :broadcast!), (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         @warn "$M.$f is not available and hence rule for it can not be defined"
         continue  # Skip rules for methods not defined in the current scope
@@ -102,7 +102,7 @@ end
 #--------#
 
 for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
-    @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray{S}, x::TrackedArray{X}) where {F,S,X}
+    @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray{S}, x::TrackedArray{X}) where {F, S, X}
         result = DiffResults.DiffResult(zero(S), zero(S))
         df = v -> ForwardDiff.derivative!(result, f.f, v)
         results = $(g)(df, value(x))
@@ -113,7 +113,7 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
     end
     for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
         (TX == TY == :TrackedReal) && continue
-        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray{S}, x::$(TX){X}, y::$(TY){Y}) where {F,S,X,Y}
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray{S}, x::$(TX){X}, y::$(TY){Y}) where {F, S, X, Y}
             result = DiffResults.GradientResult(SVector(zero(S), zero(S)))
             df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
@@ -124,10 +124,10 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
         end
     end
     for A in ARRAY_TYPES
-        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::TrackedReal{X,D}, y::$A) where {F,X,D}
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::TrackedReal{X, D}, y::$A) where {F, X, D}
             result = DiffResults.DiffResult(zero(X), zero(D))
-            df = let result=result
-                (vx, vy) -> let vy=vy
+            df = let result = result
+                (vx, vy) -> let vy = vy
                     ForwardDiff.derivative!(result, s -> f.f(s, vy), vx)
                 end
             end
@@ -137,10 +137,10 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             record!(tape(x), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::TrackedReal{Y,D}) where {F,Y,D}
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::TrackedReal{Y, D}) where {F, Y, D}
             result = DiffResults.DiffResult(zero(Y), zero(D))
-            df = let result=result
-                (vx, vy) -> let vx=vx
+            df = let result = result
+                (vx, vy) -> let vx = vx
                     ForwardDiff.derivative!(result, s -> f.f(vx, s), vy)
                 end
             end
@@ -150,9 +150,9 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             record!(tape(y), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::TrackedArray{X}, y::$A) where {F,X}
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::TrackedArray{X}, y::$A) where {F, X}
             result = DiffResults.GradientResult(SVector(zero(X)))
-            df = (vx, vy) -> let vy=vy
+            df = (vx, vy) -> let vy = vy
                 ForwardDiff.gradient!(result, s -> f.f(s[1], vy), SVector(vx))
             end
             results = $(g)(df, value(x), value(y))
@@ -161,9 +161,9 @@ for (g!, g) in ((:map!, :map), (:broadcast!, :broadcast))
             record!(tape(x), SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::TrackedArray{Y}) where {F,Y}
+        @eval function Base.$(g!)(f::ForwardOptimize{F}, out::TrackedArray, x::$A, y::TrackedArray{Y}) where {F, Y}
             result = DiffResults.GradientResult(SVector(zero(Y)))
-            df = let vx=vx
+            df = let vx = vx
                 (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(vx, s[1]), SVector(vy))
             end
             results = $(g)(df, value(x), value(y))
@@ -189,7 +189,7 @@ end
 # dispatch #
 #----------#
 
-for g in (:map, :broadcast), (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+for g in (:map, :broadcast), (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         @warn "$M.$f is not available and hence rule for it can not be defined"
         continue  # Skip rules for methods not defined in the current scope
@@ -228,7 +228,7 @@ end
 #--------#
 
 for g in (:map, :broadcast)
-    @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedArray{X,D}) where {F,X,D}
+    @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedArray{X, D}) where {F, X, D}
         T = promote_type(X, D)
         result = DiffResults.DiffResult(zero(T), zero(T))
         df = v -> ForwardDiff.derivative!(result, f.f, v)
@@ -240,10 +240,10 @@ for g in (:map, :broadcast)
         return out
     end
     for A in ARRAY_TYPES
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedReal{X,D}, y::$A) where {F,X,D}
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedReal{X, D}, y::$A) where {F, X, D}
             result = DiffResults.DiffResult(zero(X), zero(D))
-            df = let result=result
-                (vx, vy) -> let vy=vy
+            df = let result = result
+                (vx, vy) -> let vy = vy
                     ForwardDiff.derivative!(result, s -> f.f(s, vy), vx)
                 end
             end
@@ -254,10 +254,10 @@ for g in (:map, :broadcast)
             record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$A, y::TrackedReal{Y,D}) where {F,Y,D}
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$A, y::TrackedReal{Y, D}) where {F, Y, D}
             result = DiffResults.DiffResult(zero(Y), zero(D))
-            df = let result=result
-                (vx, vy) -> let vx=vx
+            df = let result = result
+                (vx, vy) -> let vx = vx
                     ForwardDiff.derivative!(result, s -> f.f(vx, s), vy)
                 end
             end
@@ -268,9 +268,9 @@ for g in (:map, :broadcast)
             record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$A) where {F,X,D}
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::TrackedArray{X, D}, y::$A) where {F, X, D}
             result = DiffResults.GradientResult(SVector(zero(X)))
-            df = (vx, vy) -> let vy=vy
+            df = (vx, vy) -> let vy = vy
                 ForwardDiff.gradient!(result, s -> f.f(s[1], vy), SVector(vx))
             end
             results = $(g)(df, value(x), value(y))
@@ -280,9 +280,9 @@ for g in (:map, :broadcast)
             record!(tp, SpecialInstruction, $(g), (x, y), out, cache)
             return out
         end
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$A, y::TrackedArray{Y,D}) where {F,Y,D}
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$A, y::TrackedArray{Y, D}) where {F, Y, D}
             result = DiffResults.GradientResult(SVector(zero(Y)))
-            df = (vx, vy) -> let vx=vx
+            df = (vx, vy) -> let vx = vx
                 ForwardDiff.gradient!(result, s -> f.f(vx, s[1]), SVector(vy))
             end
             results = $(g)(df, value(x), value(y))
@@ -296,7 +296,7 @@ for g in (:map, :broadcast)
 
     for TX in (:TrackedArray, :TrackedReal), TY in (:TrackedArray, :TrackedReal)
         TX == :TrackedReal && TY == :TrackedReal && continue
-        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$(TX){X,D}, y::$(TY){Y,D}) where {F,X,Y,D}
+        @eval function Base.$(g)(f::ForwardOptimize{F}, x::$(TX){X, D}, y::$(TY){Y, D}) where {F, X, Y, D}
             result = DiffResults.GradientResult(SVector(zero(D), zero(D)))
             df = (vx, vy) -> ForwardDiff.gradient!(result, s -> f.f(s[1], s[2]), SVector(vx, vy))
             results = $(g)(df, value(x), value(y))
@@ -311,8 +311,8 @@ end
 
 for R in REAL_TYPES
     @eval begin
-        @inline Base.broadcast(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$R) where {F,X,D} = broadcast(ForwardOptimize(t -> f.f(t, y)), x)
-        @inline Base.broadcast(f::ForwardOptimize{F}, x::$R, y::TrackedArray{Y,D}) where {F,Y,D} = broadcast(ForwardOptimize(t -> f.f(x, t)), y)
+        @inline Base.broadcast(f::ForwardOptimize{F}, x::TrackedArray{X, D}, y::$R) where {F, X, D} = broadcast(ForwardOptimize(t -> f.f(t, y)), x)
+        @inline Base.broadcast(f::ForwardOptimize{F}, x::$R, y::TrackedArray{Y, D}) where {F, Y, D} = broadcast(ForwardOptimize(t -> f.f(x, t)), y)
     end
 end
 
@@ -411,34 +411,36 @@ end
 # built-in infix operations #
 #############################
 
-const TrackedType = Union{TrackedArray,TrackedReal}
+const TrackedType = Union{TrackedArray, TrackedReal}
 
 # dispatch #
 #----------#
 
-for (F, broadcast_f) in ((typeof(+), :broadcast_plus),
-                         (typeof(-), :broadcast_minus),
-                         (typeof(*), :broadcast_mul),
-                         (typeof(/), :broadcast_rdiv),
-                         (typeof(\), :broadcast_ldiv),
-                         (typeof(^), :broadcast_pow))
+for (F, broadcast_f) in (
+        (typeof(+), :broadcast_plus),
+        (typeof(-), :broadcast_minus),
+        (typeof(*), :broadcast_mul),
+        (typeof(/), :broadcast_rdiv),
+        (typeof(\), :broadcast_ldiv),
+        (typeof(^), :broadcast_pow),
+    )
     @eval begin
-        @inline Base.broadcast(::$F, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = $(broadcast_f)(x, y, D)
-        @inline Base.broadcast(::$F, x::TrackedReal{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = $(broadcast_f)(x, y, D)
-        @inline Base.broadcast(::$F, x::TrackedArray{X,D}, y::TrackedReal{Y,D}) where {X,Y,D} = $(broadcast_f)(x, y, D)
+        @inline Base.broadcast(::$F, x::TrackedArray{X, D}, y::TrackedArray{Y, D}) where {X, Y, D} = $(broadcast_f)(x, y, D)
+        @inline Base.broadcast(::$F, x::TrackedReal{X, D}, y::TrackedArray{Y, D}) where {X, Y, D} = $(broadcast_f)(x, y, D)
+        @inline Base.broadcast(::$F, x::TrackedArray{X, D}, y::TrackedReal{Y, D}) where {X, Y, D} = $(broadcast_f)(x, y, D)
     end
     for A in ARRAY_TYPES
         @eval begin
-            @inline Base.broadcast(::$F, x::TrackedArray{X,D}, y::$A{<:Real}) where {X,D} = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast(::$F, x::$A{<:Real}, y::TrackedArray{Y,D}) where {Y,D} = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast(::$F, x::TrackedReal{X,D}, y::$A{<:Real}) where {X,D} = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast(::$F, x::$A{<:Real}, y::TrackedReal{Y,D}) where {Y,D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::TrackedArray{X, D}, y::$A{<:Real}) where {X, D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::$A{<:Real}, y::TrackedArray{Y, D}) where {Y, D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::TrackedReal{X, D}, y::$A{<:Real}) where {X, D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::$A{<:Real}, y::TrackedReal{Y, D}) where {Y, D} = $(broadcast_f)(x, y, D)
         end
     end
     for R in REAL_TYPES
         @eval begin
-            @inline Base.broadcast(::$F, x::TrackedArray{X,D}, y::$R) where {X,D} = $(broadcast_f)(x, y, D)
-            @inline Base.broadcast(::$F, x::$R, y::TrackedArray{Y,D}) where {Y,D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::TrackedArray{X, D}, y::$R) where {X, D} = $(broadcast_f)(x, y, D)
+            @inline Base.broadcast(::$F, x::$R, y::TrackedArray{Y, D}) where {Y, D} = $(broadcast_f)(x, y, D)
         end
     end
 end
@@ -446,7 +448,7 @@ end
 # .+ #
 #----#
 
-function broadcast_plus(x, y, ::Type{D}) where D
+function broadcast_plus(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(value(x) .+ value(y), D, tp)
     cache = (index_bound(x, out), index_bound(y, out))
@@ -454,7 +456,7 @@ function broadcast_plus(x, y, ::Type{D}) where D
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(+)}})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(+)}})
     a, b = instruction.input
     output = instruction.output
     pull_value!(a)
@@ -463,7 +465,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(+)}})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(+)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -477,7 +479,7 @@ end
 # .- #
 #----#
 
-function broadcast_minus(x, y, ::Type{D}) where D
+function broadcast_minus(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(value(x) .- value(y), D, tp)
     cache = (index_bound(x, out), index_bound(y, out))
@@ -485,7 +487,7 @@ function broadcast_minus(x, y, ::Type{D}) where D
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(-)}})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(-)}})
     a, b = instruction.input
     output = instruction.output
     pull_value!(a)
@@ -494,7 +496,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(-)}})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(-)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -508,7 +510,7 @@ end
 # .* #
 #----#
 
-function broadcast_mul(x, y, ::Type{D}) where D
+function broadcast_mul(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(value(x) .* value(y), D, tp)
     cache = (index_bound(x, out), index_bound(y, out))
@@ -516,7 +518,7 @@ function broadcast_mul(x, y, ::Type{D}) where D
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(*)}})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(*)}})
     a, b = instruction.input
     output = instruction.output
     pull_value!(a)
@@ -525,7 +527,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(*)}})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(*)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -543,17 +545,19 @@ denom_partials_kernel(n::Real, d::Real) = -(n / d) / d
 denom_partials(n, d) = broadcast(denom_partials_kernel, n, d)
 denom_partials!(out::AbstractArray, n, d) = (broadcast!(denom_partials_kernel, out, n, d); nothing)
 
-function broadcast_rdiv(x, y, ::Type{D}) where D
+function broadcast_rdiv(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(value(x) ./ value(y), D, tp)
     d_partials = denom_partials(value(x), value(y))
-    cache = (d_partials, index_bound(x, out), index_bound(y, out),
-             index_bound(d_partials, out))
+    cache = (
+        d_partials, index_bound(x, out), index_bound(y, out),
+        index_bound(d_partials, out),
+    )
     record!(tp, SpecialInstruction, (broadcast, /), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(/)}})
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
     d_partials = first(instruction.cache)
@@ -565,7 +569,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(/)}})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(/)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -579,17 +583,19 @@ end
 # .\ #
 #----#
 
-function broadcast_ldiv(x, y, ::Type{D}) where D
+function broadcast_ldiv(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(value(x) .\ value(y), D, tp)
     d_partials = denom_partials(value(y), value(x))
-    cache = (d_partials, index_bound(x, out), index_bound(y, out),
-             index_bound(d_partials, out))
+    cache = (
+        d_partials, index_bound(x, out), index_bound(y, out),
+        index_bound(d_partials, out),
+    )
     record!(tp, SpecialInstruction, (broadcast, \), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(\)}})
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
     d_partials = first(instruction.cache)
@@ -601,7 +607,7 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(\)}})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(\)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
@@ -629,18 +635,20 @@ function pow_cache(x, y)
     return (pow_x, pow_y)
 end
 
-function broadcast_pow(x, y, ::Type{D}) where D
+function broadcast_pow(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(value(x) .^ value(y), D, tp)
     bs_partials, ex_partials = pow_cache(x, y)
-    cache = (bs_partials, ex_partials,
-             index_bound(x, out), index_bound(y, out),
-             index_bound(bs_partials, out), index_bound(ex_partials, out))
+    cache = (
+        bs_partials, ex_partials,
+        index_bound(x, out), index_bound(y, out),
+        index_bound(bs_partials, out), index_bound(ex_partials, out),
+    )
     record!(tp, SpecialInstruction, (broadcast, ^), (x, y), out, cache)
     return out
 end
 
-@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(^)}})
+@noinline function special_forward_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(^)}})
     a, b = instruction.input
     a_value, b_value = value(a), value(b)
     bs_partials, ex_partials = instruction.cache
@@ -653,12 +661,12 @@ end
     return nothing
 end
 
-@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast),typeof(^)}})
+@noinline function special_reverse_exec!(instruction::SpecialInstruction{Tuple{typeof(broadcast), typeof(^)}})
     a, b = instruction.input
     output = instruction.output
     output_deriv = deriv(output)
     bs_partials, ex_partials, a_bound, b_bound,
-    bs_partials_bound, ex_partials_bound = instruction.cache
+        bs_partials_bound, ex_partials_bound = instruction.cache
     istracked(a) && broadcast_increment_deriv!(a, output_deriv, bs_partials, a_bound, bs_partials_bound)
     istracked(b) && broadcast_increment_deriv!(b, output_deriv, ex_partials, b_bound, ex_partials_bound)
     unseed!(output)

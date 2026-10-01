@@ -63,7 +63,7 @@ function seeded_reverse_pass!(result::DiffResult, output::AbstractArray, input::
     return result
 end
 
-function seeded_reverse_pass!(result::NTuple{N,Any}, output::AbstractArray, input::NTuple{N,Any}, tape) where {N}
+function seeded_reverse_pass!(result::NTuple{N, Any}, output::AbstractArray, input::NTuple{N, Any}, tape) where {N}
     return map((r, i) -> seeded_reverse_pass!(r, output, i, tape), result, input)
 end
 
@@ -71,7 +71,7 @@ end
 # result extraction #
 #####################
 
-function extract_result!(result::NTuple{N,Any}, output, input::NTuple{N,Any}) where {N}
+function extract_result!(result::NTuple{N, Any}, output, input::NTuple{N, Any}) where {N}
     return map((r, i) -> extract_result!(r, output, i), result, input)
 end
 
