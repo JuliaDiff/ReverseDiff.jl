@@ -22,7 +22,7 @@ differentiation methods (such as [finite differencing](https://en.wikipedia.org/
 
 To install ReverseDiff, simply use Julia's package manager:
 
-```julia
+```julia-repl
 julia> Pkg.add("ReverseDiff")
 ```
 
