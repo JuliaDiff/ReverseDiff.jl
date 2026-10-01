@@ -24,6 +24,8 @@ for Instr in (SpecialInstruction, ScalarInstruction)
     ReverseDiff.record!(tp, Instr, +, (x, y, k), z, c)
     @test_throws ArgumentError length(tp)
     @test_throws ArgumentError first(tp)
+    @test string(tp) == "InstructionTape (recording)"
+    @test repr(MIME"text/plain"(), tp) == "InstructionTape (recording)"
     ReverseDiff.finish!(tp)
     @test length(tp) == 1
     recorded = first(tp)
@@ -36,8 +38,14 @@ for Instr in (SpecialInstruction, ScalarInstruction)
     @test recorded.input[2] == y
     @test recorded.output === z
     @test recorded.cache === c
-    @test startswith(string(tp), "1-element InstructionTape:")
+    name = string(nameof(Instr), "(+)")
+    @test string(recorded) == name
+    @test startswith(repr(MIME"text/plain"(), recorded), name * ":\n  input:  ")
+    @test string(tp) == "1-element InstructionTape"
+    @test repr(MIME"text/plain"(), tp) == "1-element InstructionTape:\n " * name
     @test_throws ArgumentError ReverseDiff.record!(tp, Instr, +, (x, y, k), z, c)
+    # the rejected instruction is not recorded and the tape stays finished
+    @test length(tp) == 1
     @test_throws ArgumentError ReverseDiff.finish!(tp)
 
     empty!(tp)
@@ -48,6 +56,7 @@ for Instr in (SpecialInstruction, ScalarInstruction)
 
     ReverseDiff.record!(NULL_TAPE, Instr, +, (x, y, k), z, c)
     @test isempty(NULL_TAPE)
+    @test repr(MIME"text/plain"(), NULL_TAPE) == "0-element InstructionTape"
 end
 
 end # module

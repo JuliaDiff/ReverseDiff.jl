@@ -25,7 +25,7 @@ function test_arr2num(f, x, tp; ignore_tape_length = false)
     if !ignore_tape_length
         @test length(tp) == 1
     end
-    @test abs(yt - y) <= abs(y) * eps(typeof(y))
+    @test abs(value(yt) - y) <= abs(y) * eps(typeof(y))
 
     # reverse
     ReverseDiff.seed!(yt)
