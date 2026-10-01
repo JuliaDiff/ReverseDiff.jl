@@ -12,15 +12,18 @@ An append-only tape of recorded instructions.
 Recording onto the same tape from multiple threads is supported. Reading or replaying
 a tape is only safe once recording has finished.
 """
-struct InstructionTape <: AbstractVector{AbstractInstruction}
+struct InstructionTape
     instructions::Vector{AbstractInstruction}
     lock::Threads.SpinLock
 end
 
 InstructionTape() = InstructionTape(AbstractInstruction[], Threads.SpinLock())
 
-Base.size(tp::InstructionTape) = size(tp.instructions)
-Base.IndexStyle(::Type{InstructionTape}) = IndexLinear()
+Base.iterate(tp::InstructionTape) = iterate(tp.instructions)
+Base.iterate(tp::InstructionTape, state) = iterate(tp.instructions, state)
+Base.eltype(::Type{InstructionTape}) = AbstractInstruction
+Base.length(tp::InstructionTape) = length(tp.instructions)
+Base.isempty(tp::InstructionTape) = isempty(tp.instructions)
 Base.@propagate_inbounds Base.getindex(tp::InstructionTape, i::Int) = tp.instructions[i]
 
 function Base.empty!(tp::InstructionTape)
