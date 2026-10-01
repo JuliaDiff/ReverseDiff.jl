@@ -100,8 +100,8 @@ methods on each instruction in the tape.
 """
 function CompiledTape(t::T) where T<:AbstractTape
     CompiledTape{T}(t,
-        [FunctionWrapper{Nothing, Tuple{}}(ForwardExecutor(instruction)) for instruction in t.tape],
-        [FunctionWrapper{Nothing, Tuple{}}(ReverseExecutor(t.tape[i])) for i in length(t.tape):-1:1]
+        [FunctionWrapper{Nothing, Tuple{}}(ForwardExecutor(instruction)) for instruction in instructions(t.tape)],
+        [FunctionWrapper{Nothing, Tuple{}}(ReverseExecutor(instruction)) for instruction in Iterators.reverse(instructions(t.tape))]
         )
 end
 
@@ -197,6 +197,7 @@ See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 function GradientTape(f, input, cfg::GradientConfig = GradientConfig(input))
     track!(cfg.input, input)
     tracked_ouput = f(cfg.input)
+    finish!(cfg.tape)
     return _GradientTape(f, cfg.input, tracked_ouput, cfg.tape)
 end
 
@@ -205,6 +206,7 @@ function GradientTape(f, input::Tuple, cfg::GradientConfig = GradientConfig(inpu
         track!(cfg.input[i], input[i])
     end
     tracked_output = f(cfg.input...)
+    finish!(cfg.tape)
     return _GradientTape(f, cfg.input, tracked_output, cfg.tape)
 end
 
@@ -227,6 +229,7 @@ See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 function JacobianTape(f, input, cfg::JacobianConfig = JacobianConfig(input))
     track!(cfg.input, input)
     tracked_ouput = f(cfg.input)
+    finish!(cfg.tape)
     return _JacobianTape(f, cfg.input, tracked_ouput, cfg.tape)
 end
 
@@ -235,6 +238,7 @@ function JacobianTape(f, input::Tuple, cfg::JacobianConfig = JacobianConfig(inpu
         track!(cfg.input[i], input[i])
     end
     tracked_output = f(cfg.input...)
+    finish!(cfg.tape)
     return _JacobianTape(f, cfg.input, tracked_output, cfg.tape)
 end
 
@@ -254,6 +258,7 @@ function JacobianTape(f!, output, input, cfg::JacobianConfig = JacobianConfig(ou
     track!(cfg.output, output, cfg.tape)
     track!(cfg.input, input)
     f!(cfg.output, cfg.input)
+    finish!(cfg.tape)
     return _JacobianTape(f!, cfg.input, cfg.output, cfg.tape)
 end
 
@@ -263,6 +268,7 @@ function JacobianTape(f!, output, input::Tuple, cfg::JacobianConfig = JacobianCo
         track!(cfg.input[i], input[i])
     end
     f!(cfg.output, cfg.input...)
+    finish!(cfg.tape)
     return _JacobianTape(f!, cfg.input, cfg.output, cfg.tape)
 end
 
@@ -289,5 +295,6 @@ function HessianTape(f, input, cfg::HessianConfig = HessianConfig(input))
     track!(ht.input, input)
     gt = GradientTape(f, ht.input, gcfg)
     seeded_reverse_pass!(ht.output, gt.output, gt.input, gt.tape)
+    finish!(jcfg.tape)
     return ht
 end

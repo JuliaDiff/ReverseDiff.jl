@@ -134,6 +134,7 @@ end
     xt = ReverseDiff.track(copy(x), tp)
     # record
     yt = f(xt)
+    ReverseDiff.finish!(tp)
     @test length(tp) == 3 # sum, broadcast+, broadcast*, but not `g`
 end
 

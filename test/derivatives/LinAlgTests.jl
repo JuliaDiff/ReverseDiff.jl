@@ -21,6 +21,7 @@ function test_arr2num(f, x, tp; ignore_tape_length = false)
 
     # record
     yt = f(xt)
+    ReverseDiff.finish!(tp)
     if !ignore_tape_length
         @test length(tp) == 1
     end
@@ -49,6 +50,7 @@ function test_arr2arr(f, x, tp)
     # record
     yt = f(xt)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -75,6 +77,7 @@ function test_arr2arr(f, a, b, tp)
     # record
     ct = f(at, b)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -96,6 +99,7 @@ function test_arr2arr(f, a, b, tp)
     # record
     ct = f(a, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -117,6 +121,7 @@ function test_arr2arr(f, a, b, tp)
     # record
     ct = f(at, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -149,6 +154,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     ct = track(c, eltype(c), ReverseDiff.NULL_TAPE)
     f!(ct, at, b)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -171,6 +177,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     ct = track(c, eltype(c), ReverseDiff.NULL_TAPE)
     f!(ct, a, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -193,6 +200,7 @@ function test_arr2arr_inplace(f!, f, c, a, b, tp)
     ct = track(c, eltype(c), ReverseDiff.NULL_TAPE)
     f!(ct, at, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
