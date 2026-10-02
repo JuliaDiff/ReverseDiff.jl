@@ -27,8 +27,7 @@ mayhidetracked(b::ForwardOptimize) = mayhidetracked(b.f)
 mayhidetracked(b::SkipOptimize) = mayhidetracked(b.f)
 mayhidetracked(b::Broadcasted) = mayhidetracked(b.f) || any(mayhidetracked, b.args)
 
-# below the argument nothing is seeded, so a tracked value is hidden wherever it sits: recurse
-# into what a container holds rather than ask about the container
+# nothing inside an argument is seeded, so ask about the element type, not the container
 _mayhidetracked(::Type{<:NotTracked}) = false
 _mayhidetracked(::Type{<:AbstractArray{F}}) where {F} = _mayhidetracked(F)
 # a type that is not concrete, such as `Type{T}` or an abstract type, may have fields
@@ -39,6 +38,7 @@ struct TrackedStyle{N} <: AbstractArrayStyle{N} end
 (::Type{<:TrackedStyle})(::Val{N}) where {N} = TrackedStyle{N}()
 
 Broadcast.BroadcastStyle(::Type{<:TrackedReal}) = TrackedStyle{0}()
+# only an element type that fixes `D`, since `getouttype` reads it off
 Broadcast.BroadcastStyle(::Type{<:AbstractArray{<:TrackedReal{<:Any, D}, N}}) where {D, N} =
     TrackedStyle{N}()
 
@@ -101,6 +101,9 @@ _no_tracked_dest() = throw(ArgumentError("`TrackedArray`s do not support `setind
 
 Base.copyto!(::TrackedArray, ::Broadcasted{<:TrackedStyle}) = _no_tracked_dest()
 Base.copyto!(::TrackedArray, ::Broadcasted{<:DefaultArrayStyle}) = _no_tracked_dest()
+# more specific than `Base`'s 0-dimensional method
+Base.copyto!(::TrackedArray, ::Broadcasted{TrackedStyle{0}}) = _no_tracked_dest()
+Base.copyto!(::TrackedArray, ::Broadcasted{DefaultArrayStyle{0}}) = _no_tracked_dest()
 
 getouttype(::TrackedReal{<:Any, D}) where {D} = D
 getouttype(::AbstractArray{<:TrackedReal{<:Any, D}}) where {D} = D
@@ -277,12 +280,12 @@ end
 @inline function recordresults(::Type{T}, results, df, vf, targs, vals) where {T}
     D = mapreduce(getouttype, promote_type, targs)
     foreach(v -> checkargvalues(D, v), vals)
-    g, outvalue = replaycache(T, results, df, vf, vals)
+    replayf, outvalue = replaycache(T, results, df, vf, vals)
     tp = tape(targs...)
     out = track(outvalue, D, tp)
     _, positions, n = trackedslots(targs)
     bounds = map(p -> index_bound(getat(targs, p), out), positions)
-    cache = (results, g, T(), map(tuple, positions, ntuple(Val, n), bounds))
+    cache = (results, replayf, T(), map(tuple, positions, ntuple(Val, n), bounds))
     record!(tp, SpecialInstruction, ∇broadcast, targs, out, cache)
     return out
 end
@@ -365,9 +368,9 @@ _increment_deriv!(::Type, x, out_deriv, p::PartialsWithArgs, ::Val{k}, bound...)
 
 @noinline function special_forward_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input, output = instruction.input, instruction.output
-    results, df, tag, _ = instruction.cache
+    results, replayf, tag, _ = instruction.cache
     foreach(pull_value!, input)
-    _replay!(typeof(tag), value(output), results, df, map(value, input))
+    _replay!(typeof(tag), value(output), results, replayf, map(value, input))
     return nothing
 end
 

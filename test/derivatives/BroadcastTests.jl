@@ -28,6 +28,9 @@ Base.getindex(f::Foreign0d, ::CartesianIndex{0}) = f.x
 Base.Broadcast.BroadcastStyle(::Type{<:Foreign0d}) = ForeignStyle()
 Base.similar(::Broadcasted{ForeignStyle}, ::Type{T}, axs) where {T} = similar(Array{T}, axs)
 
+# at top level, since a local function that captures itself takes the scalar rules
+inner(t) = ForwardDiff.Dual{typeof(ForwardDiff.Tag(inner, typeof(t)))}(t, one(t))
+
 ############################################################################################
 
 @testset "`BroadcastStyle` tracks dimensionality" begin
@@ -88,7 +91,7 @@ end
     @test y isa SVector
     @test z isa SVector
     ReverseDiff.seed!(sum(y) + sum(z))
-    ReverseDiff.reverse_pass!(tp)
+    ReverseDiff.reverse_pass!(ReverseDiff.finish!(tp))
     @test deriv(xs) == [6.0, 9.0]
     @test ReverseDiff.gradient(x -> sum((t -> t * c).(x)), SVector(1.0, 2.0)) == [3.0, 3.0]
 end
@@ -121,10 +124,11 @@ end
         )
         tp1, tp2 = InstructionTape(), InstructionTape()
         x, y = dotted(tp1), called(tp2)
+        instrs1, instrs2 = take_recorded!(tp1), take_recorded!(tp2)
 
         @test value(x) == value(y)
-        @test length(tp1) == length(tp2) == 1
-        @test tp1[1].func === tp2[1].func
+        @test length(instrs1) == length(instrs2) == 1
+        @test instrs1[1].func === instrs2[1].func
     end
 end
 
@@ -133,7 +137,7 @@ end
     x = track(rand(3, 3), tp)
     y = broadcast(ReverseDiff.ForwardOptimize(exp), x)
     @test y isa TrackedArray
-    @test length(tp) == 1
+    @test length(take_recorded!(tp)) == 1
 
     # `@skip` results are untracked, as with `map` and scalars
     tp = InstructionTape()
@@ -141,7 +145,7 @@ end
     y = broadcast(ReverseDiff.SkipOptimize(exp), x)
     @test y isa Matrix{Float64}
     @test y == exp.(value(x))
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     # fused, and at every order
     f(v) = sum(v .* ReverseDiff.@skip(exp).(v))
@@ -160,10 +164,11 @@ end
     x = track(rand(3), tp)
 
     y = Real.(x)
+    instrs = take_recorded!(tp)
 
     @test y isa TrackedArray
-    @test length(tp) == 1
-    @test tp[1].func === ReverseDiff.∇broadcast
+    @test length(instrs) == 1
+    @test instrs[1].func === ReverseDiff.∇broadcast
     @test ReverseDiff.gradient(v -> sum(Real.(v)), [1.0, 2.0]) == [1.0, 1.0]
 end
 
@@ -182,7 +187,7 @@ end
     sum((x .+ y) .* sin.(x))
 
     # one instruction for the fused expression, one for `sum`
-    @test length(tp) == 2
+    @test length(take_recorded!(tp)) == 2
 end
 
 @testset "`TrackedArray`s are rejected as broadcast destinations" begin
@@ -193,8 +198,9 @@ end
     x = track(copy(a), tp)
     @test_throws ArgumentError(msg) track(zeros(4), tp) .= exp.(x)
     @test_throws ArgumentError(msg) track(zeros(4), tp) .= a
+    @test_throws ArgumentError(msg) track(fill(1.0), tp) .= 2.0
     # nothing may be recorded before the failure
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     # an untracked container of tracked elements is a valid destination
     dest = Vector{TrackedReal{Float64, Float64, Nothing}}(undef, 4)
@@ -220,13 +226,16 @@ end
     x = map(xi -> track(xi, tp), a)
 
     y = x .* b
+    s = sum(y)
+    ReverseDiff.finish!(tp)
 
     @test y isa TrackedArray
     @test value(y) ≈ a .* b
-    @test length(tp) == 1
-    @test tp[1].func === ReverseDiff.∇broadcast
+    # one instruction for the broadcast, one for `sum`
+    @test length(tp) == 2
+    @test ReverseDiff.instructions(tp)[1].func === ReverseDiff.∇broadcast
 
-    ReverseDiff.seed!(sum(y))
+    ReverseDiff.seed!(s)
     ReverseDiff.reverse_pass!(tp)
     # `deriv.(x)` would be traced like any other broadcast, as it is for a `TrackedArray`
     @test map(deriv, x) ≈ b
@@ -283,7 +292,7 @@ end
     # the inferred element type decides what is recorded
     tp = InstructionTape()
     track(rand(3), tp) .^ 2
-    @test isconcretetype(eltype(first(tp[1].cache)))
+    @test isconcretetype(eltype(first(only(take_recorded!(tp)).cache)))
 end
 
 @testset "a non-`Real` result keeps its partials" begin
@@ -303,26 +312,23 @@ end
 end
 
 @testset "a foreign tag is never read as our own" begin
-    tagA = typeof(ForwardDiff.Tag(sin, Float64))
-    tagB = typeof(ForwardDiff.Tag(cos, Float64))
-    # `Tag`s are ordered by first use, so pin the order before relying on it
-    @test ForwardDiff.:≺(tagA, tagB)
-
-    # `trackresults` asks for the element type `df` infers on `vals`
-    outer = [ForwardDiff.Dual{tagA}(2.0, 3.0)]
-    nested = [ForwardDiff.Dual{tagB}(2.0, 3.0)]
-
-    @test ReverseDiff.trackresults(tagB, outer, i -> outer[i], identity, (), ([1],)) === outer
-    @test_throws ForwardDiff.DualMismatchError ReverseDiff.trackresults(
-        tagA, nested, i -> nested[i], identity, (), ([1],)
+    # a `Dual` built inside the function buries the broadcast's own partial
+    @test_throws ForwardDiff.DualMismatchError ReverseDiff.gradient(
+        x -> sum(inner.(x)), [1.0, 2.0]
+    )
+    # also on one branch only, which is recorded
+    @test_throws ForwardDiff.DualMismatchError ReverseDiff.gradient(
+        x -> sum((t -> t > 1.5 ? inner(t) : t).(x)), [1.0, 2.0]
     )
 
-    @test ReverseDiff.getpartial(tagA, ForwardDiff.Dual{tagA}(1.0, 2.0), 1) == 2.0
-    @test ReverseDiff.getpartial(tagA, 1.0, 1) == 0.0
-    @test ReverseDiff.getpartial(tagB, ForwardDiff.Dual{tagA}(1.0, 2.0), 1) == 0.0
-    @test_throws ForwardDiff.DualMismatchError ReverseDiff.getpartial(
-        tagA, ForwardDiff.Dual{tagB}(1.0, 2.0), 1
+    # an enclosing differentiation's `Dual` is constant in our arguments
+    xs = [1.0, 3.0]
+    m(a) = sum(
+        ReverseDiff.gradient(
+            x -> sum(ifelse.(x .> 2, x, a)), xs, ReverseDiff.GradientConfig(xs, typeof(a))
+        )
     )
+    @test ForwardDiff.derivative(m, 1.0) == 0.0
 end
 
 @testset "a perturbation the derivative cannot hold is rejected (#67, #168)" begin
@@ -462,7 +468,7 @@ end
     actual = map(value, wrap(track(d, tp), track(e, tp), track(A, tp)))
 
     @test actual == expected
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     # the test covers every `StructuredMatrix` type
     covered = map(nameof ∘ typeof, expected)
@@ -476,9 +482,10 @@ end
 
     tp = InstructionTape()
     y = track(copy(a), tp) .* c
+    instrs = take_recorded!(tp)
     @test y isa TrackedArray
-    @test length(tp) == 1
-    @test tp[1].func === ReverseDiff.∇broadcast
+    @test length(instrs) == 1
+    @test instrs[1].func === ReverseDiff.∇broadcast
     @test ReverseDiff.gradient(x -> sum(x .* c), a) == collect(c)
 
     tape = ReverseDiff.GradientTape(x -> sum(exp.(x .* c)), a)
@@ -494,7 +501,7 @@ end
 
     tp = InstructionTape()
     track(copy(a), tp) .* first.(((1.0, 2.0), (3.0, 4.0), (5.0, 6.0)))
-    @test length(tp) == 1
+    @test length(take_recorded!(tp)) == 1
 end
 
 @testset "a `TrackedReal` without a tape is a constant" begin
@@ -505,7 +512,7 @@ end
         tp = InstructionTape()
         x = track(copy(a), tp)
         ReverseDiff.seed!(sum(f(x)))
-        ReverseDiff.reverse_pass!(tp)
+        ReverseDiff.reverse_pass!(ReverseDiff.finish!(tp))
         @test deriv(x) ≈ expected
     end
 end
