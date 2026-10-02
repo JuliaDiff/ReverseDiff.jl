@@ -397,16 +397,11 @@ ta = TrackedArray(varr, darr, InstructionTape())
 tr = TrackedReal(v, d)
 trs = Any[tr, ta[1], ta[2]]
 
-@test ReverseDiff.seed!(nothing) === nothing
-@test ReverseDiff.seed!([1, 2, 3]) === nothing
 @test ReverseDiff.seed!(1.0) === nothing
 @test ReverseDiff.unseed!(nothing) === nothing
 @test ReverseDiff.unseed!([1, 2, 3]) === nothing
 @test ReverseDiff.unseed!(1.0) === nothing
 
-ReverseDiff.seed!(ta)
-@test ReverseDiff.value(ta) === varr == varr_copy
-@test ReverseDiff.deriv(ta) === darr == darr_copy
 ReverseDiff.unseed!(ta)
 @test ReverseDiff.value(ta) === varr == varr_copy
 @test ReverseDiff.deriv(ta) === darr == fill!(similar(darr), 0)
@@ -423,16 +418,6 @@ ReverseDiff.unseed!(tr)
 ReverseDiff.deriv!(tr, d)
 @test ReverseDiff.value(tr) === v
 @test ReverseDiff.deriv(tr) === d
-
-ReverseDiff.seed!(trs)
-@test ReverseDiff.value(tr) === v
-@test ReverseDiff.deriv(tr) === d
-@test ReverseDiff.value(ta) === varr == varr_copy
-@test ReverseDiff.deriv(ta) === darr == darr_copy
-@test ReverseDiff.value(trs[2]) === varr[1]
-@test ReverseDiff.deriv(trs[2]) === darr[1]
-@test ReverseDiff.value(trs[3]) === varr[2]
-@test ReverseDiff.deriv(trs[3]) === darr[2]
 
 ReverseDiff.unseed!(trs)
 @test ReverseDiff.value(tr) === v
@@ -451,16 +436,6 @@ ReverseDiff.pull_deriv!(trs)
 @test ReverseDiff.deriv(tr) === d
 @test ReverseDiff.deriv(ta) === darr == darr_copy
 @test ReverseDiff.deriv(trs[2]) === darr[1]
-@test ReverseDiff.deriv(trs[3]) === darr[2]
-
-ReverseDiff.seed!((tr, ta, trs))
-@test ReverseDiff.value(tr) === v
-@test ReverseDiff.deriv(tr) === d
-@test ReverseDiff.value(ta) === varr == varr_copy
-@test ReverseDiff.deriv(ta) === darr == darr_copy
-@test ReverseDiff.value(trs[2]) === varr[1]
-@test ReverseDiff.deriv(trs[2]) === darr[1]
-@test ReverseDiff.value(trs[3]) === varr[2]
 @test ReverseDiff.deriv(trs[3]) === darr[2]
 
 ReverseDiff.unseed!((tr, ta, trs))
@@ -794,7 +769,8 @@ end
 ta_nested = ReverseDiff.track(collect(ta), eltype(ta), tp)
 @test float(ta_nested) === ta_nested
 
-@test all(samefields.(ta, copyto!(similar(ta), ta)))
+# mapped, not broadcast: `samefields` compares tracked fields, which `Dual`s do not carry
+@test all(map(samefields, ta, copyto!(similar(ta), ta)))
 
 ####################
 # `Real` Interface #

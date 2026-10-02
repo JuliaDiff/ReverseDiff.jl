@@ -110,6 +110,9 @@ end
 @inline value(x::AbstractArray) = istracked(x) ? map(value, x) : x
 @inline value(t::TrackedReal) = t.value
 @inline value(t::TrackedArray) = t.value
+value(A::Adjoint) = adjoint(value(parent(A)))
+value(A::Transpose) = transpose(value(parent(A)))
+value(D::Diagonal) = Diagonal(value(D.diag))
 
 @inline deriv(t::TrackedArray) = t.deriv
 @inline deriv(t::TrackedReal) = t.deriv
@@ -206,7 +209,14 @@ push_deriv!(x::AbstractArray) = (istracked(x) && foreach(push_deriv!, x); nothin
 # seed/unseed #
 #-------------#
 
-seed!(x) = nothing
+# a `Dual` of an enclosing differentiation buries a tracked value, whose derivative would
+# silently be zero
+checkoutput(x) = nothing
+function checkoutput(::Dual{<:Any, <:TrackedReal})
+    throw(ArgumentError("ForwardDiff cannot differentiate through ReverseDiff (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"))
+end
+
+seed!(x::Real) = checkoutput(x)
 seed!(t::TrackedReal) = (t.deriv = one(derivtype(t)); push_deriv!(t); nothing)
 seed!(t::TrackedArray, i) = (t.deriv[i] = one(derivtype(t)); nothing)
 seed!(x::AbstractArray, i) = seed!(x[i])
@@ -273,6 +283,11 @@ function Base.convert(::Type{T}, x::R) where {T <: TrackedReal, R <: Real}
     )
 end
 
+# wrapping cuts the tracked value off its tape
+function Base.convert(::Type{<:TrackedReal}, ::Dual{<:Any, <:TrackedReal})
+    throw(ArgumentError("this nesting of ForwardDiff and ReverseDiff is not supported: a `Dual` of tracked numbers cannot be converted to a tracked number (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"))
+end
+
 Base.convert(::Type{T}, t::T) where {T <: TrackedReal} = t
 Base.convert(::Type{T}, t::T) where {T <: TrackedArray} = t
 
@@ -292,6 +307,9 @@ end
 # Avoid method ambiguities for ForwardDiff.Dual
 Base.promote_rule(::Type{TrackedReal{V1, D, O}}, ::Type{Dual{T, V2, N}}) where {V1, D, O, T, V2, N} = TrackedReal{promote_type(V1, Dual{T, V2, N}), D, O}
 Base.promote_rule(::Type{Dual{T, V1, N}}, ::Type{TrackedReal{V2, D, O}}) where {T, V1, N, V2, D, O} = TrackedReal{promote_type(Dual{T, V1, N}, V2), D, O}
+# a `Dual` around a tracked value would be cut off its tape, so there is no common type
+Base.promote_rule(::Type{TrackedReal{V1, D, O}}, ::Type{Dual{T, V2, N}}) where {V1, D, O, T, V2 <: TrackedReal, N} = Union{}
+Base.promote_rule(::Type{Dual{T, V1, N}}, ::Type{TrackedReal{V2, D, O}}) where {T, V1 <: TrackedReal, N, V2, D, O} = Union{}
 
 Base.promote_rule(::Type{TrackedReal{V1, D1, O1}}, ::Type{TrackedReal{V2, D2, O2}}) where {V1, V2, D1, D2, O1, O2} = TrackedReal{promote_type(V1, V2), promote_type(D1, D2), Nothing}
 
@@ -534,6 +552,14 @@ writable(x::SArray) = copyto!(similar(x), x)
 writable(x::Adjoint) = adjoint(writable(parent(x)))
 writable(x::Transpose) = transpose(writable(parent(x)))
 
+# the replay writes into broadcast results, which a static array may reject
+writable(results::AbstractArray, ::Type{E}) where {E} = convert(AbstractArray{E}, results)
+writable(results::StaticArray, ::Type{E}) where {E} = copyto!(similar(results, E), results)
+
+# every forward pass writes into the value buffer, which a `TrackedArray` rejects
+# TODO: self-nesting, and the `value`/`track` unwrapping elsewhere, risk perturbation confusion (#45)
+track(x::TrackedArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = track(collect(x), D, tp)
+
 track!(t::TrackedArray, x::AbstractArray) = (value!(t, x); unseed!(t); t)
 
 track!(t::TrackedReal, x::Real) = (value!(t, x); unseed!(t); t)
@@ -552,9 +578,18 @@ end
 idstr(x) = string(objectid(x), base = 62)[1:3]
 
 function Base.show(io::IO, t::TrackedReal)
-    tape_id = hastape(t) ? idstr(t.tape) : "---"
-    origin_id = hasorigin(t) ? "$(t.index), $(idstr(t.origin))" : "---"
-    id = idstr(t)
-    print(io, "TrackedReal<$(id)>($(value(t)), $(deriv(t)), $(tape_id), $(origin_id))")
+    print(io, "TrackedReal<", idstr(t), ">(", value(t), ", ", deriv(t), ", ")
+    if hastape(t)
+        print(io, idstr(t.tape))
+    else
+        print(io, "---")
+    end
+    print(io, ", ")
+    if hasorigin(t)
+        print(io, t.index, ", ", idstr(t.origin))
+    else
+        print(io, "---")
+    end
+    print(io, ")")
     return nothing
 end
