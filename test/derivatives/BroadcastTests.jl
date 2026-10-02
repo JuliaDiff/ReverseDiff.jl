@@ -93,8 +93,8 @@ end
     tp = InstructionTape()
     xs = track(SVector(1.0, 2.0), tp)
     y, z = (t -> t * c).(xs), ((t, u) -> t * u * c).(xs, SVector(1.0, 2.0))
-    @test y isa SVector
-    @test z isa SVector
+    @test y isa StaticArray
+    @test z isa StaticArray
     ReverseDiff.seed!(sum(y) + sum(z))
     ReverseDiff.reverse_pass!(ReverseDiff.finish!(tp))
     @test deriv(xs) == [6.0, 9.0]
@@ -204,6 +204,8 @@ end
     @test_throws ArgumentError(msg) track(zeros(4), tp) .= exp.(x)
     @test_throws ArgumentError(msg) track(zeros(4), tp) .= a
     @test_throws ArgumentError(msg) track(fill(1.0), tp) .= 2.0
+    # a foreign style brings its own `copyto!`
+    @test_throws ArgumentError(msg) track(zeros(2), tp) .= SVector(1.0, 2.0)
     # nothing may be recorded before the failure
     @test isempty(take_recorded!(tp))
 

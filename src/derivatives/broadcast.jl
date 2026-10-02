@@ -99,10 +99,8 @@ end
 
 _no_tracked_dest() = throw(ArgumentError("`TrackedArray`s do not support `setindex!` and cannot be used as a broadcast destination. Use `y = f.(x)` instead."))
 
-# `.=` combines the destination's style, so a `TrackedArray` destination is always `TrackedStyle`
-Base.copyto!(::TrackedArray, ::Broadcasted{<:TrackedStyle}) = _no_tracked_dest()
-# more specific than `Base`'s 0-dimensional method
-Base.copyto!(::TrackedArray, ::Broadcasted{TrackedStyle{0}}) = _no_tracked_dest()
+# `.=` hands `copyto!` the source's style, not the destination's, so catch the destination here
+Broadcast.materialize!(::TrackedArray, ::Broadcasted) = _no_tracked_dest()
 
 getouttype(::TrackedReal{<:Any, D}) where {D} = D
 getouttype(::AbstractArray{<:TrackedReal{<:Any, D}}) where {D} = D
