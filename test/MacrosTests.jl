@@ -12,25 +12,25 @@ x, a, b = rand(3)
 # @forward #
 ############
 
-f0(x) = 1. / (1. + exp(-x))
+f0(x) = 1.0 / (1.0 + exp(-x))
 f0(a, b) = sqrt(a^2 + b^2)
 
-ReverseDiff.@forward f1(x::T) where {T<:Real} = 1. / (1. + exp(-x))
-ReverseDiff.@forward f1(a::A, b::B) where {A,B<:Real} = sqrt(a^2 + b^2)
+ReverseDiff.@forward f1(x::T) where {T <: Real} = 1.0 / (1.0 + exp(-x))
+ReverseDiff.@forward f1(a::A, b::B) where {A, B <: Real} = sqrt(a^2 + b^2)
 
-ReverseDiff.@forward f2(x) = 1. / (1. + exp(-x))
+ReverseDiff.@forward f2(x) = 1.0 / (1.0 + exp(-x))
 ReverseDiff.@forward f2(a, b) = sqrt(a^2 + b^2)
 
-ReverseDiff.@forward function f3(x::T) where T<:Real
-    return 1. / (1. + exp(-x))
+ReverseDiff.@forward function f3(x::T) where {T <: Real}
+    return 1.0 / (1.0 + exp(-x))
 end
 
-ReverseDiff.@forward function f3(a::A, b::B) where {A,B<:Real}
+ReverseDiff.@forward function f3(a::A, b::B) where {A, B <: Real}
     return sqrt(a^2 + b^2)
 end
 
 ReverseDiff.@forward function f4(x)
-    return 1. / (1. + exp(-x))
+    return 1.0 / (1.0 + exp(-x))
 end
 
 ReverseDiff.@forward function f4(a, b)
@@ -53,6 +53,7 @@ function test_forward(f, x, tp)
     @test instruction.input === xt
     @test instruction.output === yt
     @test instruction.cache[] === partials(dual, 1)
+    return nothing
 end
 
 function test_forward(f, a, b, tp)
@@ -92,6 +93,7 @@ function test_forward(f, a, b, tp)
     @test instruction.input === (at, bt)
     @test instruction.output === tc
     @test instruction.cache[] === SVector(partials(dual)...)
+    return nothing
 end
 
 for f in (ReverseDiff.@forward(f0), f1, f2, f3, f4, ReverseDiff.@forward(-))
@@ -100,7 +102,7 @@ for f in (ReverseDiff.@forward(f0), f1, f2, f3, f4, ReverseDiff.@forward(-))
     test_forward(f, a, b, tp)
 end
 
-ReverseDiff.@forward f5 = (x) -> 1. / (1. + exp(-x))
+ReverseDiff.@forward f5 = (x) -> 1.0 / (1.0 + exp(-x))
 test_println("@forward anonymous functions", f5)
 test_forward(f5, x, tp)
 
@@ -114,22 +116,22 @@ test_forward(f6, a, b, tp)
 
 g0 = f0
 
-ReverseDiff.@skip g1(x::T) where {T<:Real} = 1. / (1. + exp(-x))
-ReverseDiff.@skip g1(a::A, b::B) where {A,B<:Real} = sqrt(a^2 + b^2)
+ReverseDiff.@skip g1(x::T) where {T <: Real} = 1.0 / (1.0 + exp(-x))
+ReverseDiff.@skip g1(a::A, b::B) where {A, B <: Real} = sqrt(a^2 + b^2)
 
-ReverseDiff.@skip g2(x) = 1. / (1. + exp(-x))
+ReverseDiff.@skip g2(x) = 1.0 / (1.0 + exp(-x))
 ReverseDiff.@skip g2(a, b) = sqrt(a^2 + b^2)
 
-ReverseDiff.@skip function g3(x::T) where T<:Real
-    return 1. / (1. + exp(-x))
+ReverseDiff.@skip function g3(x::T) where {T <: Real}
+    return 1.0 / (1.0 + exp(-x))
 end
 
-ReverseDiff.@skip function g3(a::A, b::B) where {A,B<:Real}
+ReverseDiff.@skip function g3(a::A, b::B) where {A, B <: Real}
     return sqrt(a^2 + b^2)
 end
 
 ReverseDiff.@skip function g4(x)
-    return 1. / (1. + exp(-x))
+    return 1.0 / (1.0 + exp(-x))
 end
 
 ReverseDiff.@skip function g4(a, b)
@@ -145,6 +147,7 @@ function test_skip(g, x, tp)
     yt = g(xt)
     @test yt === y
     @test isempty(take_recorded!(tp))
+    return nothing
 end
 
 function test_skip(g, a, b, tp)
@@ -165,6 +168,7 @@ function test_skip(g, a, b, tp)
     tc = g(at, bt)
     @test tc === c
     @test isempty(take_recorded!(tp))
+    return nothing
 end
 
 for g in (ReverseDiff.@skip(g0), g1, g2, g3, g4)
@@ -173,7 +177,7 @@ for g in (ReverseDiff.@skip(g0), g1, g2, g3, g4)
     test_skip(g, a, b, tp)
 end
 
-ReverseDiff.@skip g5 = (x) -> 1. / (1. + exp(-x))
+ReverseDiff.@skip g5 = (x) -> 1.0 / (1.0 + exp(-x))
 test_println("@skip anonymous functions", g5)
 test_skip(g5, x, tp)
 
@@ -189,11 +193,11 @@ using LinearAlgebra
 using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArray
 
 @testset "@grad macro" begin
-    x = rand(3);
-    A = rand(3, 3);
-    A_x = [vec(A); x];
+    x = rand(3)
+    A = rand(3, 3)
+    A_x = [vec(A); x]
     global custom_grad_called
-    
+
     f1(x) = dot(x, x)
     f1(x::TrackedVector) = ReverseDiff.track(f1, x)
     @grad function f1(x::AbstractVector)
@@ -201,13 +205,13 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
         xv = ReverseDiff.value(x)
         dot(xv, xv), Δ -> (Δ * 2 * xv,)
     end
-    
+
     custom_grad_called = false
     g1 = ReverseDiff.gradient(f1, x)
     g2 = ReverseDiff.gradient(x -> dot(x, x), x)
     @test g1 == g2
     @test custom_grad_called
-    
+
     f2(A, x) = A * x
     f2(A, x::TrackedVector) = ReverseDiff.track(f2, A, x)
     f2(A::TrackedMatrix, x) = ReverseDiff.track(f2, A, x)
@@ -218,19 +222,19 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
         xv = ReverseDiff.value(x)
         Av * xv, Δ -> (Δ * xv', Av' * Δ)
     end
-    
+
     custom_grad_called = false
     g1 = ReverseDiff.gradient(x -> sum(f2(A, x)), x)
     g2 = ReverseDiff.gradient(x -> sum(A * x), x)
     @test g1 == g2
     @test custom_grad_called
-    
+
     custom_grad_called = false
     g1 = ReverseDiff.gradient(A -> sum(f2(A, x)), A)
     g2 = ReverseDiff.gradient(A -> sum(A * x), A)
     @test g1 == g2
     @test custom_grad_called
-    
+
     custom_grad_called = false
     g1 = ReverseDiff.gradient(A_x -> sum(f2(reshape(A_x[1:9], 3, 3), A_x[10:end])), A_x)
     g2 = ReverseDiff.gradient(A_x -> sum(reshape(A_x[1:9], 3, 3) * A_x[10:end]), A_x)
@@ -289,7 +293,7 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     g2 = ReverseDiff.gradient(sum, x)
     @test g1 == g2
     @test custom_grad_called
-    
+
     x2 = round.(Int, x)
     custom_grad_called = false
     g1 = ReverseDiff.gradient(f6, x2)

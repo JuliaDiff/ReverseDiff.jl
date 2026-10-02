@@ -1,6 +1,6 @@
 using ReverseDiff: InstructionTape, GradientConfig, JacobianConfig, HessianConfig,
-                   value, deriv, tape, valtype,
-                   derivtype, track, track!
+    value, deriv, tape, valtype,
+    derivtype, track, track!
 
 using Random
 
@@ -15,7 +15,7 @@ Random.seed!(1)
 
 test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 
-@inline test_approx(A, B, _atol = 1e-5; nans::Bool=false) = @test isapprox(A, B; atol = _atol, nans=nans)
+@inline test_approx(A, B, _atol = 1.0e-5; nans::Bool = false) = @test isapprox(A, B; atol = _atol, nans = nans)
 
 # finish recording onto `tp`, return the recorded instructions, and start recording again
 function take_recorded!(tp::InstructionTape)

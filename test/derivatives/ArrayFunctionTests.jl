@@ -20,7 +20,7 @@ end
 # which is ambiguous with the methods defined for `TrackedArray`.
 const SPARSE_CAT_AMBIGUITY = any(k -> k.name == "SparseArrays", keys(Base.loaded_modules))
 
-function testcat(f, args::Tuple, type, kwargs=NamedTuple())
+function testcat(f, args::Tuple, type, kwargs = NamedTuple())
     x = f(track.(args)...; kwargs...)
     @test x isa type
     @test value(x) == f(args...; kwargs...)
@@ -65,6 +65,7 @@ function testcat(f, args::Tuple, type, kwargs=NamedTuple())
     F = vecx -> sum(f(unpack(sizes, vecx)...; kwargs...))
     X = pack(args)
     @test ForwardDiff.gradient(F, X) == gradient(F, X)
+    return nothing
 end
 
 function pack(xs)
@@ -76,10 +77,10 @@ function unpack(sizes, vecx)
     start = 0
     out = map(sizes) do s
         if s === ()
-            x = vecx[start+1]
+            x = vecx[start + 1]
             start += 1
         else
-            x = reshape(vecx[start+1:start+prod(s)], s)
+            x = reshape(vecx[(start + 1):(start + prod(s))], s)
             start += prod(s)
         end
     end
@@ -88,25 +89,25 @@ end
 
 @testset "cat" begin
     v = rand(3)
-    m = rand(3,3)
-    a = rand(3,3,3)
+    m = rand(3, 3)
+    a = rand(3, 3, 3)
     n = rand()
 
-    testcat(cat, (n,), TrackedVector, (dims=1,))
-    testcat(cat, (n, n), TrackedVector, (dims=1,))
-    testcat(cat, (n, n), TrackedMatrix, (dims=2,))
-    testcat(cat, (v, n), TrackedVector, (dims=1,))
-    testcat(cat, (n, v), TrackedVector, (dims=1,))
+    testcat(cat, (n,), TrackedVector, (dims = 1,))
+    testcat(cat, (n, n), TrackedVector, (dims = 1,))
+    testcat(cat, (n, n), TrackedMatrix, (dims = 2,))
+    testcat(cat, (v, n), TrackedVector, (dims = 1,))
+    testcat(cat, (n, v), TrackedVector, (dims = 1,))
 
-    testcat(cat, (v, v), TrackedVector, (dims=1,))
-    testcat(cat, (v, v), TrackedMatrix, (dims=2,))
-    testcat(cat, (v, m), TrackedMatrix, (dims=2,))
-    testcat(cat, (m, v), TrackedMatrix, (dims=2,))
+    testcat(cat, (v, v), TrackedVector, (dims = 1,))
+    testcat(cat, (v, v), TrackedMatrix, (dims = 2,))
+    testcat(cat, (v, m), TrackedMatrix, (dims = 2,))
+    testcat(cat, (m, v), TrackedMatrix, (dims = 2,))
 
-    testcat(cat, (a, a), TrackedArray, (dims=1,))
-    testcat(cat, (a, a), TrackedArray, (dims=2,))
-    testcat(cat, (a, a), TrackedArray, (dims=3,))
-    testcat(cat, (a, m), TrackedArray, (dims=3,))
+    testcat(cat, (a, a), TrackedArray, (dims = 1,))
+    testcat(cat, (a, a), TrackedArray, (dims = 2,))
+    testcat(cat, (a, a), TrackedArray, (dims = 3,))
+    testcat(cat, (a, m), TrackedArray, (dims = 3,))
 
     testcat(vcat, (n,), TrackedVector)
     testcat(vcat, (n, n), TrackedVector)

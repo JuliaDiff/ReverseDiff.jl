@@ -9,7 +9,7 @@ include(joinpath(dirname(@__FILE__), "../utils.jl"))
 # out enough of an MRE for the bug to report it...
 ReverseDiff.hessian(DiffTests.mat2num_1, rand(3, 3))
 
-hess_test_approx(a, b) = test_approx(a, b, 1e-4)
+hess_test_approx(a, b) = test_approx(a, b, 1.0e-4)
 
 function test_unary_hessian(f, x)
     test = DiffResults.HessianResult(x)
@@ -80,6 +80,7 @@ function test_unary_hessian(f, x)
         hess_test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
         hess_test_approx(DiffResults.hessian(result), DiffResults.hessian(test))
     end
+    return nothing
 end
 
 for f in DiffTests.MATRIX_TO_NUMBER_FUNCS

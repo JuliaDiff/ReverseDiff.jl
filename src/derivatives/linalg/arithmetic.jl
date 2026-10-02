@@ -13,16 +13,16 @@ end
 
 # Base allocating version
 
-@inline Base.:+(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_plus(x, y, D)
+@inline Base.:+(x::TrackedArray{X, D}, y::TrackedArray{Y, D}) where {X, Y, D} = record_plus(x, y, D)
 
-@inline Base.:+(x::TrackedArray{V,D}, y::AbstractArray) where {V,D} = record_plus(x, y, D)
-@inline Base.:+(x::AbstractArray, y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
+@inline Base.:+(x::TrackedArray{V, D}, y::AbstractArray) where {V, D} = record_plus(x, y, D)
+@inline Base.:+(x::AbstractArray, y::TrackedArray{V, D}) where {V, D} = record_plus(x, y, D)
 
 # avoid ambiguities with StaticArrays
-@inline Base.:+(x::TrackedArray{V,D}, y::StaticArray) where {V,D} = record_plus(x, y, D)
-@inline Base.:+(x::StaticArray, y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
+@inline Base.:+(x::TrackedArray{V, D}, y::StaticArray) where {V, D} = record_plus(x, y, D)
+@inline Base.:+(x::StaticArray, y::TrackedArray{V, D}) where {V, D} = record_plus(x, y, D)
 
-function record_plus(x, y, ::Type{D}) where D
+function record_plus(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(value(x) + value(y), D, tp)
     record!(tp, SpecialInstruction, +, (x, y), out)
@@ -59,33 +59,35 @@ function minus!(out, x)
     for i in eachindex(out)
         out[i] = -(x[i])
     end
+    return
 end
 
 function minus!(out, x, y)
     for i in eachindex(out)
         out[i] = x[i] - y[i]
     end
+    return
 end
 
 # Base allocating version
 
-@inline Base.:-(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_minus(x, y, D)
+@inline Base.:-(x::TrackedArray{X, D}, y::TrackedArray{Y, D}) where {X, Y, D} = record_minus(x, y, D)
 
-@inline Base.:-(x::TrackedArray{V,D}, y::AbstractArray) where {V,D} = record_minus(x, y, D)
-@inline Base.:-(x::AbstractArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
+@inline Base.:-(x::TrackedArray{V, D}, y::AbstractArray) where {V, D} = record_minus(x, y, D)
+@inline Base.:-(x::AbstractArray, y::TrackedArray{V, D}) where {V, D} = record_minus(x, y, D)
 
 # avoid ambiguities with StaticArrays
-@inline Base.:-(x::TrackedArray{V,D}, y::StaticArray) where {V,D} = record_minus(x, y, D)
-@inline Base.:-(x::StaticArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
+@inline Base.:-(x::TrackedArray{V, D}, y::StaticArray) where {V, D} = record_minus(x, y, D)
+@inline Base.:-(x::StaticArray, y::TrackedArray{V, D}) where {V, D} = record_minus(x, y, D)
 
-function Base.:-(x::TrackedArray{V,D}) where {V,D}
+function Base.:-(x::TrackedArray{V, D}) where {V, D}
     tp = tape(x)
     out = track(-(value(x)), D, tp)
     record!(tp, SpecialInstruction, -, x, out)
     return out
 end
 
-function record_minus(x, y, ::Type{D}) where D
+function record_minus(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(value(x) - value(y), D, tp)
     record!(tp, SpecialInstruction, -, (x, y), out)
@@ -137,10 +139,10 @@ mulargpullvalue!(x::Transpose) = pull_value!(transpose(x))
 
 # derivatives w.r.t. structured matrices retain their structure
 function structured_mul!(
-    C::AbstractVecOrMat,
-    A::Union{Number,AbstractVecOrMat},
-    B::Union{Number,AbstractVecOrMat},
-)
+        C::AbstractVecOrMat,
+        A::Union{Number, AbstractVecOrMat},
+        B::Union{Number, AbstractVecOrMat},
+    )
     return mul!(C, A, B)
 end
 function structured_mul!(C::Diagonal, A::AbstractVecOrMat, B::AbstractVecOrMat)
@@ -148,10 +150,10 @@ function structured_mul!(C::Diagonal, A::AbstractVecOrMat, B::AbstractVecOrMat)
     return C
 end
 function structured_mul!(
-    C::Union{UpperTriangular,LowerTriangular,UnitUpperTriangular,UnitLowerTriangular},
-    A::AbstractVecOrMat,
-    B::AbstractVecOrMat,
-)
+        C::Union{UpperTriangular, LowerTriangular, UnitUpperTriangular, UnitLowerTriangular},
+        A::AbstractVecOrMat,
+        B::AbstractVecOrMat,
+    )
     mul!(parent(C), A, B)
     return C
 end
@@ -159,7 +161,7 @@ end
 # recording pass #
 #----------------#
 
-@inline function record_mul(x, y, ::Type{D}) where D
+@inline function record_mul(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
     out = track(*(mulargvalue(x), mulargvalue(y)), D, tp)
     cache = (similar(x, D), similar(y, D))
@@ -167,7 +169,7 @@ end
     return out
 end
 
-@inline function record_mul!(out::TrackedArray{V,D}, x, y) where {V,D}
+@inline function record_mul!(out::TrackedArray{V, D}, x, y) where {V, D}
     copyto!(mulargvalue(out), *(mulargvalue(x), mulargvalue(y)))
     cache = (similar(x, D), similar(y, D))
     record!(tape(x, y), SpecialInstruction, *, (x, y), out, cache)
@@ -177,55 +179,55 @@ end
 for S1 in (:TrackedArray, :TrackedVector, :TrackedMatrix)
     for S2 in (:TrackedArray, :TrackedVector, :TrackedMatrix)
         @eval begin
-            LinearAlgebra.:*(x::$(S1){X,D}, y::$(S2){Y,D}) where {X,Y,D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(S1){X, D}, y::$(S2){Y, D}) where {X, Y, D} = record_mul(x, y, D)
 
-            LinearAlgebra.:*(x::Transpose{<:TrackedReal,<:$(S1){X,D}}, y::Transpose{<:TrackedReal,<:$(S2){Y,D}}) where {X,Y,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::Adjoint{<:TrackedReal,<:$(S1){X,D}}, y::Adjoint{<:TrackedReal,<:$(S2){Y,D}}) where {X,Y,D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::Transpose{<:TrackedReal, <:$(S1){X, D}}, y::Transpose{<:TrackedReal, <:$(S2){Y, D}}) where {X, Y, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::Adjoint{<:TrackedReal, <:$(S1){X, D}}, y::Adjoint{<:TrackedReal, <:$(S2){Y, D}}) where {X, Y, D} = record_mul(x, y, D)
 
-            LinearAlgebra.:*(x::Transpose{<:TrackedReal,<:$(S1){X,D}}, y::$(S2){Y,D}) where {X,Y,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::$(S1){X,D}, y::Transpose{<:TrackedReal,<:$(S2){Y,D}}) where {X,Y,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::Adjoint{<:TrackedReal,<:$(S1){X,D}}, y::$(S2){Y,D}) where {X,Y,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::$(S1){X,D}, y::Adjoint{<:TrackedReal,<:$(S2){Y,D}}) where {X,Y,D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::Transpose{<:TrackedReal, <:$(S1){X, D}}, y::$(S2){Y, D}) where {X, Y, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(S1){X, D}, y::Transpose{<:TrackedReal, <:$(S2){Y, D}}) where {X, Y, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::Adjoint{<:TrackedReal, <:$(S1){X, D}}, y::$(S2){Y, D}) where {X, Y, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(S1){X, D}, y::Adjoint{<:TrackedReal, <:$(S2){Y, D}}) where {X, Y, D} = record_mul(x, y, D)
 
-            LinearAlgebra.mul!(out::TrackedArray{V,D}, x::$(S1){X,D}, y::$(S2){Y,D}) where {V,X,Y,D} = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray{V, D}, x::$(S1){X, D}, y::$(S2){Y, D}) where {V, X, Y, D} = record_mul!(out, x, y)
 
-            LinearAlgebra.mul!(out::TrackedArray{V,D}, x::Transpose{<:TrackedReal,<:$(S1){X,D}}, y::Transpose{<:TrackedReal,<:$(S2){Y,D}}) where {V,X,Y,D} = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray{V,D}, x::Adjoint{<:TrackedReal,<:$(S1){X,D}}, y::Adjoint{<:Number,<:$(S2){Y,D}}) where {V,X,Y,D} = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray{V, D}, x::Transpose{<:TrackedReal, <:$(S1){X, D}}, y::Transpose{<:TrackedReal, <:$(S2){Y, D}}) where {V, X, Y, D} = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray{V, D}, x::Adjoint{<:TrackedReal, <:$(S1){X, D}}, y::Adjoint{<:Number, <:$(S2){Y, D}}) where {V, X, Y, D} = record_mul!(out, x, y)
 
-            LinearAlgebra.mul!(out::TrackedArray{V,D}, x::Transpose{<:TrackedReal,<:$(S1){X,D}}, y::$(S2){Y,D}) where {V,X,Y,D} = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray{V,D}, x::$(S1){X,D}, y::Transpose{<:TrackedReal,<:$(S2){Y,D}}) where {V,X,Y,D} = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray{V,D}, x::Adjoint{<:TrackedReal,<:$(S1){X,D}}, y::$(S2){Y,D}) where {V,X,Y,D} = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray{V,D}, x::$(S1){X,D}, y::Adjoint{<:TrackedReal,<:$(S2){Y,D}}) where {V,X,Y,D} = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray{V, D}, x::Transpose{<:TrackedReal, <:$(S1){X, D}}, y::$(S2){Y, D}) where {V, X, Y, D} = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray{V, D}, x::$(S1){X, D}, y::Transpose{<:TrackedReal, <:$(S2){Y, D}}) where {V, X, Y, D} = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray{V, D}, x::Adjoint{<:TrackedReal, <:$(S1){X, D}}, y::$(S2){Y, D}) where {V, X, Y, D} = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray{V, D}, x::$(S1){X, D}, y::Adjoint{<:TrackedReal, <:$(S2){Y, D}}) where {V, X, Y, D} = record_mul!(out, x, y)
         end
     end
 
     for T in ARRAY_TYPES
         @eval begin
-            LinearAlgebra.:*(x::$(S1){V,D}, y::$(T)) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::$(T), y::$(S1){V,D}) where {V,D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(S1){V, D}, y::$(T)) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(T), y::$(S1){V, D}) where {V, D} = record_mul(x, y, D)
 
-            LinearAlgebra.:*(x::Transpose{<:Number,<:$(T)}, y::$(S1){V,D}) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::$(S1){V,D}, y::Transpose{<:Number,<:$(T)}) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::Adjoint{<:Number,<:$(T)}, y::$(S1){V,D}) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::$(S1){V,D}, y::Adjoint{<:Number,<:$(T)}) where {V,D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::Transpose{<:Number, <:$(T)}, y::$(S1){V, D}) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(S1){V, D}, y::Transpose{<:Number, <:$(T)}) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::Adjoint{<:Number, <:$(T)}, y::$(S1){V, D}) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(S1){V, D}, y::Adjoint{<:Number, <:$(T)}) where {V, D} = record_mul(x, y, D)
 
-            LinearAlgebra.:*(x::Transpose{<:Number,<:$(S1){V,D}}, y::$(T)) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::$(T), y::Transpose{<:Number,<:$(S1){V,D}}) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::Adjoint{<:Number,<:$(S1){V,D}}, y::$(T)) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::$(T), y::Adjoint{<:Number,<:$(S1){V,D}}) where {V,D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::Transpose{<:Number, <:$(S1){V, D}}, y::$(T)) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(T), y::Transpose{<:Number, <:$(S1){V, D}}) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::Adjoint{<:Number, <:$(S1){V, D}}, y::$(T)) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$(T), y::Adjoint{<:Number, <:$(S1){V, D}}) where {V, D} = record_mul(x, y, D)
 
             LinearAlgebra.mul!(out::TrackedArray, x::$(S1), y::$(T)) = record_mul!(out, x, y)
             LinearAlgebra.mul!(out::TrackedArray, x::$(T), y::$(S1)) = record_mul!(out, x, y)
 
-            LinearAlgebra.mul!(out::TrackedArray, x::$(S1), y::Transpose{<:Number,<:$(T)}) = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray, x::Transpose{<:Number,<:$(T)}, y::$(S1)) = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray, x::$(S1), y::Adjoint{<:Number,<:$(T)}) = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray, x::Adjoint{<:Number,<:$(T)}, y::$(S1)) = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray, x::$(S1), y::Transpose{<:Number, <:$(T)}) = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray, x::Transpose{<:Number, <:$(T)}, y::$(S1)) = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray, x::$(S1), y::Adjoint{<:Number, <:$(T)}) = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray, x::Adjoint{<:Number, <:$(T)}, y::$(S1)) = record_mul!(out, x, y)
 
-            LinearAlgebra.mul!(out::TrackedArray, x::Transpose{<:Number,<:$(S1)}, y::$(T)) = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray, x::$(T), y::Transpose{<:Number,<:$(S1)}) = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray, x::Adjoint{<:Number,<:$(S1)}, y::$(T)) = record_mul!(out, x, y)
-            LinearAlgebra.mul!(out::TrackedArray, x::$(T), y::Adjoint{<:Number,<:$(S1)}) = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray, x::Transpose{<:Number, <:$(S1)}, y::$(T)) = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray, x::$(T), y::Transpose{<:Number, <:$(S1)}) = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray, x::Adjoint{<:Number, <:$(S1)}, y::$(T)) = record_mul!(out, x, y)
+            LinearAlgebra.mul!(out::TrackedArray, x::$(T), y::Adjoint{<:Number, <:$(S1)}) = record_mul!(out, x, y)
         end
     end
 end
@@ -234,17 +236,17 @@ end
 @static if VERSION < v"1.11"
     for W in (:Diagonal, :(LinearAlgebra.AbstractTriangular))
         @eval begin
-            LinearAlgebra.:*(x::$W, y::TrackedVector{V,D}) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::$W, y::TrackedMatrix{V,D}) where {V,D} = record_mul(x, y, D)
-            LinearAlgebra.:*(x::TrackedMatrix{V,D}, y::$W) where {V,D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$W, y::TrackedVector{V, D}) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::$W, y::TrackedMatrix{V, D}) where {V, D} = record_mul(x, y, D)
+            LinearAlgebra.:*(x::TrackedMatrix{V, D}, y::$W) where {V, D} = record_mul(x, y, D)
         end
     end
 else
-    LinearAlgebra.:*(x::Diagonal, y::TrackedVector{V,D}) where {V,D} = record_mul(x, y, D)
+    LinearAlgebra.:*(x::Diagonal, y::TrackedVector{V, D}) where {V, D} = record_mul(x, y, D)
 end
 
 # avoid ambiguities with StaticArrays
-LinearAlgebra.:*(x::StaticMatrix, y::TrackedVector{V,D}) where {V,D} = record_mul(x, y, D)
+LinearAlgebra.:*(x::StaticMatrix, y::TrackedVector{V, D}) where {V, D} = record_mul(x, y, D)
 
 # forward pass #
 #--------------#
@@ -289,6 +291,7 @@ function reverse_mul!(output, output_deriv, a, b, a_tmp, b_tmp)
         end
     end
     istracked(b) && increment_deriv!(b, structured_mul!(b_tmp, transpose(value(a)), output_deriv))
+    return nothing
 end
 
 ## zero

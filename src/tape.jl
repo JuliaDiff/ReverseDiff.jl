@@ -6,7 +6,7 @@ abstract type AbstractInstruction end
 
 mutable struct TapeNode
     const instruction::AbstractInstruction
-    prev::Union{Nothing,TapeNode}
+    prev::Union{Nothing, TapeNode}
 end
 
 struct Finished end
@@ -17,7 +17,7 @@ struct Finished end
 mutable struct InstructionTape
     # while recording: the most recently recorded node (nodes link backwards);
     # `Finished()` once recording has finished
-    @atomic last::Union{Nothing,TapeNode,Finished}
+    @atomic last::Union{Nothing, TapeNode, Finished}
     # recorded instructions in order, filled by `finish!`
     const instructions::Vector{AbstractInstruction}
 end
@@ -63,7 +63,7 @@ end
     throw(ArgumentError("tape has finished recording; call `empty!` to record again"))
 end
 
-@inline function record!(tp::InstructionTape, ::Type{InstructionType}, args...) where {InstructionType<:AbstractInstruction}
+@inline function record!(tp::InstructionTape, ::Type{InstructionType}, args...) where {InstructionType <: AbstractInstruction}
     if tp !== NULL_TAPE
         node = TapeNode(InstructionType(args...), nothing)
         # the swap orders concurrent recordings and returns the predecessor
@@ -77,10 +77,12 @@ end
 end
 
 function Base.:(==)(a::AbstractInstruction, b::AbstractInstruction)
-    return (a.func == b.func &&
+    return (
+        a.func == b.func &&
             a.input == b.input &&
             a.output == b.output &&
-            a.cache == b.cache)
+            a.cache == b.cache
+    )
 end
 
 # Ensure that the external state is "captured" so that external
@@ -92,19 +94,19 @@ end
 # ScalarInstruction #
 #-------------------#
 
-struct ScalarInstruction{F,I,O,C} <: AbstractInstruction
+struct ScalarInstruction{F, I, O, C} <: AbstractInstruction
     func::F
     input::I
     output::O
     cache::C
     # disable default outer constructor
-    function ScalarInstruction{F,I,O,C}(func, input, output, cache) where {F,I,O,C}
-        return new{F,I,O,C}(func, input, output, cache)
+    function ScalarInstruction{F, I, O, C}(func, input, output, cache) where {F, I, O, C}
+        return new{F, I, O, C}(func, input, output, cache)
     end
 end
 
-@inline function _ScalarInstruction(func::F, input::I, output::O, cache::C) where {F,I,O,C}
-    return ScalarInstruction{F,I,O,C}(func, input, output, cache)
+@inline function _ScalarInstruction(func::F, input::I, output::O, cache::C) where {F, I, O, C}
+    return ScalarInstruction{F, I, O, C}(func, input, output, cache)
 end
 
 function ScalarInstruction(func, input, output, cache = nothing)
@@ -114,19 +116,19 @@ end
 # SpecialInstruction #
 #--------------------#
 
-struct SpecialInstruction{F,I,O,C} <: AbstractInstruction
+struct SpecialInstruction{F, I, O, C} <: AbstractInstruction
     func::F
     input::I
     output::O
     cache::C
     # disable default outer constructor
-    function SpecialInstruction{F,I,O,C}(func, input, output, cache) where {F,I,O,C}
-        return new{F,I,O,C}(func, input, output, cache)
+    function SpecialInstruction{F, I, O, C}(func, input, output, cache) where {F, I, O, C}
+        return new{F, I, O, C}(func, input, output, cache)
     end
 end
 
-@inline function _SpecialInstruction(func::F, input::I, output::O, cache::C) where {F,I,O,C}
-    return SpecialInstruction{F,I,O,C}(func, input, output, cache)
+@inline function _SpecialInstruction(func::F, input::I, output::O, cache::C) where {F, I, O, C}
+    return SpecialInstruction{F, I, O, C}(func, input, output, cache)
 end
 
 function SpecialInstruction(func, input, output, cache = nothing)
@@ -163,6 +165,7 @@ end
 
 function Base.show(io::IO, instruction::AbstractInstruction)
     print(io, nameof(typeof(instruction)), "(", instruction.func, ")")
+    return nothing
 end
 
 function Base.show(io::IO, ::MIME"text/plain", instruction::AbstractInstruction)
@@ -174,6 +177,7 @@ function Base.show(io::IO, ::MIME"text/plain", instruction::AbstractInstruction)
     show(ctx, instruction.output)
     print(ctx, "\n  cache:  ")
     show(ctx, instruction.cache)
+    return nothing
 end
 
 function Base.show(io::IO, tp::InstructionTape)
@@ -182,6 +186,7 @@ function Base.show(io::IO, tp::InstructionTape)
     else
         print(io, "InstructionTape (recording)")
     end
+    return nothing
 end
 
 # like arrays, so that long tapes are truncated
@@ -191,4 +196,5 @@ function Base.show(io::IO, ::MIME"text/plain", tp::InstructionTape)
         println(io, ":")
         Base.print_array(io, instructions(tp))
     end
+    return nothing
 end

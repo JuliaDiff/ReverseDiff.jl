@@ -67,6 +67,7 @@ function test_unary_gradient(f, x)
         test_approx(DiffResults.value(result), DiffResults.value(test))
         test_approx(DiffResults.gradient(result), DiffResults.gradient(test))
     end
+    return nothing
 end
 
 function test_ternary_gradient(f, a, b, c)
@@ -170,6 +171,7 @@ function test_ternary_gradient(f, a, b, c)
         test_approx(DiffResults.gradient(∇b), test_b)
         test_approx(DiffResults.gradient(∇c), test_c)
     end
+    return nothing
 end
 
 # issue https://github.com/JuliaDiff/ReverseDiff.jl/issues/140
@@ -193,10 +195,12 @@ norm_hermitian2(v) = (A = I - 2 * v * transpose(v); norm(transpose(A) * A))
 norm_hermitian3(v) = (A = I - 2 * v * collect(v'); norm(collect(A') * A))
 norm_hermitian4(v) = (A = I - 2 * v * v'; norm(transpose(A) * A))
 norm_hermitian5(v) = (A = I - 2 * v * transpose(v); norm(A' * A))
-norm_hermitian6(v) = (A = (v'v)*I - 2 * v * v'; norm(A' * A))
+norm_hermitian6(v) = (A = (v'v) * I - 2 * v * v'; norm(A' * A))
 
-for f in (norm_hermitian1, norm_hermitian2, norm_hermitian3,
-            norm_hermitian4, norm_hermitian5, norm_hermitian6)
+for f in (
+        norm_hermitian1, norm_hermitian2, norm_hermitian3,
+        norm_hermitian4, norm_hermitian5, norm_hermitian6,
+    )
     test_println("VECTOR_TO_NUMBER_FUNCS", f)
     test_unary_gradient(f, rand(5))
 end
@@ -222,8 +226,10 @@ view_dot(x) = dot(view(x, 1:3), view(x, 3:5))
 view_cartesian(m) = sum(abs2, view(m, 1:2, :))
 view_strided(m) = sum(abs2, view(m, :, 2:3)' * view(m, :, 1:2))
 
-for f in (getindex_logical, getindex_logical_bitvector, view_intermediate, view_and_parent,
-          view_overlapping, view_nested, view_logical, view_dot)
+for f in (
+        getindex_logical, getindex_logical_bitvector, view_intermediate, view_and_parent,
+        view_overlapping, view_nested, view_logical, view_dot,
+    )
     test_println("VECTOR_TO_NUMBER_FUNCS", f)
     test_unary_gradient(f, rand(5))
 end
@@ -239,25 +245,25 @@ end
     @testset "`TrackedReal`" begin
         g(x) = float(x[1])^3 * x[2]
         @test ReverseDiff.gradient(g, [2.0, 3.0]) == [36.0, 8.0]
-        @test ReverseDiff.gradient(g, Rational{Int}[2//1, 3//1]) == [36, 8]
+        @test ReverseDiff.gradient(g, Rational{Int}[2 // 1, 3 // 1]) == [36, 8]
     end
 
     @testset "`TrackedArray`" begin
         g(x) = sum((float(x)::ReverseDiff.TrackedArray) .^ 3)
         @test ReverseDiff.gradient(g, [2.0, 3.0]) == [12.0, 27.0]
-        @test ReverseDiff.gradient(g, Rational{Int}[2//1, 3//1]) == [12, 27]
+        @test ReverseDiff.gradient(g, Rational{Int}[2 // 1, 3 // 1]) == [12, 27]
     end
 
     @testset "replaying a recorded tape" begin
         g(x) = float(x[1])^3 * x[2]
-        tape = ReverseDiff.GradientTape(g, Rational{Int}[2//1, 3//1])
-        @test ReverseDiff.gradient!(tape, Rational{Int}[2//1, 3//1]) == [36, 8]
-        @test ReverseDiff.gradient!(tape, Rational{Int}[1//1, 4//1]) == [12, 1]
+        tape = ReverseDiff.GradientTape(g, Rational{Int}[2 // 1, 3 // 1])
+        @test ReverseDiff.gradient!(tape, Rational{Int}[2 // 1, 3 // 1]) == [36, 8]
+        @test ReverseDiff.gradient!(tape, Rational{Int}[1 // 1, 4 // 1]) == [12, 1]
 
         ga(x) = sum(float(x) .^ 3)
-        tape = ReverseDiff.GradientTape(ga, Rational{Int}[2//1, 3//1])
-        @test ReverseDiff.gradient!(tape, Rational{Int}[2//1, 3//1]) == [12, 27]
-        @test ReverseDiff.gradient!(tape, Rational{Int}[1//1, 4//1]) == [3, 48]
+        tape = ReverseDiff.GradientTape(ga, Rational{Int}[2 // 1, 3 // 1])
+        @test ReverseDiff.gradient!(tape, Rational{Int}[2 // 1, 3 // 1]) == [12, 27]
+        @test ReverseDiff.gradient!(tape, Rational{Int}[1 // 1, 4 // 1]) == [3, 48]
     end
 end
 
@@ -403,7 +409,7 @@ end
     @test ReverseDiff.gradient(x -> sum([Real[x[1], x[2]]; x[3]]), [1.0, 2.0, 3.0]) == [1.0, 1.0, 1.0]
     @test ReverseDiff.gradient(x -> sum([Any[x[1], x[2]]; x[3]]), [1.0, 2.0, 3.0]) == [1.0, 1.0, 1.0]
     @test ReverseDiff.gradient(x -> sum([Real[5.0, x[2]]; x[3]]), [1.0, 2.0, 3.0]) == [0.0, 1.0, 1.0]
-    @test ReverseDiff.gradient(x -> sum([Real[x[1], x[2]] x[3]*ones(2)]), [1.0, 2.0, 3.0]) == [1.0, 1.0, 2.0]
+    @test ReverseDiff.gradient(x -> sum([Real[x[1], x[2]] x[3] * ones(2)]), [1.0, 2.0, 3.0]) == [1.0, 1.0, 2.0]
 end
 
 ############################################################################################
@@ -434,8 +440,10 @@ end
 
     @test ReverseDiff.gradient(x -> sum(sum(mixed(x); dims = 1)), [1.0, 2.0]) == [1.0, 2.0]
     @test ReverseDiff.gradient(x -> sum(prod(mixed(x); dims = 1)), [3.0, 5.0]) == [10.0, 6.0]
-    @test ReverseDiff.gradient(x -> sum(sum(reshape(mixed(x), 2, 2); dims = 2)),
-                               [1.0, 2.0, 3.0, 4.0]) == [1.0, 2.0, 1.0, 2.0]
+    @test ReverseDiff.gradient(
+        x -> sum(sum(reshape(mixed(x), 2, 2); dims = 2)),
+        [1.0, 2.0, 3.0, 4.0]
+    ) == [1.0, 2.0, 1.0, 2.0]
     @test ReverseDiff.hessian(x -> sum(sum(mixed(x); dims = 1))^2, [1.0, 2.0]) ==
         [2.0 4.0; 4.0 8.0]
 
@@ -459,7 +467,7 @@ end
         T = size(H, 2)
         @. est = 0
         for lag in 0:(L - 1)
-            @views mul!(est[:, lag+1:T], W[:, :, lag+1]', H[:, 1:T-lag], 1, 1)
+            @views mul!(est[:, (lag + 1):T], W[:, :, lag + 1]', H[:, 1:(T - lag)], 1, 1)
         end
         return est
     end

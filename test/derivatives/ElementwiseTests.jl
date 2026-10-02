@@ -35,7 +35,7 @@ function test_elementwise(f, fopt, x, tp)
     # reverse
     out = similar(y, (length(x), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    test_approx(out, ForwardDiff.jacobian(z -> map(f, z), x); nans=true)
+    test_approx(out, ForwardDiff.jacobian(z -> map(f, z), x); nans = true)
 
     # forward
     x2 = x .- offset
@@ -59,7 +59,7 @@ function test_elementwise(f, fopt, x, tp)
     # reverse
     out = similar(y, (length(x), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    test_approx(out, ForwardDiff.jacobian(z -> broadcast(f, z), x); nans=true)
+    test_approx(out, ForwardDiff.jacobian(z -> broadcast(f, z), x); nans = true)
 
     # forward
     x2 = x .- offset
@@ -69,6 +69,7 @@ function test_elementwise(f, fopt, x, tp)
     ReverseDiff.value!(xt, x)
 
     empty!(tp)
+    return nothing
 end
 
 function test_map(f, fopt, a, b, tp)
@@ -86,7 +87,7 @@ function test_map(f, fopt, a, b, tp)
     # reverse
     out = similar(c, (length(c), length(a)))
     ReverseDiff.seeded_reverse_pass!(out, ct, at, tp)
-    test_approx(out, ForwardDiff.jacobian(x -> map(f, x, b), a); nans=true)
+    test_approx(out, ForwardDiff.jacobian(x -> map(f, x, b), a); nans = true)
 
     # forward
     a2 = a .- offset
@@ -108,7 +109,7 @@ function test_map(f, fopt, a, b, tp)
     # reverse
     out = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out, ct, bt, tp)
-    test_approx(out, ForwardDiff.jacobian(x -> map(f, a, x), b); nans=true)
+    test_approx(out, ForwardDiff.jacobian(x -> map(f, a, x), b); nans = true)
 
     # forward
     b2 = b .- offset
@@ -132,13 +133,13 @@ function test_map(f, fopt, a, b, tp)
     out_b = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out_a, ct, at, tp)
     ReverseDiff.seeded_reverse_pass!(out_b, ct, bt, tp)
-    jac = let a=a, b=b, f=f
+    jac = let a = a, b = b, f = f
         ForwardDiff.jacobian(vcat(vec(a), vec(b))) do x
             map(f, reshape(x[1:length(a)], size(a)), reshape(x[(length(a) + 1):end], size(b)))
         end
     end
-    test_approx(out_a, jac[:, 1:length(a)]; nans=true)
-    test_approx(out_b, jac[:, (length(a) + 1):end]; nans=true)
+    test_approx(out_a, jac[:, 1:length(a)]; nans = true)
+    test_approx(out_b, jac[:, (length(a) + 1):end]; nans = true)
     # forward
     a2, b2 = a .- offset, b .- offset
     ReverseDiff.value!(at, a2)
@@ -149,6 +150,7 @@ function test_map(f, fopt, a, b, tp)
     ReverseDiff.value!(bt, b)
 
     empty!(tp)
+    return nothing
 end
 
 function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin::Bool = false)
@@ -173,7 +175,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     # reverse
     out = similar(c, (length(c), length(a)))
     ReverseDiff.seeded_reverse_pass!(out, ct, at, tp)
-    test_approx(out, ForwardDiff.jacobian(x -> g(x, b), a); nans=true)
+    test_approx(out, ForwardDiff.jacobian(x -> g(x, b), a); nans = true)
 
     # forward
     a2 = a .- offset
@@ -195,7 +197,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     # reverse
     out = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out, ct, bt, tp)
-    test_approx(out, ForwardDiff.jacobian(x -> g(a, x), b); nans=true)
+    test_approx(out, ForwardDiff.jacobian(x -> g(a, x), b); nans = true)
 
     # forward
     b2 = b .- offset
@@ -219,13 +221,13 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     out_b = similar(c, (length(c), length(b)))
     ReverseDiff.seeded_reverse_pass!(out_a, ct, at, tp)
     ReverseDiff.seeded_reverse_pass!(out_b, ct, bt, tp)
-    jac = let a=a, b=b, g=g
+    jac = let a = a, b = b, g = g
         ForwardDiff.jacobian(vcat(vec(a), vec(b))) do x
             g(reshape(x[1:length(a)], size(a)), reshape(x[(length(a) + 1):end], size(b)))
         end
     end
-    test_approx(out_a, jac[:, 1:length(a)]; nans=true)
-    test_approx(out_b, jac[:, (length(a) + 1):end]; nans=true)
+    test_approx(out_a, jac[:, 1:length(a)]; nans = true)
+    test_approx(out_b, jac[:, (length(a) + 1):end]; nans = true)
 
     # forward
     a2, b2 = a .- offset, b .- offset
@@ -237,6 +239,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     ReverseDiff.value!(bt, b)
 
     empty!(tp)
+    return nothing
 end
 
 function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool = false)
@@ -261,7 +264,7 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     # reverse
     out = similar(y)
     ReverseDiff.seeded_reverse_pass!(out, yt, nt, tp)
-    test_approx(out, ForwardDiff.derivative(z -> g(z, x), n); nans=true)
+    test_approx(out, ForwardDiff.derivative(z -> g(z, x), n); nans = true)
 
     # forward
     n2 = n + offset
@@ -283,7 +286,7 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     # reverse
     out = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    test_approx(out, ForwardDiff.jacobian(z -> g(n, z), x); nans=true)
+    test_approx(out, ForwardDiff.jacobian(z -> g(n, z), x); nans = true)
 
     # forward
     x2 = x .- offset
@@ -307,14 +310,14 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     out_x = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out_n, yt, nt, tp)
     ReverseDiff.seeded_reverse_pass!(out_x, yt, xt, tp)
-    jac = let x=x, g=g
+    jac = let x = x, g = g
         ForwardDiff.jacobian(z -> g(z[1], reshape(z[2:end], size(x))), vcat(n, vec(x)))
     end
-    test_approx(out_n, reshape(jac[:, 1], size(y)); nans=true)
-    test_approx(out_x, jac[:, 2:end]; nans=true)
+    test_approx(out_n, reshape(jac[:, 1], size(y)); nans = true)
+    test_approx(out_x, jac[:, 2:end]; nans = true)
 
     # forward
-    n2, x2 = n + offset , x .- offset
+    n2, x2 = n + offset, x .- offset
     ReverseDiff.value!(nt, n2)
     ReverseDiff.value!(xt, x2)
     ReverseDiff.forward_pass!(tp)
@@ -323,6 +326,7 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     ReverseDiff.value!(xt, x)
 
     empty!(tp)
+    return nothing
 end
 
 function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool = false)
@@ -347,7 +351,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     # reverse
     out = similar(y)
     ReverseDiff.seeded_reverse_pass!(out, yt, nt, tp)
-    test_approx(out, ForwardDiff.derivative(z -> g(x, z), n); nans=true)
+    test_approx(out, ForwardDiff.derivative(z -> g(x, z), n); nans = true)
 
     # forward
     n2 = n + offset
@@ -369,7 +373,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     # reverse
     out = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
-    test_approx(out, ForwardDiff.jacobian(z -> g(z, n), x); nans=true)
+    test_approx(out, ForwardDiff.jacobian(z -> g(z, n), x); nans = true)
 
     # forward
     x2 = x .- offset
@@ -393,11 +397,11 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     out_x = similar(y, (length(y), length(x)))
     ReverseDiff.seeded_reverse_pass!(out_n, yt, nt, tp)
     ReverseDiff.seeded_reverse_pass!(out_x, yt, xt, tp)
-    jac = let x=x, g=g
+    jac = let x = x, g = g
         ForwardDiff.jacobian(z -> g(reshape(z[1:(end - 1)], size(x)), z[end]), vcat(vec(x), n))
     end
-    test_approx(out_x, jac[:, 1:(end - 1)]; nans=true)
-    test_approx(out_n, reshape(jac[:, end], size(y)); nans=true)
+    test_approx(out_x, jac[:, 1:(end - 1)]; nans = true)
+    test_approx(out_n, reshape(jac[:, end], size(y)); nans = true)
 
     # forward
     x2, n2 = x .- offset, n + offset
@@ -409,6 +413,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     ReverseDiff.value!(nt, n)
 
     empty!(tp)
+    return nothing
 end
 
 for f in DiffTests.NUMBER_TO_NUMBER_FUNCS
@@ -417,7 +422,7 @@ for f in DiffTests.NUMBER_TO_NUMBER_FUNCS
     test_elementwise(f, ReverseDiff.@forward(f), a, tp)
 end
 
-for (M, fsym, arity) in DiffRules.diffrules(; filter_modules=nothing)
+for (M, fsym, arity) in DiffRules.diffrules(; filter_modules = nothing)
     # ensure that all rules can be tested
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), fsym))
         error("$M.$fsym is not available")
@@ -458,7 +463,7 @@ for f in DiffTests.BINARY_BROADCAST_OPS
 end
 
 @testset "broadcasting over types without a definite field count (#289)" begin
-    T = ReverseDiff.TrackedReal{Float64,Float64,ReverseDiff.TrackedArray{Float64,Float64,1,Vector{Float64},Vector{Float64}}}
+    T = ReverseDiff.TrackedReal{Float64, Float64, ReverseDiff.TrackedArray{Float64, Float64, 1, Vector{Float64}, Vector{Float64}}}
     msg = "Converting an instance of $T to Float64 is not defined. Please use `ReverseDiff.value` instead."
     @test_throws ArgumentError(msg) ReverseDiff.gradient(v -> sum(convert.(Float64, v) .* [2.0, 3.0]), [0.3, 0.5])
 
