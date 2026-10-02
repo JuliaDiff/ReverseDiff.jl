@@ -1,4 +1,3 @@
-
 #=
 The code here is mainly deals with propagating derivative information between input and
 output values. Usually, this means incrementing/decrementing the input's derivative(s) by an
@@ -20,9 +19,9 @@ efficiency.
 # utilities #
 #############
 
-index_bound(x::Any, ::AbstractArray{T,N}) where {T,N} = nothing
+index_bound(x::Any, ::AbstractArray{T, N}) where {T, N} = nothing
 
-index_bound(x::AbstractArray, ::AbstractArray{T,N}) where {T,N} = CartesianIndex{N}(ntuple(i -> size(x, i), Val(N)))
+index_bound(x::AbstractArray, ::AbstractArray{T, N}) where {T, N} = CartesianIndex{N}(ntuple(i -> size(x, i), Val(N)))
 
 ###################
 # increment_deriv #
@@ -96,14 +95,14 @@ end
 # diffresult_increment_deriv! #
 ###############################
 
-@inline getpartial(::Type, r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p) where {V,D<:AbstractArray} = DiffResults.derivative(r)[p]
-@inline getpartial(::Type, r::DiffResults.ImmutableDiffResult{1,V,Tuple{D}}, p) where {V,D<:Number} = DiffResults.derivative(r)
+@inline getpartial(::Type, r::DiffResults.ImmutableDiffResult{1, V, Tuple{D}}, p) where {V, D <: AbstractArray} = DiffResults.derivative(r)[p]
+@inline getpartial(::Type, r::DiffResults.ImmutableDiffResult{1, V, Tuple{D}}, p) where {V, D <: Number} = DiffResults.derivative(r)
 @inline getpartial(::Type{T}, d::ForwardDiff.Dual, p) where {T} = ForwardDiff.partials(T, d, p)
 @inline getpartial(::Type, x::Real, p) = zero(x)
 
 # a partial known in closed form: the argument collects `op(seed, args...)` per element, with
 # `args` naming broadcast arguments. `op` meets the seed, so `/` forms no reciprocal.
-struct Contract{Op,A<:Tuple}
+struct Contract{Op, A <: Tuple}
     op::Op
     args::A
 end
@@ -114,17 +113,21 @@ _elem(v::AbstractArray, i) = v[i]
 # `vals` holds the values of the arguments `e` names
 _contract(e::Contract, seed, i, vals) = e.op(seed, map(v -> _elem(v, i), vals)...)
 
-function diffresult_increment_deriv!(::Type{T}, input::AbstractArray, x::AbstractArray,
-                                     results::AbstractArray, p::Int) where {T}
+function diffresult_increment_deriv!(
+        ::Type{T}, input::AbstractArray, x::AbstractArray,
+        results::AbstractArray, p::Int
+    ) where {T}
     for i in eachindex(x, results)
         increment_deriv!(input, x[i] * getpartial(T, results[i], p), i)
     end
     return nothing
 end
 
-function diffresult_increment_deriv!(::Type{T}, input::AbstractArray, x::AbstractArray,
-                                     results::AbstractArray, p::Int,
-                                     bound::CartesianIndex) where {T}
+function diffresult_increment_deriv!(
+        ::Type{T}, input::AbstractArray, x::AbstractArray,
+        results::AbstractArray, p::Int,
+        bound::CartesianIndex
+    ) where {T}
     axes(x) == axes(results) ||
         throw(DimensionMismatch("`x` and `results` must have the same indices"))
     for (xi, r, i) in zip(x, results, CartesianIndices(size(x)))
@@ -133,8 +136,10 @@ function diffresult_increment_deriv!(::Type{T}, input::AbstractArray, x::Abstrac
     return nothing
 end
 
-function diffresult_increment_deriv!(::Type{T}, input::TrackedReal, x::AbstractArray,
-                                     results::AbstractArray, p::Int, ::Nothing) where {T}
+function diffresult_increment_deriv!(
+        ::Type{T}, input::TrackedReal, x::AbstractArray,
+        results::AbstractArray, p::Int, ::Nothing
+    ) where {T}
     inds = eachindex(x, results)
     isempty(inds) && return nothing
     pull_deriv!(input)
@@ -147,24 +152,30 @@ end
 # contract_increment_deriv! #
 #############################
 
-function contract_increment_deriv!(input::AbstractArray, x::AbstractArray, e::Contract,
-                                   args::Tuple)
+function contract_increment_deriv!(
+        input::AbstractArray, x::AbstractArray, e::Contract,
+        args::Tuple
+    )
     for i in eachindex(input, x)
         increment_deriv!(input, _contract(e, x[i], i, args), i)
     end
     return nothing
 end
 
-function contract_increment_deriv!(input::AbstractArray, x::AbstractArray, e::Contract,
-                                   args::Tuple, bound::CartesianIndex)
+function contract_increment_deriv!(
+        input::AbstractArray, x::AbstractArray, e::Contract,
+        args::Tuple, bound::CartesianIndex
+    )
     for i in CartesianIndices(size(x))
         increment_deriv!(input, _contract(e, x[i], i, args), min(bound, i))
     end
     return nothing
 end
 
-function contract_increment_deriv!(input::TrackedReal, x::AbstractArray, e::Contract,
-                                   args::Tuple, ::Nothing)
+function contract_increment_deriv!(
+        input::TrackedReal, x::AbstractArray, e::Contract,
+        args::Tuple, ::Nothing
+    )
     isempty(x) && return nothing
     pull_deriv!(input)
     input.deriv += sum(i -> _contract(e, x[i], i, args), eachindex(x))
@@ -176,8 +187,10 @@ end
 # reduction_increment_deriv! #
 ##############################
 
-function reduction_increment_deriv!(input::AbstractArray, x::AbstractArray,
-                                    bound::CartesianIndex)
+function reduction_increment_deriv!(
+        input::AbstractArray, x::AbstractArray,
+        bound::CartesianIndex
+    )
     for i in CartesianIndices(size(input))
         increment_deriv!(input, x[min(bound, i)], i)
     end

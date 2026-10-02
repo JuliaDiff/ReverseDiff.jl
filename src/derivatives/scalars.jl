@@ -2,7 +2,7 @@
 # ForwardOptimize #
 ###################
 
-for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+for (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         @warn "$M.$f is not available and hence rule for it can not be defined"
         continue  # Skip rules for methods not defined in the current scope
@@ -49,7 +49,7 @@ end
 # reverse #
 ###########
 
-@noinline function scalar_reverse_exec!(instruction::ScalarInstruction{F,I,O,C}) where {F,I,O,C}
+@noinline function scalar_reverse_exec!(instruction::ScalarInstruction{F, I, O, C}) where {F, I, O, C}
     f = instruction.func
     input = instruction.input
     output = instruction.output
@@ -77,7 +77,7 @@ end
 # forward #
 ###########
 
-@noinline function scalar_forward_exec!(instruction::ScalarInstruction{F,I,O,C}) where {F,I,O,C}
+@noinline function scalar_forward_exec!(instruction::ScalarInstruction{F, I, O, C}) where {F, I, O, C}
     f = instruction.func
     input = instruction.input
     output = instruction.output
@@ -90,7 +90,7 @@ end
     return nothing
 end
 
-@noinline function unary_scalar_forward_exec!(f::F, output::O, input, cache) where {F,O}
+@noinline function unary_scalar_forward_exec!(f::F, output::O, input, cache) where {F, O}
     pull_value!(input)
     result1 = DiffResult(zero(valtype(O)), zero(valtype(O)))
     result1 = ForwardDiff.derivative!(result1, f, value(input))
@@ -99,7 +99,7 @@ end
     return nothing
 end
 
-@noinline function binary_scalar_forward_exec!(f::F, output::O, input, cache) where {F,O}
+@noinline function binary_scalar_forward_exec!(f::F, output::O, input, cache) where {F, O}
     a, b = input
     pull_value!(a)
     pull_value!(b)

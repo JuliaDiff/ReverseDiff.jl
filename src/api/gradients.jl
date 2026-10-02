@@ -50,7 +50,7 @@ end
 ###########################
 
 """
-    ReverseDiff.gradient!(tape::Union{GradientTape,CompiledGradient}, input)
+    ReverseDiff.gradient!(tape::Union{GradientTape, CompiledGradient}, input)
 
 If `input` is an `AbstractArray`, assume `tape` represents a function of the form
 `f(::AbstractArray)::Real` and return `∇f(input)`.
@@ -59,14 +59,14 @@ If `input` is a tuple of `AbstractArray`s, assume `tape` represents a function o
 `f(::AbstractArray...)::Real` and return a `Tuple` where the `i`th element is the gradient
 of `f` w.r.t. `input[i].`
 """
-function gradient!(tape::Union{GradientTape,CompiledGradient}, input)
+function gradient!(tape::Union{GradientTape, CompiledGradient}, input)
     result = construct_result(input_hook(tape))
     result = gradient!(result, tape, input)
     return result
 end
 
 """
-    ReverseDiff.gradient!(result, tape::Union{GradientTape,CompiledGradient}, input)
+    ReverseDiff.gradient!(result, tape::Union{GradientTape, CompiledGradient}, input)
 
 This method is exactly like `ReverseDiff.gradient!(tape, input)`, except it stores the
 resulting gradient(s) in `result` rather than allocating new memory.
@@ -77,7 +77,7 @@ case the primal value `f(input)` (or `f(input...)`, if `isa(input, Tuple)`) will
 in it as well. An immutable `DiffResult` cannot be updated in place and is replaced, so use
 the returned value: `result = ReverseDiff.gradient!(result, tape, input)`.
 """
-function gradient!(result, tape::Union{GradientTape,CompiledGradient}, input)
+function gradient!(result, tape::Union{GradientTape, CompiledGradient}, input)
     seeded_forward_pass!(tape, input)
     result = seeded_reverse_pass!(result, tape)
     return result

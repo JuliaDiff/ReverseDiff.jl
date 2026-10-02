@@ -67,6 +67,7 @@ function test_unary_jacobian(f, x)
         test_approx(DiffResults.value(result), DiffResults.value(test))
         test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
     end
+    return nothing
 end
 
 function test_unary_jacobian(f!, y, x)
@@ -83,7 +84,7 @@ function test_unary_jacobian(f!, y, x)
 
     out = similar(DiffResults.jacobian(test))
     ReverseDiff.jacobian!(out, f!, y, x)
-    test_approx(y,   DiffResults.value(test))
+    test_approx(y, DiffResults.value(test))
     test_approx(out, DiffResults.jacobian(test))
     copyto!(y, y_original)
 
@@ -99,13 +100,13 @@ function test_unary_jacobian(f!, y, x)
     cfg = ReverseDiff.JacobianConfig(y, x)
 
     out = ReverseDiff.jacobian(f!, y, x, cfg)
-    test_approx(y,   DiffResults.value(test))
+    test_approx(y, DiffResults.value(test))
     test_approx(out, DiffResults.jacobian(test))
     copyto!(y, y_original)
 
     out = similar(DiffResults.jacobian(test))
     ReverseDiff.jacobian!(out, f!, y, x, cfg)
-    test_approx(y,   DiffResults.value(test))
+    test_approx(y, DiffResults.value(test))
     test_approx(out, DiffResults.jacobian(test))
     copyto!(y, y_original)
 
@@ -150,6 +151,7 @@ function test_unary_jacobian(f!, y, x)
         test_approx(DiffResults.value(result), DiffResults.value(test))
         test_approx(DiffResults.jacobian(result), DiffResults.jacobian(test))
     end
+    return nothing
 end
 
 function test_binary_jacobian(f, a, b)
@@ -244,6 +246,7 @@ function test_binary_jacobian(f, a, b)
         test_approx(DiffResults.gradient(Ja), test_a)
         test_approx(DiffResults.gradient(Jb), test_b)
     end
+    return nothing
 end
 
 for f in (DiffTests.ARRAY_TO_ARRAY_FUNCS..., DiffTests.MATRIX_TO_MATRIX_FUNCS...)

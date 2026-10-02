@@ -53,7 +53,7 @@ end
 # dispatch #
 #----------#
 
-for (M, f, arity) in DiffRules.diffrules(; filter_modules=nothing)
+for (M, f, arity) in DiffRules.diffrules(; filter_modules = nothing)
     if !(isdefined(@__MODULE__, M) && isdefined(getfield(@__MODULE__, M), f))
         @warn "$M.$f is not available and hence rule for it can not be defined"
         continue  # Skip rules for methods not defined in the current scope
@@ -81,7 +81,7 @@ end
 # record #
 #--------#
 
-function Base.map(f::ForwardOptimize{F}, x::TrackedArray{X,D}) where {F,X,D}
+function Base.map(f::ForwardOptimize{F}, x::TrackedArray{X, D}) where {F, X, D}
     T = promote_type(X, D)
     result = DiffResults.DiffResult(zero(T), zero(T))
     df = v -> ForwardDiff.derivative!(result, f.f, v)
@@ -95,12 +95,12 @@ end
 
 # an array of `TrackedReal`s is differentiated like a `TrackedArray`
 for A in ARRAY_TYPES
-    @eval function Base.map(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::$A) where {F,X,D}
+    @eval function Base.map(f::ForwardOptimize{F}, x::TrackedArray{X, D}, y::$A) where {F, X, D}
         if istracked(y)
             return record_map(f, x, y, D)
         end
         result = DiffResults.GradientResult(SVector(zero(X)))
-        df = (vx, vy) -> let vy=vy
+        df = (vx, vy) -> let vy = vy
             ForwardDiff.gradient!(result, s -> f.f(s[1], vy), SVector(vx))
         end
         results = map(df, value(x), value(y))
@@ -110,12 +110,12 @@ for A in ARRAY_TYPES
         record!(tp, SpecialInstruction, map, (x, y), out, cache)
         return out
     end
-    @eval function Base.map(f::ForwardOptimize{F}, x::$A, y::TrackedArray{Y,D}) where {F,Y,D}
+    @eval function Base.map(f::ForwardOptimize{F}, x::$A, y::TrackedArray{Y, D}) where {F, Y, D}
         if istracked(x)
             return record_map(f, x, y, D)
         end
         result = DiffResults.GradientResult(SVector(zero(Y)))
-        df = (vx, vy) -> let vx=vx
+        df = (vx, vy) -> let vx = vx
             ForwardDiff.gradient!(result, s -> f.f(vx, s[1]), SVector(vy))
         end
         results = map(df, value(x), value(y))
@@ -127,7 +127,7 @@ for A in ARRAY_TYPES
     end
 end
 
-Base.map(f::ForwardOptimize{F}, x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {F,X,Y,D} =
+Base.map(f::ForwardOptimize{F}, x::TrackedArray{X, D}, y::TrackedArray{Y, D}) where {F, X, Y, D} =
     record_map(f, x, y, D)
 
 function record_map(f::ForwardOptimize, x, y, ::Type{D}) where {D}

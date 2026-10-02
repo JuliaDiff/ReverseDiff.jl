@@ -39,7 +39,7 @@ struct TrackedStyle{N} <: AbstractArrayStyle{N} end
 (::Type{<:TrackedStyle})(::Val{N}) where {N} = TrackedStyle{N}()
 
 Broadcast.BroadcastStyle(::Type{<:TrackedReal}) = TrackedStyle{0}()
-Broadcast.BroadcastStyle(::Type{<:AbstractArray{<:TrackedReal{<:Any,D},N}}) where {D,N} =
+Broadcast.BroadcastStyle(::Type{<:AbstractArray{<:TrackedReal{<:Any, D}, N}}) where {D, N} =
     TrackedStyle{N}()
 
 # `AbstractArrayStyle{Any}` carries `Any` as its dimension, which `max` cannot compare
@@ -47,11 +47,11 @@ _maxdim(M::Int, N::Int) = max(M, N)
 _maxdim(_, _) = Any
 
 # tracked values must stay tracked, so take precedence over every other array style
-Broadcast.BroadcastStyle(::TrackedStyle{M}, ::AbstractArrayStyle{N}) where {M,N} =
+Broadcast.BroadcastStyle(::TrackedStyle{M}, ::AbstractArrayStyle{N}) where {M, N} =
     TrackedStyle{_maxdim(M, N)}()
 
 # resolve the overlap with `Base`'s three `DefaultArrayStyle` rules, preserving their results
-Broadcast.BroadcastStyle(::TrackedStyle{M}, ::DefaultArrayStyle{N}) where {M,N} =
+Broadcast.BroadcastStyle(::TrackedStyle{M}, ::DefaultArrayStyle{N}) where {M, N} =
     TrackedStyle{_maxdim(M, N)}()
 Broadcast.BroadcastStyle(::TrackedStyle{N}, ::DefaultArrayStyle{N}) where {N} = TrackedStyle{N}()
 Broadcast.BroadcastStyle(::TrackedStyle{Any}, ::DefaultArrayStyle) = TrackedStyle{Any}()
@@ -60,11 +60,11 @@ Broadcast.BroadcastStyle(::TrackedStyle{Any}, ::DefaultArrayStyle) = TrackedStyl
 untrackedstyle(x) = Broadcast.BroadcastStyle(typeof(x))
 untrackedstyle(x::Union{TrackedReal, AbstractArray{<:TrackedReal}}) = untrackedstyle(value(x))
 # unwrapping would copy
-untrackedstyle(::Array{<:TrackedReal,N}) where {N} = DefaultArrayStyle{N}()
+untrackedstyle(::Array{<:TrackedReal, N}) where {N} = DefaultArrayStyle{N}()
 
 # a static value's elements, as a static array that `StaticArrays` broadcasts over itself
 staticelements(x) = x
-function staticelements(t::TrackedArray{<:Any,<:Any,<:Any,VA}) where {VA<:StaticArray}
+function staticelements(t::TrackedArray{<:Any, <:Any, <:Any, VA}) where {VA <: StaticArray}
     return similar_type(VA, eltype(t))(ntuple(i -> t[i], Val(length(VA))))
 end
 
@@ -109,7 +109,7 @@ getouttype(::Any) = Union{}
 deref(x) = x
 deref(x::Base.RefValue) = x[]
 
-@generated function splatcall(f, x::NTuple{N,Any}, utargs::T, ::Val{tinds}) where {N, T <: Tuple, tinds}
+@generated function splatcall(f, x::NTuple{N, Any}, utargs::T, ::Val{tinds}) where {N, T <: Tuple, tinds}
     args = []
     ti = 1
     uti = 1
@@ -164,7 +164,7 @@ end
 end
 
 # `f`'s partials in closed form, one per tracked argument
-struct KnownPartials{E<:Tuple}
+struct KnownPartials{E <: Tuple}
     entries::E
 end
 
@@ -180,17 +180,17 @@ knownpartial(f, ::Val, args) = nothing
 knownpartial(::Union{typeof(+), typeof(identity)}, ::Val, ::Tuple{Vararg{RealOrArray}}) =
     Contract(identity, ())
 knownpartial(::typeof(-), ::Val{1}, ::Tuple{RealOrArray}) = Contract(-, ())
-knownpartial(::typeof(-), ::Val{1}, ::Tuple{RealOrArray,RealOrArray}) = Contract(identity, ())
-knownpartial(::typeof(-), ::Val{2}, ::Tuple{RealOrArray,RealOrArray}) = Contract(-, ())
+knownpartial(::typeof(-), ::Val{1}, ::Tuple{RealOrArray, RealOrArray}) = Contract(identity, ())
+knownpartial(::typeof(-), ::Val{2}, ::Tuple{RealOrArray, RealOrArray}) = Contract(-, ())
 
-knownpartial(::typeof(*), ::Val{1}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
+knownpartial(::typeof(*), ::Val{1}, (x, y)::Tuple{RealOrArray, RealOrArray}) =
     ifsameshape(Contract(*, (Val(2),)), x, y)
-knownpartial(::typeof(*), ::Val{2}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
+knownpartial(::typeof(*), ::Val{2}, (x, y)::Tuple{RealOrArray, RealOrArray}) =
     ifsameshape(Contract(*, (Val(1),)), x, y)
 # a denominator's partial `-x/y^2` is no argument of the broadcast
-knownpartial(::typeof(/), ::Val{1}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
+knownpartial(::typeof(/), ::Val{1}, (x, y)::Tuple{RealOrArray, RealOrArray}) =
     ifsameshape(Contract(/, (Val(2),)), x, y)
-knownpartial(::typeof(\), ::Val{2}, (x, y)::Tuple{RealOrArray,RealOrArray}) =
+knownpartial(::typeof(\), ::Val{2}, (x, y)::Tuple{RealOrArray, RealOrArray}) =
     ifsameshape(Contract(/, (Val(1),)), x, y)
 
 # `nothing` unless every tracked argument's partial is known
@@ -211,7 +211,7 @@ end
 # marks the `Dual`s `∇broadcast` seeds, so `@skip` can drop them as it drops tracking
 struct BroadcastTag{F} end
 
-skipvalue(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = skipvalue(ForwardDiff.value(T, x))
+skipvalue(x::Dual{T}) where {T <: ForwardDiff.Tag{<:BroadcastTag}} = skipvalue(ForwardDiff.value(T, x))
 
 # at least one argument has to be a non-0-dimensional array: `copy` sends the scalar and
 # 0-dimensional cases onto the scalar rules instead
@@ -222,12 +222,12 @@ skipvalue(x::Dual{T}) where {T<:ForwardDiff.Tag{<:BroadcastTag}} = skipvalue(For
     # keyed on every argument's type, so an enclosing differentiation's `Dual` makes a newer tag
     tag = ForwardDiff.Tag(BroadcastTag{F}(), typeof(argvals))
     # `broadcast` calls `df` elementwise, so it receives one scalar per argument
-    function df(x::Vararg{Any,N}) where {N}
+    function df(x::Vararg{Any, N}) where {N}
         dx = map((slot, xi) -> dualize(typeof(tag), slot, valP, xi), slots, x)
         return splatcall(f, dx, untracked, inds)
     end
     # known partials leave nothing to read off a `Dual`, so `f` is evaluated undualized
-    vf(x::Vararg{Any,N}) where {N} = splatcall(f, x, untracked, inds)
+    vf(x::Vararg{Any, N}) where {N} = splatcall(f, x, untracked, inds)
     entries = knownpartials(f, args, positions)
     if entries === nothing
         return trackresults(typeof(tag), broadcast(df, vals...), df, vf, targs, vals)
@@ -245,9 +245,15 @@ replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
 # a perturbation riding on an argument ends up in the derivative, so `D` has to be able to hold it
 @inline function checkargtags(::Type{D}, ::Type{E}) where {D, E}
     if ForwardDiff.tagtype(E) !== Nothing && !(promote_type(D, E) <: D)
-        throw(ArgumentError(LazyString("a broadcast argument with element type ", E,
-                                       " carries a perturbation that a derivative of type ", D,
-                                       " cannot hold")))
+        throw(
+            ArgumentError(
+                LazyString(
+                    "a broadcast argument with element type ", E,
+                    " carries a perturbation that a derivative of type ", D,
+                    " cannot hold"
+                )
+            )
+        )
     end
     return nothing
 end
@@ -323,7 +329,7 @@ end
     return nothing
 end
 
-struct PartialsWithArgs{E<:Tuple,A<:Tuple}
+struct PartialsWithArgs{E <: Tuple, A <: Tuple}
     entries::E
     args::A
 end
@@ -337,8 +343,10 @@ function reversepartials(p::KnownPartials, input)
 end
 
 # an argument broadcast to the full output shape needs no index clamping
-function _br_add_to_deriv!(::Type{T}, x, slot::Val, out_deriv, results,
-                           bound::CartesianIndex) where {T}
+function _br_add_to_deriv!(
+        ::Type{T}, x, slot::Val, out_deriv, results,
+        bound::CartesianIndex
+    ) where {T}
     if bound == CartesianIndex(size(out_deriv))
         return _increment_deriv!(T, x, out_deriv, results, slot)
     else

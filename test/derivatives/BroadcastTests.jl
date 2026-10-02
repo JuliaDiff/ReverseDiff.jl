@@ -11,7 +11,7 @@ using Test
 include("../utils.jl")
 
 using Base.Broadcast: AbstractArrayStyle, BroadcastStyle, Broadcasted, DefaultArrayStyle,
-                      Style, Unknown, result_style
+    Style, Unknown, result_style
 using ReverseDiff: TrackedArray, TrackedReal, TrackedStyle
 
 # stands in for a foreign array style such as `CuArrayStyle` or `StructuredMatrixStyle`
@@ -19,7 +19,7 @@ struct ForeignStyle <: AbstractArrayStyle{Any} end
 ForeignStyle(::Val) = ForeignStyle()
 
 # a foreign 0-dimensional array, whose style carries `Any` rather than a dimension
-struct Foreign0d{T} <: AbstractArray{T,0}
+struct Foreign0d{T} <: AbstractArray{T, 0}
     x::T
 end
 Base.size(::Foreign0d) = ()
@@ -41,17 +41,19 @@ Base.similar(::Broadcasted{ForeignStyle}, ::Type{T}, axs) where {T} = similar(Ar
 end
 
 @testset "`BroadcastStyle` precedence" begin
-    for (a, b, expected) in ((TrackedStyle{0}(), DefaultArrayStyle{0}(), TrackedStyle{0}()),
-                             (TrackedStyle{0}(), DefaultArrayStyle{2}(), TrackedStyle{2}()),
-                             (TrackedStyle{1}(), DefaultArrayStyle{1}(), TrackedStyle{1}()),
-                             (TrackedStyle{1}(), TrackedStyle{2}(), TrackedStyle{2}()),
-                             (TrackedStyle{1}(), Unknown(), TrackedStyle{1}()),
-                             (TrackedStyle{1}(), ForeignStyle(), TrackedStyle{Any}()),
-                             (TrackedStyle{Any}(), ForeignStyle(), TrackedStyle{Any}()),
-                             (TrackedStyle{Any}(), DefaultArrayStyle{1}(), TrackedStyle{Any}()),
-                             # a scalar loses to a tuple, as in `Base`
-                             (TrackedStyle{0}(), Style{Tuple}(), Style{Tuple}()),
-                             (TrackedStyle{1}(), Style{Tuple}(), TrackedStyle{1}()))
+    for (a, b, expected) in (
+            (TrackedStyle{0}(), DefaultArrayStyle{0}(), TrackedStyle{0}()),
+            (TrackedStyle{0}(), DefaultArrayStyle{2}(), TrackedStyle{2}()),
+            (TrackedStyle{1}(), DefaultArrayStyle{1}(), TrackedStyle{1}()),
+            (TrackedStyle{1}(), TrackedStyle{2}(), TrackedStyle{2}()),
+            (TrackedStyle{1}(), Unknown(), TrackedStyle{1}()),
+            (TrackedStyle{1}(), ForeignStyle(), TrackedStyle{Any}()),
+            (TrackedStyle{Any}(), ForeignStyle(), TrackedStyle{Any}()),
+            (TrackedStyle{Any}(), DefaultArrayStyle{1}(), TrackedStyle{Any}()),
+            # a scalar loses to a tuple, as in `Base`
+            (TrackedStyle{0}(), Style{Tuple}(), Style{Tuple}()),
+            (TrackedStyle{1}(), Style{Tuple}(), TrackedStyle{1}()),
+        )
         @test result_style(a, b) === expected
         @test result_style(b, a) === expected
     end
@@ -93,9 +95,11 @@ end
 
 @testset "no `BroadcastStyle` ambiguities" begin
     # `ReverseDiff` has unrelated pre-existing ambiguities, so filter to broadcasting
-    @test isempty(filter(Test.detect_ambiguities(ReverseDiff)) do (m1, m2)
-        m1.name === :BroadcastStyle || m2.name === :BroadcastStyle
-    end)
+    @test isempty(
+        filter(Test.detect_ambiguities(ReverseDiff)) do (m1, m2)
+            m1.name === :BroadcastStyle || m2.name === :BroadcastStyle
+        end
+    )
 end
 
 @testset "scalar broadcasting matches `Base`" begin
@@ -110,9 +114,11 @@ end
 @testset "`f.(x)` and `broadcast(f, x)` agree" begin
     a, b = rand(3), rand(3)
 
-    for (dotted, called) in ((tp -> exp.(track(a, tp)), tp -> broadcast(exp, track(a, tp))),
-                             (tp -> track(a, tp) .+ track(b, tp), tp -> broadcast(+, track(a, tp), track(b, tp))),
-                             (tp -> atan.(track(a, tp), b), tp -> broadcast(atan, track(a, tp), b)))
+    for (dotted, called) in (
+            (tp -> exp.(track(a, tp)), tp -> broadcast(exp, track(a, tp))),
+            (tp -> track(a, tp) .+ track(b, tp), tp -> broadcast(+, track(a, tp), track(b, tp))),
+            (tp -> atan.(track(a, tp), b), tp -> broadcast(atan, track(a, tp), b)),
+        )
         tp1, tp2 = InstructionTape(), InstructionTape()
         x, y = dotted(tp1), called(tp2)
 
@@ -191,7 +197,7 @@ end
     @test isempty(tp)
 
     # an untracked container of tracked elements is a valid destination
-    dest = Vector{TrackedReal{Float64,Float64,Nothing}}(undef, 4)
+    dest = Vector{TrackedReal{Float64, Float64, Nothing}}(undef, 4)
     dest .= exp.(x)
     @test value.(dest) ≈ exp.(a)
     # the elements carry the tape, so it must not be dropped on the way in
@@ -258,8 +264,10 @@ end
 
     # recorded with every element on the constant branch, replayed on the other
     relu0(t) = t > 0 ? t : 0.0
-    for f in (x -> sum(relu.(x)) + sum(x), x -> sum(relu0.(x)) + sum(x),
-              x -> sum(ifelse.(x .> 0, x, 0.0)) + sum(x))
+    for f in (
+            x -> sum(relu.(x)) + sum(x), x -> sum(relu0.(x)) + sum(x),
+            x -> sum(ifelse.(x .> 0, x, 0.0)) + sum(x),
+        )
         tape = ReverseDiff.GradientTape(f, [-1.0, -2.0])
         @test ReverseDiff.gradient!(tape, [1.0, 2.0]) == [2.0, 2.0]
         @test ReverseDiff.gradient!(ReverseDiff.compile(tape), [1.0, 2.0]) == [2.0, 2.0]
@@ -306,30 +314,32 @@ end
 
     @test ReverseDiff.trackresults(tagB, outer, i -> outer[i], identity, (), ([1],)) === outer
     @test_throws ForwardDiff.DualMismatchError ReverseDiff.trackresults(
-        tagA, nested, i -> nested[i], identity, (), ([1],))
+        tagA, nested, i -> nested[i], identity, (), ([1],)
+    )
 
     @test ReverseDiff.getpartial(tagA, ForwardDiff.Dual{tagA}(1.0, 2.0), 1) == 2.0
     @test ReverseDiff.getpartial(tagA, 1.0, 1) == 0.0
     @test ReverseDiff.getpartial(tagB, ForwardDiff.Dual{tagA}(1.0, 2.0), 1) == 0.0
     @test_throws ForwardDiff.DualMismatchError ReverseDiff.getpartial(
-        tagA, ForwardDiff.Dual{tagB}(1.0, 2.0), 1)
+        tagA, ForwardDiff.Dual{tagB}(1.0, 2.0), 1
+    )
 end
 
 @testset "a perturbation the derivative cannot hold is rejected (#67, #168)" begin
     # `a` reaches the broadcast as a `Dual`, but the tape's derivatives are `Float64`
     g(a) = sum(ReverseDiff.gradient(x -> sum(x .* a), [1.0, 2.0]))
-    E = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g),Float64},Float64,1}
+    E = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g), Float64}, Float64, 1}
     msg = "a broadcast argument with element type $E carries a perturbation that a derivative of type Float64 cannot hold"
 
     @test_throws ArgumentError(msg) ForwardDiff.derivative(g, 3.0)
 
     # an abstract element type is checked element by element
-    g2(a) = sum(ReverseDiff.gradient(x -> sum(x .* Union{Float64,typeof(a)}[1.0, a]), [1.0, 2.0]))
-    E2 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g2),Float64},Float64,1}
+    g2(a) = sum(ReverseDiff.gradient(x -> sum(x .* Union{Float64, typeof(a)}[1.0, a]), [1.0, 2.0]))
+    E2 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g2), Float64}, Float64, 1}
     msg2 = "a broadcast argument with element type $E2 carries a perturbation that a derivative of type Float64 cannot hold"
     @test_throws ArgumentError(msg2) ForwardDiff.derivative(g2, 3.0)
     g3(a) = sum(ReverseDiff.gradient(x -> sum(ifelse.(x .> 5, x, Real[1.0, a])), [1.0, 2.0]))
-    E3 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g3),Float64},Float64,1}
+    E3 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g3), Float64}, Float64, 1}
     msg3 = "a broadcast argument with element type $E3 carries a perturbation that a derivative of type Float64 cannot hold"
     @test_throws ArgumentError(msg3) ForwardDiff.derivative(g3, 3.0)
 
@@ -339,34 +349,44 @@ end
 
     # also when the tag without the perturbation was created first
     ReverseDiff.gradient(x -> sum(atan.(x, 2.0)), [1.0, 2.0])
-    k(a) = sum(ReverseDiff.gradient(x -> sum(atan.(x, a)), [1.0, 2.0],
-                                    ReverseDiff.GradientConfig([1.0, 2.0], typeof(a))))
+    k(a) = sum(
+        ReverseDiff.gradient(
+            x -> sum(atan.(x, a)), [1.0, 2.0],
+            ReverseDiff.GradientConfig([1.0, 2.0], typeof(a))
+        )
+    )
     xs = [1.0, 2.0]
     @test ForwardDiff.derivative(k, 3.0) ≈ sum(@. (xs^2 - 9) / (xs^2 + 9)^2)
 
     # the scalar rules bury the tracked value in the `Dual`, which must not give a zero derivative
     msg4 = "ForwardDiff cannot differentiate through ReverseDiff (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"
-    for g4 in (a -> sum(ReverseDiff.gradient(x -> x[1] * a, [1.0, 2.0])),
-               a -> sum(ReverseDiff.gradient(x -> sum(x .* Real[1.0, a]), [1.0, 2.0])),
-               a -> sum(ReverseDiff.jacobian(x -> [x[1] * a, x[2]], [1.0, 2.0])))
+    for g4 in (
+            a -> sum(ReverseDiff.gradient(x -> x[1] * a, [1.0, 2.0])),
+            a -> sum(ReverseDiff.gradient(x -> sum(x .* Real[1.0, a]), [1.0, 2.0])),
+            a -> sum(ReverseDiff.jacobian(x -> [x[1] * a, x[2]], [1.0, 2.0])),
+        )
         @test_throws ArgumentError(msg4) ForwardDiff.derivative(g4, 3.0)
     end
     # storing the `Dual` as a tracked number would cut it off the tape
     msg5 = "this nesting of ForwardDiff and ReverseDiff is not supported: a `Dual` of tracked numbers cannot be converted to a tracked number (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"
     function g5(a)
-        return sum(ReverseDiff.gradient([1.0, 2.0]) do x
-            v = [x[1], x[2]]
-            v[1] = x[1] * a
-            return sum(v)
-        end)
+        return sum(
+            ReverseDiff.gradient([1.0, 2.0]) do x
+                v = [x[1], x[2]]
+                v[1] = x[1] * a
+                return sum(v)
+            end
+        )
     end
     @test_throws ArgumentError(msg5) ForwardDiff.derivative(g5, 3.0)
 
     # the other way around is fine, also next to tracked numbers
     @test ReverseDiff.gradient(x -> ForwardDiff.derivative(a -> x[1] * a^2, 2.0), [1.0, 2.0]) ==
         [4.0, 0.0]
-    @test ReverseDiff.gradient(x -> ForwardDiff.derivative(a -> sum([x[1] * a^2, x[2]]), 2.0),
-                               [1.0, 2.0]) == [4.0, 0.0]
+    @test ReverseDiff.gradient(
+        x -> ForwardDiff.derivative(a -> sum([x[1] * a^2, x[2]]), 2.0),
+        [1.0, 2.0]
+    ) == [4.0, 0.0]
 
     # also when the perturbation comes from an enclosing broadcast
     f(x) = sum(broadcast(a -> ReverseDiff.gradient(y -> sum(y .* a), [1.0])[1], x))
@@ -430,10 +450,12 @@ end
 end
 
 @testset "`value` of a wrapped `TrackedArray` is not recorded" begin
-    wrap(d, e, A) = (Diagonal(d), Bidiagonal(d, e, :L), Tridiagonal(e, d, e), SymTridiagonal(d, e),
-                     UpperTriangular(A), LowerTriangular(A), UnitUpperTriangular(A),
-                     UnitLowerTriangular(A), UpperHessenberg(A), Symmetric(A, :L),
-                     Hermitian(A, :L), adjoint(A), transpose(A))
+    wrap(d, e, A) = (
+        Diagonal(d), Bidiagonal(d, e, :L), Tridiagonal(e, d, e), SymTridiagonal(d, e),
+        UpperTriangular(A), LowerTriangular(A), UnitUpperTriangular(A),
+        UnitLowerTriangular(A), UpperHessenberg(A), Symmetric(A, :L),
+        Hermitian(A, :L), adjoint(A), transpose(A),
+    )
     d, e, A = rand(3), rand(2), rand(3, 3)
     tp = InstructionTape()
     expected = wrap(d, e, A)
@@ -507,8 +529,10 @@ end
 
     # bytes allocated by the whole recording: the output's value and derivative take 8 B per
     # element each, and one `Dual` per element would add at least 16 B more
-    for f in (t -> t .* 2.0, t -> 2.0 .* t, t -> t .+ 1.0, t -> 1.0 .- t, t -> t ./ 4.0,
-              t -> 4.0 .\ t, t -> identity.(t), t -> .-t)
+    for f in (
+            t -> t .* 2.0, t -> 2.0 .* t, t -> t .+ 1.0, t -> 1.0 .- t, t -> t ./ 4.0,
+            t -> 4.0 .\ t, t -> identity.(t), t -> .-t,
+        )
         @test recordbytes(f, v) < 24n
     end
     for f in ((a, b) -> a .- b, (a, b) -> a .* b)
@@ -569,8 +593,8 @@ end
 
 @testset "a known partial does not overflow on a subnormal divisor" begin
     # materializing `1/y` would give `Inf` before it ever meets the seed
-    @test ReverseDiff.gradient(y -> 1e-10 * sum(y ./ 1e-310), [1.0, 2.0]) ==
-        fill(1e-10 / 1e-310, 2)
+    @test ReverseDiff.gradient(y -> 1.0e-10 * sum(y ./ 1.0e-310), [1.0, 2.0]) ==
+        fill(1.0e-10 / 1.0e-310, 2)
 end
 
 @testset "a known partial replays its values" begin

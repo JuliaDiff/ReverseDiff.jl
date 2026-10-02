@@ -81,7 +81,7 @@ end
 # unary #
 #-------#
 
-@inline function (self::ForwardOptimize{F})(t::TrackedReal{V,D}) where {F,V,D}
+@inline function (self::ForwardOptimize{F})(t::TrackedReal{V, D}) where {F, V, D}
     T = promote_type(V, D)
     result = DiffResult(zero(T), zero(T))
     result = ForwardDiff.derivative!(result, self.f, value(t))
@@ -95,7 +95,7 @@ end
 # binary #
 #--------#
 
-@inline function (self::ForwardOptimize{F})(a::TrackedReal{V1,D}, b::TrackedReal{V2,D}) where {F,V1,V2,D}
+@inline function (self::ForwardOptimize{F})(a::TrackedReal{V1, D}, b::TrackedReal{V2, D}) where {F, V1, V2, D}
     T = promote_type(V1, V2, D)
     result = DiffResults.GradientResult(SVector(zero(T), zero(T)))
     result = ForwardDiff.gradient!(result, x -> self.f(x[1], x[2]), SVector(value(a), value(b)))
@@ -106,7 +106,7 @@ end
     return out
 end
 
-@inline function (self::ForwardOptimize{F})(x::Real, t::TrackedReal{V,D}) where {F,V,D}
+@inline function (self::ForwardOptimize{F})(x::Real, t::TrackedReal{V, D}) where {F, V, D}
     T = promote_type(typeof(x), V, D)
     result = DiffResult(zero(T), zero(T))
     result = ForwardDiff.derivative!(result, vt -> self.f(x, vt), value(t))
@@ -118,7 +118,7 @@ end
     return out
 end
 
-@inline function (self::ForwardOptimize{F})(t::TrackedReal{V,D}, x::Real) where {F,V,D}
+@inline function (self::ForwardOptimize{F})(t::TrackedReal{V, D}, x::Real) where {F, V, D}
     T = promote_type(typeof(x), V, D)
     result = DiffResult(zero(T), zero(T))
     result = ForwardDiff.derivative!(result, vt -> self.f(vt, x), value(t))
@@ -130,8 +130,8 @@ end
     return out
 end
 
-@inline (self::ForwardOptimize{F})(x::Dual, t::TrackedReal) where {F} = invoke(self.f, Tuple{Dual,Real}, x, t)
-@inline (self::ForwardOptimize{F})(t::TrackedReal, x::Dual) where {F} = invoke(self.f, Tuple{Real,Dual}, t, x)
+@inline (self::ForwardOptimize{F})(x::Dual, t::TrackedReal) where {F} = invoke(self.f, Tuple{Dual, Real}, x, t)
+@inline (self::ForwardOptimize{F})(t::TrackedReal, x::Dual) where {F} = invoke(self.f, Tuple{Real, Dual}, t, x)
 
 #################################
 # Skip Instruction Optimization #
@@ -188,7 +188,7 @@ macro grad(expr)
     args_ex = getargs_expr(d[:args])
     kwargs_ex = getkwargs_expr(d[:kwargs])
     return quote
-        function $ReverseDiff.track(::typeof($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...),}
+        function $ReverseDiff.track(::typeof($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...)}
             $closure_ex
             $args = $args_ex
             $kwargs = $kwargs_ex
@@ -207,9 +207,9 @@ macro grad(expr)
         end
 
         if !hasmethod(
-            $ReverseDiff.special_reverse_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
-        )
+                $ReverseDiff.special_reverse_exec!,
+                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+            )
             @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
                 output = instruction.output
                 input = instruction.input
@@ -223,9 +223,9 @@ macro grad(expr)
         end
 
         if !hasmethod(
-            $ReverseDiff.special_forward_exec!,
-            Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
-        )
+                $ReverseDiff.special_forward_exec!,
+                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+            )
             @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
                 output, input = instruction.output, instruction.input
                 $ReverseDiff.pull_value!.(input)
