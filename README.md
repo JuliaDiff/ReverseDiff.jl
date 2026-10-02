@@ -4,6 +4,7 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliadiff.org/ReverseDiff.jl/dev)
 [![Build status](https://github.com/JuliaDiff/ReverseDiff.jl/workflows/CI/badge.svg)](https://github.com/JuliaDiff/ReverseDiff.jl/actions)
 [![codecov.io](https://codecov.io/github/JuliaDiff/ReverseDiff.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaDiff/ReverseDiff.jl?branch=master)
+[![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-black)](https://github.com/fredrikekre/Runic.jl)
 
 ReverseDiff is a fast and compile-able tape-based **reverse mode automatic differentiation (AD)** that 
 implements methods to take **gradients**, **Jacobians**, **Hessians**, and
@@ -21,7 +22,7 @@ differentiation methods (such as [finite differencing](https://en.wikipedia.org/
 
 To install ReverseDiff, simply use Julia's package manager:
 
-```julia
+```julia-repl
 julia> Pkg.add("ReverseDiff")
 ```
 

@@ -11,27 +11,16 @@ function plus!(out, x, y)
     return out
 end
 
-@inline plus!(out::TrackedArray, x::TrackedArray, y::TrackedArray) = record_plus!(out, x, y)
-
-for A in ARRAY_TYPES
-    @eval @inline plus!(out::TrackedArray, x::TrackedArray, y::$(A)) = record_plus!(out, x, y)
-    @eval @inline plus!(out::TrackedArray, x::$(A), y::TrackedArray) = record_plus!(out, x, y)
-end
-
-function record_plus!(out::TrackedArray, x, y)
-    copyto!(value(out), value(x) + value(y))
-    record!(tape(x, y), SpecialInstruction, +, (x, y), out)
-    return out
-end
-
 # Base allocating version
 
 @inline Base.:+(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_plus(x, y, D)
 
-for A in ARRAY_TYPES
-    @eval @inline Base.:+(x::TrackedArray{V,D}, y::$(A)) where {V,D} = record_plus(x, y, D)
-    @eval @inline Base.:+(x::$(A), y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
-end
+@inline Base.:+(x::TrackedArray{V,D}, y::AbstractArray) where {V,D} = record_plus(x, y, D)
+@inline Base.:+(x::AbstractArray, y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
+
+# avoid ambiguities with StaticArrays
+@inline Base.:+(x::TrackedArray{V,D}, y::StaticArray) where {V,D} = record_plus(x, y, D)
+@inline Base.:+(x::StaticArray, y::TrackedArray{V,D}) where {V,D} = record_plus(x, y, D)
 
 function record_plus(x, y, ::Type{D}) where D
     tp = tape(x, y)
@@ -78,35 +67,16 @@ function minus!(out, x, y)
     end
 end
 
-@inline minus!(out::TrackedArray, x::TrackedArray, y::TrackedArray) = record_minus!(out, x, y)
-@inline minus!(out::TrackedArray, x::TrackedArray) = record_minus!(out, x, y)
-
-for A in ARRAY_TYPES
-    @eval @inline minus!(out::TrackedArray, x::TrackedArray, y::$(A)) = record_minus!(out, x, y)
-    @eval @inline minus!(out::TrackedArray, x::$(A), y::TrackedArray) = record_minus!(out, x, y)
-    @eval @inline minus!(out::TrackedArray, x::$(A)) = record_minus!(out, x)
-end
-
-function record_minus!(out::TrackedArray, x)
-    copyto!(value(out), -(value(x)))
-    record!(tape(x), SpecialInstruction, -, x, out)
-    return out
-end
-
-function record_minus!(out::TrackedArray, x, y)
-    copyto!(value(out), value(x) - value(y))
-    record!(tape(x, y), SpecialInstruction, -, (x, y), out)
-    return out
-end
-
 # Base allocating version
 
-Base.:-(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_minus(x, y, D)
+@inline Base.:-(x::TrackedArray{X,D}, y::TrackedArray{Y,D}) where {X,Y,D} = record_minus(x, y, D)
 
-for A in ARRAY_TYPES
-    @eval Base.:-(x::TrackedArray{V,D}, y::$(A)) where {V,D} = record_minus(x, y, D)
-    @eval Base.:-(x::$(A), y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
-end
+@inline Base.:-(x::TrackedArray{V,D}, y::AbstractArray) where {V,D} = record_minus(x, y, D)
+@inline Base.:-(x::AbstractArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
+
+# avoid ambiguities with StaticArrays
+@inline Base.:-(x::TrackedArray{V,D}, y::StaticArray) where {V,D} = record_minus(x, y, D)
+@inline Base.:-(x::StaticArray, y::TrackedArray{V,D}) where {V,D} = record_minus(x, y, D)
 
 function Base.:-(x::TrackedArray{V,D}) where {V,D}
     tp = tape(x)
@@ -268,6 +238,9 @@ end
 else
     LinearAlgebra.:*(x::Diagonal, y::TrackedVector{V,D}) where {V,D} = record_mul(x, y, D)
 end
+
+# avoid ambiguities with StaticArrays
+LinearAlgebra.:*(x::StaticMatrix, y::TrackedVector{V,D}) where {V,D} = record_mul(x, y, D)
 
 # forward pass #
 #--------------#

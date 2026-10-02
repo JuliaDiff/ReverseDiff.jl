@@ -451,4 +451,35 @@ end
         [1.0, 2.0]
 end
 
+############################################################################################
+
+@testset "in-place `mul!` into a preallocated buffer (#171)" begin
+    function tensor_conv!(est, W, H)
+        L = size(W, 3)
+        T = size(H, 2)
+        @. est = 0
+        for lag in 0:(L - 1)
+            @views mul!(est[:, lag+1:T], W[:, :, lag+1]', H[:, 1:T-lag], 1, 1)
+        end
+        return est
+    end
+    loss(est, W, H) = sum(abs2, tensor_conv!(est, W, H))
+
+    W = rand(2, 3, 2)
+    H = rand(2, 5)
+    f(W, H) = loss(similar(W, promote_type(eltype(W), eltype(H)), 3, 5), W, H)
+
+    gW = ForwardDiff.gradient(W -> f(W, H), W)
+    gH = ForwardDiff.gradient(H -> f(W, H), H)
+    test_approx(ReverseDiff.gradient(W -> f(W, H), W), gW)
+    foreach(test_approx, ReverseDiff.gradient(f, (W, H)), (gW, gH))
+
+    # tape replay
+    tape = ReverseDiff.compile(ReverseDiff.GradientTape(f, (W, H)))
+    foreach(test_approx, ReverseDiff.gradient!(map(similar, (W, H)), tape, (W, H)), (gW, gH))
+
+    # a `Float64` buffer throws instead of zeroing the gradient
+    @test_throws ArgumentError ReverseDiff.gradient(W -> loss(zeros(3, 5), W, H), W)
+end
+
 end # module

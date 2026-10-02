@@ -537,7 +537,20 @@ track(x::AbstractArray, tp::InstructionTape = InstructionTape()) = track(x, elty
 
 track(x::Real, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = TrackedReal(x, zero(D), tp)
 
-track(x::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = TrackedArray(x, fill!(similar(x, D), zero(D)), tp)
+function track(x::AbstractArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D}
+    v = writable(x)
+    return TrackedArray(v, fill!(similar(v, D), zero(D)), tp)
+end
+
+# the tape recomputes values in place
+writable(x::AbstractArray) = x
+writable(x::SArray) = copyto!(similar(x), x)
+writable(x::Adjoint) = adjoint(writable(parent(x)))
+writable(x::Transpose) = transpose(writable(parent(x)))
+
+# the replay writes into broadcast results, which a static array may reject
+writable(results::AbstractArray, ::Type{E}) where {E} = convert(AbstractArray{E}, results)
+writable(results::StaticArray, ::Type{E}) where {E} = copyto!(similar(results, E), results)
 
 # every forward pass writes into the value buffer, which a `TrackedArray` rejects
 # TODO: self-nesting, and the `value`/`track` unwrapping elsewhere, risk perturbation confusion (#45)

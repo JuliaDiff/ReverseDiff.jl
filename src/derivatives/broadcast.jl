@@ -308,10 +308,6 @@ end
     end
 end
 
-# the replay writes into the results, which a static array may reject
-writable(results::AbstractArray, ::Type{E}) where {E} = convert(AbstractArray{E}, results)
-writable(results::StaticArray, ::Type{E}) where {E} = copyto!(similar(results, E), results)
-
 @noinline function special_reverse_exec!(instruction::SpecialInstruction{typeof(∇broadcast)})
     input = instruction.input
     output = instruction.output
