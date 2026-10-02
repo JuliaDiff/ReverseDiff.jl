@@ -4,10 +4,75 @@
 
 abstract type AbstractInstruction end
 
-const InstructionTape = Vector{AbstractInstruction}
+mutable struct TapeNode
+    const instruction::AbstractInstruction
+    prev::Union{Nothing, TapeNode}
+end
 
-function record!(tp::InstructionTape, ::Type{InstructionType}, args...) where {InstructionType}
-    tp !== NULL_TAPE && push!(tp, InstructionType(args...))
+struct Finished end
+
+# A tape is first recorded, possibly from multiple threads at once, and then replayed.
+# Reading it while recording throws, and so does recording onto it after `finish!`;
+# `empty!` starts recording again.
+mutable struct InstructionTape
+    # while recording: the most recently recorded node (nodes link backwards);
+    # `Finished()` once recording has finished
+    @atomic last::Union{Nothing, TapeNode, Finished}
+    # recorded instructions in order, filled by `finish!`
+    const instructions::Vector{AbstractInstruction}
+end
+
+InstructionTape() = InstructionTape(nothing, AbstractInstruction[])
+
+# end recording; all tasks recording onto `tp` must have finished (e.g. via `@sync`)
+function finish!(tp::InstructionTape)
+    node = @atomicswap tp.last = Finished()
+    if node isa Finished
+        throw(ArgumentError("tape has already finished recording"))
+    end
+    while node !== nothing
+        push!(tp.instructions, node.instruction)
+        node = node.prev
+    end
+    reverse!(tp.instructions)
+    return tp
+end
+
+# the recorded instructions; throws unless recording has finished
+function instructions(tp::InstructionTape)
+    if !((@atomic tp.last) isa Finished)
+        throw(ArgumentError("tape is still recording; call `ReverseDiff.finish!` first"))
+    end
+    return tp.instructions
+end
+
+Base.length(tp::InstructionTape) = length(instructions(tp))
+
+function Base.empty!(tp::InstructionTape)
+    # `NULL_TAPE` never records, so it stays finished
+    if tp !== NULL_TAPE
+        empty!(tp.instructions)
+        @atomic tp.last = nothing
+    end
+    return tp
+end
+
+# undo the swap in `record!` so that the tape stays finished
+@noinline function throw_finished(tp::InstructionTape)
+    @atomic tp.last = Finished()
+    throw(ArgumentError("tape has finished recording; call `empty!` to record again"))
+end
+
+@inline function record!(tp::InstructionTape, ::Type{InstructionType}, args...) where {InstructionType <: AbstractInstruction}
+    if tp !== NULL_TAPE
+        node = TapeNode(InstructionType(args...), nothing)
+        # the swap orders concurrent recordings and returns the predecessor
+        prev = @atomicswap tp.last = node
+        if prev isa Finished
+            throw_finished(tp)
+        end
+        node.prev = prev
+    end
     return nothing
 end
 
@@ -75,7 +140,7 @@ end
 ##########
 
 function forward_pass!(tape::InstructionTape)
-    for instruction in tape
+    for instruction in instructions(tape)
         forward_exec!(instruction)
     end
     return nothing
@@ -85,8 +150,8 @@ end
 @noinline forward_exec!(instruction::SpecialInstruction) = special_forward_exec!(instruction)
 
 function reverse_pass!(tape::InstructionTape)
-    for i in length(tape):-1:1
-        reverse_exec!(tape[i])
+    for instruction in Iterators.reverse(instructions(tape))
+        reverse_exec!(instruction)
     end
     return nothing
 end
@@ -98,28 +163,41 @@ end
 # Pretty Printing #
 ###################
 
-# extra spaces here accomodates padding in show(::IO, ::AbstractInstruction)
-compactrepr(x::Tuple) = "(" * join(map(compactrepr, x), ",\n           ") * ")"
-compactrepr(x::AbstractArray) = length(x) < 5 ? match(r"\[.*?\]", repr(x)).match : summary(x)
-compactrepr(x) = repr(x)
+function Base.show(io::IO, instruction::AbstractInstruction)
+    print(io, nameof(typeof(instruction)), "(", instruction.func, ")")
+    return nothing
+end
 
-function Base.show(io::IO, instruction::AbstractInstruction, pad = "")
-    name = isa(instruction, ScalarInstruction) ? "ScalarInstruction" : "SpecialInstruction"
-    println(io, pad, "$(name)($(instruction.func)):")
-    println(io, pad, "  input:  ", compactrepr(instruction.input))
-    println(io, pad, "  output: ", compactrepr(instruction.output))
-    print(io, pad, "  cache:  ", compactrepr(instruction.cache))
+function Base.show(io::IO, ::MIME"text/plain", instruction::AbstractInstruction)
+    show(io, instruction)
+    ctx = IOContext(io, :compact => true, :limit => true)
+    print(ctx, ":\n  input:  ")
+    show(ctx, instruction.input)
+    print(ctx, "\n  output: ")
+    show(ctx, instruction.output)
+    print(ctx, "\n  cache:  ")
+    show(ctx, instruction.cache)
     return nothing
 end
 
 function Base.show(io::IO, tp::InstructionTape)
-    println(io, length(tp), "-element InstructionTape:")
-    i = 1
-    for instruction in tp
-        print(io, "$i => ")
-        show(io, instruction)
-        println(io)
-        i += 1
+    if (@atomic tp.last) isa Finished
+        print(io, length(tp), "-element InstructionTape")
+    else
+        print(io, "InstructionTape (recording)")
     end
-    return
+    return nothing
+end
+
+# like arrays, so that long tapes are truncated
+function Base.show(io::IO, ::MIME"text/plain", tp::InstructionTape)
+    show(io, tp)
+    if (@atomic tp.last) isa Finished
+        instrs = instructions(tp)
+        if !isempty(instrs)
+            println(io, ":")
+            Base.print_array(io, instrs)
+        end
+    end
+    return nothing
 end

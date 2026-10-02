@@ -587,13 +587,13 @@ A = TrackedArray{BigInt, Float64, 1, Array{BigInt, 1}, Array{Float64, 1}}
 T = TrackedReal{BigInt, Float64, A}
 
 t2 = convert(TrackedReal{BigFloat, BigFloat, Nothing}, ta1)
-@test length(tp) == 1
-instr = tp[1]
+recorded = take_recorded!(tp)
+@test length(recorded) == 1
+instr = first(recorded)
 @test instr.func === convert
 @test instr.input === ta1
 @test samefields(instr.output, TrackedReal(big(varr[1]), big(darr[1]), tp))
 @test instr.cache === nothing
-empty!(tp)
 
 @test_throws ArgumentError convert(Float64, tr)
 @test_throws ArgumentError convert(BigFloat, tr)
@@ -643,38 +643,38 @@ ta_sub = ta[:, :]
 idx = ReverseDiff.index_iterable(axes(ta), (:, :))
 @test collect(idx) == [(i, j) for i in 1:3, j in 1:3]
 @test samefields(ta_sub, ta)
-@test length(tp) == 1
-instr = tp[1]
+recorded = take_recorded!(tp)
+@test length(recorded) == 1
+instr = first(recorded)
 @test instr.func === getindex
 @test instr.input === (ta, idx)
 @test samefields(instr.output, ta)
 @test instr.cache === nothing
-empty!(tp)
 
 for T in (UInt, Int)
     ta_sub = ta[:, T(1):T(2)]
     idx = ReverseDiff.index_iterable(axes(ta), (:, T(1):T(2)))
     @test collect(idx) == [(i, j) for i in 1:3, j in 1:2]
     @test samefields(ta_sub, TrackedArray(varr[:, 1:2], darr[:, 1:2], tp))
-    @test length(tp) == 1
-    instr = tp[1]
+    recorded = take_recorded!(tp)
+    @test length(recorded) == 1
+    instr = first(recorded)
     @test instr.func === getindex
     @test instr.input === (ta, idx)
     @test samefields(instr.output, TrackedArray(varr[:, 1:2], darr[:, 1:2], tp))
     @test instr.cache === nothing
-    empty!(tp)
 
     ta_sub = ta[T(2):T(3), :]
     idx = ReverseDiff.index_iterable(axes(ta), (T(2):T(3), :))
     @test collect(idx) == [(i, j) for i in 2:3, j in 1:3]
     @test samefields(ta_sub, TrackedArray(varr[2:3, :], darr[2:3, :], tp))
-    @test length(tp) == 1
-    instr = tp[1]
+    recorded = take_recorded!(tp)
+    @test length(recorded) == 1
+    instr = first(recorded)
     @test instr.func === getindex
     @test instr.input === (ta, idx)
     @test samefields(instr.output, TrackedArray(varr[2:3, :], darr[2:3, :], tp))
     @test instr.cache === nothing
-    empty!(tp)
 
     S = T === UInt ? Int : UInt
     for U in (S, T)
@@ -682,39 +682,39 @@ for T in (UInt, Int)
         idx = ReverseDiff.index_iterable(axes(ta), (S(1):S(2), T(2):T(3)))
         @test collect(idx) == [(i, j) for i in 1:2, j in 2:3]
         @test samefields(ta_sub, TrackedArray(varr[1:2, 2:3], darr[1:2, 2:3], tp))
-        @test length(tp) == 1
-        instr = tp[1]
+        recorded = take_recorded!(tp)
+        @test length(recorded) == 1
+        instr = first(recorded)
         @test instr.func === getindex
         @test instr.input === (ta, idx)
         @test samefields(instr.output, TrackedArray(varr[1:2, 2:3], darr[1:2, 2:3], tp))
         @test instr.cache === nothing
-        empty!(tp)
     end
 
     ta_sub = ta[T(2):T(6)]
     idx = ReverseDiff.index_iterable(axes(ta), (T(2):T(6),))
     @test collect(idx) == [(i,) for i in 2:6]
     @test samefields(ta_sub, TrackedArray(varr[2:6], darr[2:6], tp))
-    @test length(tp) == 1
-    instr = tp[1]
+    recorded = take_recorded!(tp)
+    @test length(recorded) == 1
+    instr = first(recorded)
     @test instr.func === getindex
     @test instr.input === (ta, idx)
     @test samefields(instr.output, TrackedArray(varr[2:6], darr[2:6], tp))
     @test instr.cache === nothing
-    empty!(tp)
 end
 
 ta_sub = ta[:]
 idx = ReverseDiff.index_iterable(axes(ta), (:,))
 @test collect(idx) == [(i, j) for i in 1:3, j in 1:3]
 @test samefields(ta_sub, TrackedArray(varr[:], darr[:], tp))
-@test length(tp) == 1
-instr = tp[1]
+recorded = take_recorded!(tp)
+@test length(recorded) == 1
+instr = first(recorded)
 @test instr.func === getindex
 @test instr.input === (ta, idx)
 @test samefields(instr.output, TrackedArray(varr[:], darr[:], tp))
 @test instr.cache === nothing
-empty!(tp)
 
 # logical indices (`Bool <: Integer`, so they reach the generic `getindex`)
 rowmask, colmask = [true, false, true], BitVector([false, true, true])
@@ -722,8 +722,7 @@ mask = [true false true; false true false; true false true]
 
 for inds in ((rowmask, :), (:, colmask), (rowmask, 2:3), (mask,), (vec(mask),))
     @test samefields(@inferred(ta[inds...]), TrackedArray(varr[inds...], darr[inds...], tp))
-    @test length(tp) == 1
-    empty!(tp)
+    @test length(take_recorded!(tp)) == 1
 end
 
 # a 0-d array has no index to dispatch on (#126)
@@ -732,19 +731,18 @@ ta0 = TrackedArray(fill(varr[1]), fill(darr[1]), tp0)
 @test samefields(ta0[], ta0[1])
 @test samefields(ta0[], ta0[CartesianIndex()])
 @test ta0[].origin === ta0
-@test isempty(tp0)
+@test isempty(take_recorded!(tp0))
 
 # `view` aliases the parent's buffers, so nothing needs to be recorded
 ta_view = @inferred view(ta, :, 2)
 @test samefields(ta_view, TrackedArray(varr[:, 2], darr[:, 2], tp))
-@test isempty(tp)
+@test isempty(take_recorded!(tp))
 @test parent(ReverseDiff.value(ta_view)) === varr
 @test parent(ReverseDiff.deriv(ta_view)) === darr
 
 # views that aren't `IndexLinear` are materialized through `getindex` instead
 @test samefields(@inferred(view(ta, 1:2, :)), TrackedArray(varr[1:2, :], darr[1:2, :], tp))
-@test length(tp) == 1
-empty!(tp)
+@test length(take_recorded!(tp)) == 1
 
 # recording a view must not scale with its length
 function view_allocs(d)

@@ -29,6 +29,7 @@ function test_elementwise(f, fopt, x, tp)
     # record
     yt = map(fopt, xt)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -55,6 +56,7 @@ function test_elementwise(f, fopt, x, tp)
     # a function that returns no `Dual` has no derivative and is left off the tape
     tracked = f(ForwardDiff.Dual(first(x), 1.0)) isa ForwardDiff.Dual
     @test (yt isa ReverseDiff.TrackedArray) == tracked
+    ReverseDiff.finish!(tp)
     @test length(tp) == tracked
 
     # reverse
@@ -82,6 +84,7 @@ function test_map(f, fopt, a, b, tp)
     # record
     ct = map(fopt, at, b)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -103,6 +106,7 @@ function test_map(f, fopt, a, b, tp)
     # record
     ct = map(fopt, a, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -124,6 +128,7 @@ function test_map(f, fopt, a, b, tp)
     # record
     ct = map(fopt, at, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -167,6 +172,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     # record
     ct = g(at, b)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -188,6 +194,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     # record
     ct = g(a, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -209,6 +216,7 @@ function test_broadcast(f, fopt, a::AbstractArray, b::AbstractArray, tp, builtin
     # record
     ct = g(at, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -253,6 +261,7 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     # record
     yt = g(nt, x)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -274,6 +283,7 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     # record
     yt = g(n, xt)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -295,6 +305,7 @@ function test_broadcast(f, fopt, n::Number, x::AbstractArray, tp, builtin::Bool 
     # record
     yt = g(nt, xt)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -337,6 +348,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     # record
     yt = g(x, nt)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -358,6 +370,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     # record
     yt = g(xt, n)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -379,6 +392,7 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     # record
     yt = g(xt, nt)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse

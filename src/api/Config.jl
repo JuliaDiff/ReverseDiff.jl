@@ -105,7 +105,6 @@ function JacobianConfig(output::AbstractArray{D}, input::Tuple, tp::InstructionT
     return _JacobianConfig(cfg_input, cfg_output, tp)
 end
 
-# we dispatch on V<:Real here because InstructionTape is actually also an AbstractArray
 function JacobianConfig(output::AbstractArray{D}, input::AbstractArray{V}, tp::InstructionTape = InstructionTape()) where {D, V <: Real}
     cfg_input = track(similar(input), D, tp)
     cfg_output = track!(similar(output, TrackedReal{D, D, Nothing}), output, tp)

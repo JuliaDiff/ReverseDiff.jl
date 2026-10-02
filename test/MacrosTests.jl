@@ -41,18 +41,18 @@ function test_forward(f, x, tp)
     xt = ReverseDiff.TrackedReal(x, zero(x), tp)
 
     y = f(x)
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     yt = f(xt)
     @test yt == y
     dual = f(Dual(x, one(x)))
-    @test length(tp) == 1
-    instruction = first(tp)
+    recorded = take_recorded!(tp)
+    @test length(recorded) == 1
+    instruction = first(recorded)
     @test typeof(instruction) <: ReverseDiff.ScalarInstruction
     @test instruction.input === xt
     @test instruction.output === yt
     @test instruction.cache[] === partials(dual, 1)
-    empty!(tp)
     return nothing
 end
 
@@ -62,37 +62,37 @@ function test_forward(f, a, b, tp)
 
     c = f(a, b)
     dual = f(Dual(a, one(a), zero(a)), Dual(b, zero(b), one(b)))
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     tc = f(at, b)
     @test tc == c
-    @test length(tp) == 1
-    instruction = first(tp)
+    recorded = take_recorded!(tp)
+    @test length(recorded) == 1
+    instruction = first(recorded)
     @test typeof(instruction) <: ReverseDiff.ScalarInstruction
     @test instruction.input === (at, b)
     @test instruction.output === tc
     @test instruction.cache[] === SVector(partials(dual, 1), partials(dual, 1))
-    empty!(tp)
 
     tc = f(a, bt)
     @test tc == c
-    @test length(tp) == 1
-    instruction = first(tp)
+    recorded = take_recorded!(tp)
+    @test length(recorded) == 1
+    instruction = first(recorded)
     @test typeof(instruction) <: ReverseDiff.ScalarInstruction
     @test instruction.input === (a, bt)
     @test instruction.output === tc
     @test instruction.cache[] === SVector(partials(dual, 2), partials(dual, 2))
-    empty!(tp)
 
     tc = f(at, bt)
     @test tc == c
-    @test length(tp) == 1
-    instruction = first(tp)
+    recorded = take_recorded!(tp)
+    @test length(recorded) == 1
+    instruction = first(recorded)
     @test typeof(instruction) <: ReverseDiff.ScalarInstruction
     @test instruction.input === (at, bt)
     @test instruction.output === tc
     @test instruction.cache[] === SVector(partials(dual)...)
-    empty!(tp)
     return nothing
 end
 
@@ -142,11 +142,11 @@ function test_skip(g, x, tp)
     xt = ReverseDiff.TrackedReal(x, zero(x), tp)
 
     y = g(x)
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     yt = g(xt)
     @test yt === y
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
     return nothing
 end
 
@@ -155,19 +155,19 @@ function test_skip(g, a, b, tp)
     bt = ReverseDiff.TrackedReal(b, zero(b), tp)
 
     c = g(a, b)
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     tc = g(at, b)
     @test tc === c
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     tc = g(a, bt)
     @test tc === c
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     tc = g(at, bt)
     @test tc === c
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
     return nothing
 end
 
