@@ -528,4 +528,23 @@ end
     end
 end
 
+@testset "`map` with a skipped function is untracked" begin
+    a, b, c = [1.0, 2.0, 3.5], [2.0, 2.0, 1.0], 2.0
+
+    tp = InstructionTape()
+    at, bt = track(a, tp), track(b, tp)
+
+    for fsym in ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS
+        f = eval(fsym)
+        @test map(f, at) == map(f, a)
+    end
+    for fsym in ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS
+        f = eval(fsym)
+        for (x, y) in ((at, bt), (a, bt), (at, b), (c, bt), (at, c))
+            @test map(f, x, y) == map(f, ReverseDiff.value(x), ReverseDiff.value(y))
+        end
+    end
+    @test isempty(take_recorded!(tp))
+end
+
 end # module

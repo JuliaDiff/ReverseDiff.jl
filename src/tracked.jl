@@ -578,8 +578,18 @@ end
 idstr(x) = string(objectid(x), base = 62)[1:3]
 
 function Base.show(io::IO, t::TrackedReal)
-    tape_id = hastape(t) ? idstr(t.tape) : "---"
-    origin_id = hasorigin(t) ? "$(t.index), $(idstr(t.origin))" : "---"
-    id = idstr(t)
-    return print(io, "TrackedReal<$(id)>($(value(t)), $(deriv(t)), $(tape_id), $(origin_id))")
+    print(io, "TrackedReal<", idstr(t), ">(", value(t), ", ", deriv(t), ", ")
+    if hastape(t)
+        print(io, idstr(t.tape))
+    else
+        print(io, "---")
+    end
+    print(io, ", ")
+    if hasorigin(t)
+        print(io, t.index, ", ", idstr(t.origin))
+    else
+        print(io, "---")
+    end
+    print(io, ")")
+    return nothing
 end

@@ -99,11 +99,10 @@ end
 
 _no_tracked_dest() = throw(ArgumentError("`TrackedArray`s do not support `setindex!` and cannot be used as a broadcast destination. Use `y = f.(x)` instead."))
 
+# `.=` combines the destination's style, so a `TrackedArray` destination is always `TrackedStyle`
 Base.copyto!(::TrackedArray, ::Broadcasted{<:TrackedStyle}) = _no_tracked_dest()
-Base.copyto!(::TrackedArray, ::Broadcasted{<:DefaultArrayStyle}) = _no_tracked_dest()
 # more specific than `Base`'s 0-dimensional method
 Base.copyto!(::TrackedArray, ::Broadcasted{TrackedStyle{0}}) = _no_tracked_dest()
-Base.copyto!(::TrackedArray, ::Broadcasted{DefaultArrayStyle{0}}) = _no_tracked_dest()
 
 getouttype(::TrackedReal{<:Any, D}) where {D} = D
 getouttype(::AbstractArray{<:TrackedReal{<:Any, D}}) where {D} = D
@@ -269,7 +268,7 @@ function checkargvalues(::Type{D}, v) where {D}
         for x in v
             if x isa Dual
                 checkargtags(D, typeof(x))
-            elseif !(x isa Real)
+            elseif x isa Union{Tuple, AbstractArray}
                 checkargvalues(D, x)
             end
         end
@@ -322,11 +321,10 @@ end
     output = instruction.output
     output_deriv = deriv(output)
     results, _, tag, targets = instruction.cache
-    T = typeof(tag)
     partials = reversepartials(results, input)
     foreach(targets) do (p, k, bound)
         x = getat(input, p)
-        istracked(x) && _br_add_to_deriv!(T, x, k, output_deriv, partials, bound)
+        istracked(x) && _br_add_to_deriv!(typeof(tag), x, k, output_deriv, partials, bound)
     end
     unseed!(output)
     return nothing

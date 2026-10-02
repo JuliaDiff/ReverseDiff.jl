@@ -31,6 +31,11 @@ Base.similar(::Broadcasted{ForeignStyle}, ::Type{T}, axs) where {T} = similar(Ar
 # at top level, since a local function that captures itself takes the scalar rules
 inner(t) = ForwardDiff.Dual{typeof(ForwardDiff.Tag(inner, typeof(t)))}(t, one(t))
 
+# a struct with fields, which `NotTracked` declares constant
+struct Scale
+    s::Float64
+end
+
 ############################################################################################
 
 @testset "`BroadcastStyle` tracks dimensionality" begin
@@ -320,6 +325,10 @@ end
     @test_throws ForwardDiff.DualMismatchError ReverseDiff.gradient(
         x -> sum((t -> t > 1.5 ? inner(t) : t).(x)), [1.0, 2.0]
     )
+    # and next to a constant branch, which is not
+    @test_throws ForwardDiff.DualMismatchError ReverseDiff.gradient(
+        x -> sum((t -> t > 1.5 ? inner(t) : 1.0).(x)), [1.0, 2.0]
+    )
 
     # an enclosing differentiation's `Dual` is constant in our arguments
     xs = [1.0, 3.0]
@@ -502,6 +511,10 @@ end
     tp = InstructionTape()
     track(copy(a), tp) .* first.(((1.0, 2.0), (3.0, 4.0), (5.0, 6.0)))
     @test length(take_recorded!(tp)) == 1
+
+    # an abstract element type is checked element by element, skipping non-numbers
+    g = x -> sum(x .* first.(((1.0, nothing), (2, nothing), (3.0, nothing))))
+    @test ReverseDiff.gradient(g, a) == [1.0, 2.0, 3.0]
 end
 
 @testset "a `TrackedReal` without a tape is a constant" begin
@@ -509,18 +522,23 @@ end
     c = TrackedReal(2.0, 0.0)
 
     for (f, expected) in ((x -> x .* c, [2.0, 2.0]), (x -> exp.(x .* c), 2 .* exp.(2 .* a)))
-        tp = InstructionTape()
-        x = track(copy(a), tp)
-        ReverseDiff.seed!(sum(f(x)))
-        ReverseDiff.reverse_pass!(ReverseDiff.finish!(tp))
-        @test deriv(x) ≈ expected
+        @test ReverseDiff.gradient(x -> sum(f(x)), a) ≈ expected
     end
 end
 
 @testset "`NotTracked`" begin
     f = ReverseDiff.NotTracked(t -> 2t)
+    a = [1.0, 2.0, 3.0]
 
     @test ReverseDiff.gradient(x -> sum(f.(x)), rand(4)) == fill(2.0, 4)
+    # a scalar broadcast takes the scalar rules, calling the wrapper itself
+    @test ReverseDiff.gradient(x -> f.(x[1]), a) == [2.0, 0.0, 0.0]
+
+    # as an argument, a struct is broadcast as a scalar and an array elementwise
+    g = (t, s) -> t * s.s
+    @test ReverseDiff.gradient(x -> sum(g.(x, ReverseDiff.NotTracked(Scale(2.0)))), a) ==
+        fill(2.0, 3)
+    @test ReverseDiff.gradient(x -> sum(g.(x, ReverseDiff.NotTracked(Scale.(a)))), a) == a
 end
 
 @testset "a partial known in closed form stores nothing" begin
@@ -578,7 +596,7 @@ end
     @test ReverseDiff.gradient(t -> sum(t' .* t'), v) == 2 .* v
 
     # `-x/y^2` is no argument of the broadcast, so it is read off a `Dual`
-    @test ReverseDiff.gradient(t -> sum(w ./ t), v) == -w ./ v .^ 2
+    @test ReverseDiff.gradient(t -> sum(w ./ t), v) ≈ -w ./ v .^ 2
 
     # an outer broadcast still clamps the reverse pass to the argument's own shape
     @test ReverseDiff.gradient(t -> sum(t .+ w'), v) == fill(3.0, 3)

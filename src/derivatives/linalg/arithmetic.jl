@@ -286,7 +286,8 @@ function reverse_mul!(output, output_deriv, a, b, a_tmp, b_tmp)
             increment_deriv!(a, structured_mul!(a_tmp, output_deriv, transpose(value(b))))
         end
     end
-    return istracked(b) && increment_deriv!(b, structured_mul!(b_tmp, transpose(value(a)), output_deriv))
+    istracked(b) && increment_deriv!(b, structured_mul!(b_tmp, transpose(value(a)), output_deriv))
+    return nothing
 end
 
 ## zero
