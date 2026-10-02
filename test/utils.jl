@@ -19,7 +19,7 @@ test_println(kind, f, pad = "  ") = println(pad, "testing $(kind): `$(f)`...")
 
 # finish recording onto `tp`, return the recorded instructions, and start recording again
 function take_recorded!(tp::InstructionTape)
-    instructions = collect(ReverseDiff.finish!(tp))
+    instructions = copy(ReverseDiff.instructions(ReverseDiff.finish!(tp)))
     empty!(tp)
     return instructions
 end

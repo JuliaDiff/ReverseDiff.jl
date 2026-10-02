@@ -23,12 +23,12 @@ for Instr in (SpecialInstruction, ScalarInstruction)
     tp = InstructionTape()
     ReverseDiff.record!(tp, Instr, +, (x, y, k), z, c)
     @test_throws ArgumentError length(tp)
-    @test_throws ArgumentError first(tp)
+    @test_throws ArgumentError ReverseDiff.instructions(tp)
     @test string(tp) == "InstructionTape (recording)"
     @test repr(MIME"text/plain"(), tp) == "InstructionTape (recording)"
     ReverseDiff.finish!(tp)
     @test length(tp) == 1
-    recorded = first(tp)
+    recorded = only(ReverseDiff.instructions(tp))
     @test recorded == instr
     @test recorded.func === +
     @test recorded.input[1] !== x
@@ -55,7 +55,11 @@ for Instr in (SpecialInstruction, ScalarInstruction)
     @test length(tp) == 2
 
     ReverseDiff.record!(NULL_TAPE, Instr, +, (x, y, k), z, c)
-    @test isempty(NULL_TAPE)
+    @test length(NULL_TAPE) == 0
+    @test repr(MIME"text/plain"(), NULL_TAPE) == "0-element InstructionTape"
+    # `NULL_TAPE` stays finished
+    empty!(NULL_TAPE)
+    @test length(NULL_TAPE) == 0
     @test repr(MIME"text/plain"(), NULL_TAPE) == "0-element InstructionTape"
 end
 

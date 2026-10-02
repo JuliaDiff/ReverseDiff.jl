@@ -46,14 +46,14 @@ function instructions(tp::InstructionTape)
     return tp.instructions
 end
 
-Base.iterate(tp::InstructionTape) = iterate(instructions(tp))
-Base.iterate(tp::InstructionTape, state) = iterate(instructions(tp), state)
-Base.eltype(::Type{InstructionTape}) = AbstractInstruction
 Base.length(tp::InstructionTape) = length(instructions(tp))
 
 function Base.empty!(tp::InstructionTape)
-    empty!(tp.instructions)
-    @atomic tp.last = nothing
+    # `NULL_TAPE` never records, so it stays finished
+    if tp !== NULL_TAPE
+        empty!(tp.instructions)
+        @atomic tp.last = nothing
+    end
     return tp
 end
 
@@ -192,9 +192,12 @@ end
 # like arrays, so that long tapes are truncated
 function Base.show(io::IO, ::MIME"text/plain", tp::InstructionTape)
     show(io, tp)
-    if (@atomic tp.last) isa Finished && !isempty(tp)
-        println(io, ":")
-        Base.print_array(io, instructions(tp))
+    if (@atomic tp.last) isa Finished
+        instrs = instructions(tp)
+        if !isempty(instrs)
+            println(io, ":")
+            Base.print_array(io, instrs)
+        end
     end
     return nothing
 end

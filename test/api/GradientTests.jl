@@ -510,12 +510,12 @@ end
     x = [1.0, 2.0]
     ∇f = ReverseDiff.gradient(f_serial, x)
     for _ in 1:20
-        test_approx(ReverseDiff.gradient(f, x), ∇f)
+        @test ReverseDiff.gradient(f, x) ≈ ∇f
     end
 
     # tape replay
     tape = ReverseDiff.compile(ReverseDiff.GradientTape(f, x))
-    test_approx(ReverseDiff.gradient!(similar(x), tape, x), ∇f)
+    @test ReverseDiff.gradient!(similar(x), tape, x) ≈ ∇f
 end
 
 end # module
