@@ -23,6 +23,7 @@ function test_forward(f, x, tp::InstructionTape, fsym::Symbol)
     # record
     yt = f(xt)
     @test yt == y
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -51,6 +52,7 @@ function test_forward(f, a, b, tp)
     # record
     ct = f(at, b)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -73,6 +75,7 @@ function test_forward(f, a, b, tp)
     # record
     ct = f(a, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -95,6 +98,7 @@ function test_forward(f, a, b, tp)
     # record
     ct = f(at, bt)
     @test ct == c
+    ReverseDiff.finish!(tp)
     @test length(tp) == 1
 
     # reverse
@@ -123,7 +127,7 @@ function test_skip(f, x, tp)
     y = f(x)
     yt = f(xt)
     @test yt == y
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
     return nothing
 end
 
@@ -134,15 +138,15 @@ function test_skip(f, a, b, tp)
 
     ct = f(at, b)
     @test ct == c
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     ct = f(a, bt)
     @test ct == c
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
 
     ct = f(at, bt)
     @test ct == c
-    @test isempty(tp)
+    @test isempty(take_recorded!(tp))
     return nothing
 end
 

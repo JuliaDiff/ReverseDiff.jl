@@ -3,7 +3,7 @@
 #########
 
 const NULL_INDEX = typemin(Int)
-const NULL_TAPE = InstructionTape()
+const NULL_TAPE = finish!(InstructionTape())
 
 # TrackedReal #
 #-------------#
