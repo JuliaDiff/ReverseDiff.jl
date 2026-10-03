@@ -890,4 +890,12 @@ for i in eachindex(trs)
     @test samefields(trs[i], track(varr[i], tp2))
 end
 
+###################
+# Pretty Printing #
+###################
+
+@test occursin(r"^TrackedReal<\w{3}>\(1\.0, 0\.0, ---, ---\)$", repr(TrackedReal(1.0, 0.0)))
+ta = TrackedArray([1.0, 2.0], [0.0, 3.0], InstructionTape())
+@test occursin(r"^TrackedReal<\w{3}>\(2\.0, 3\.0, \w{3}, 2, \w{3}\)$", repr(ta[2]))
+
 end

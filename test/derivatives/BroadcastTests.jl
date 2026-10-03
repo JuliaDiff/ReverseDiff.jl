@@ -285,8 +285,8 @@ end
             x -> sum(ifelse.(x .> 0, x, 0.0)) + sum(x),
         )
         tape = ReverseDiff.GradientTape(f, [-1.0, -2.0])
-        @test ReverseDiff.gradient!(tape, [1.0, 2.0]) == [2.0, 2.0]
-        @test ReverseDiff.gradient!(ReverseDiff.compile(tape), [1.0, 2.0]) == [2.0, 2.0]
+        @test ReverseDiff.gradient!(tape, [1.5, 2.5]) == [2.0, 2.0]
+        @test ReverseDiff.gradient!(ReverseDiff.compile(tape), [1.5, 2.5]) == [2.0, 2.0]
     end
     @test relu0.(track([-1.0, -2.0], InstructionTape())) isa TrackedArray
 
@@ -327,7 +327,7 @@ end
     @test_throws ForwardDiff.DualMismatchError ReverseDiff.gradient(
         x -> sum((t -> t > 1.5 ? inner(t) : t).(x)), [1.0, 2.0]
     )
-    # and next to a constant branch, which is not
+    # and next to a constant branch, which widens the results to `Real`
     @test_throws ForwardDiff.DualMismatchError ReverseDiff.gradient(
         x -> sum((t -> t > 1.5 ? inner(t) : 1.0).(x)), [1.0, 2.0]
     )
@@ -515,8 +515,13 @@ end
     @test length(take_recorded!(tp)) == 1
 
     # an abstract element type is checked element by element, skipping non-numbers
-    g = x -> sum(x .* first.(((1.0, nothing), (2, nothing), (3.0, nothing))))
+    b = ((1.0, nothing), (2.0, missing), (3.0, nothing))
+    g = x -> sum(x .* (p -> first(p)::Float64).(b))
     @test ReverseDiff.gradient(g, a) == [1.0, 2.0, 3.0]
+
+    tp = InstructionTape()
+    track(copy(a), tp) .* (p -> first(p)::Float64).(b)
+    @test length(take_recorded!(tp)) == 1
 end
 
 @testset "a `TrackedReal` without a tape is a constant" begin

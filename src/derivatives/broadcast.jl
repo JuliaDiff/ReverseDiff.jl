@@ -77,8 +77,8 @@ function remove_not_tracked(b::Broadcasted{style}) where {style}
 end
 
 function Base.copy(_bc::Broadcasted{<:TrackedStyle})
-    # scalars take the scalar derivative rules; ask the axes, since `TrackedStyle{Any}` carries
-    # no dimension and `LinearAlgebra` may pass an uninstantiated `Broadcasted`
+    # scalars take the scalar derivative rules. Ask the axes, since `TrackedStyle{Any}` carries
+    # no dimension and `LinearAlgebra` may pass an uninstantiated `Broadcasted`.
     if axes(_bc) isa Tuple{}
         return _bc[CartesianIndex()]
     end
@@ -238,8 +238,10 @@ end
 
 # the cache carries what the replay needs: `df` to recompute the stored partials, or, where
 # they are known already, `vf` for the values alone
-replaycache(::Type{T}, results::AbstractArray, df, _, _) where {T} =
-    (df, map(y -> ForwardDiff.value(T, y), results))
+function replaycache(::Type{T}, results::AbstractArray, df, _, _) where {T}
+    outvalue = similar(results, ForwardDiff.valtype(T, eltype(results)))
+    return df, map!(y -> ForwardDiff.value(T, y), outvalue, results)
+end
 replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
 
 # a perturbation riding on an argument ends up in the derivative, so `D` has to be able to hold it
@@ -288,16 +290,11 @@ end
 end
 
 # an enclosing differentiation's tag is constant in our arguments, while one nested inside
-# `f` buries our partial; a widened element type is a `Union`, so every member is checked
+# `f` buries our partial
 @inline function checktags(::Type{T}, ::Type{E}) where {T, E}
-    if E isa Union
-        checktags(T, E.a)
-        checktags(T, E.b)
-    else
-        S = ForwardDiff.tagtype(E)
-        if S !== Nothing && !ForwardDiff.:≺(S, T)
-            throw(ForwardDiff.DualMismatchError(T, S))
-        end
+    S = ForwardDiff.tagtype(E)
+    if S !== Nothing && !ForwardDiff.:≺(S, T)
+        throw(ForwardDiff.DualMismatchError(T, S))
     end
     return nothing
 end
@@ -322,7 +319,9 @@ end
     partials = reversepartials(results, input)
     foreach(targets) do (p, k, bound)
         x = getat(input, p)
-        istracked(x) && _br_add_to_deriv!(typeof(tag), x, k, output_deriv, partials, bound)
+        if istracked(x)
+            _br_add_to_deriv!(typeof(tag), x, k, output_deriv, partials, bound)
+        end
     end
     unseed!(output)
     return nothing
