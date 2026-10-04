@@ -239,8 +239,10 @@ end
 # the cache carries what the replay needs: `df` to recompute the stored partials, or, where
 # they are known already, `vf` for the values alone
 function replaycache(::Type{T}, results::AbstractArray, df, _, _) where {T}
-    outvalue = similar(results, ForwardDiff.valtype(T, eltype(results)))
-    return df, map!(y -> ForwardDiff.value(T, y), outvalue, results)
+    E = eltype(results)
+    # a widened `E`, such as `Any` or a `Dual` with free parameters, bounds the values by `Real`
+    V = isconcretetype(E) ? ForwardDiff.valtype(T, E) : Real
+    return df, map!(y -> ForwardDiff.value(T, y), similar(results, V), results)
 end
 replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
 
