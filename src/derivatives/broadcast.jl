@@ -301,10 +301,14 @@ end
     return nothing
 end
 
+# promoted instead of widened like `Broadcast.combine_eltypes`, so constant branches become `Dual`s
+promoteunion(::Type{E}) where {E} = E
+promoteunion(E::Union) = promote_type(promoteunion(E.a), promoteunion(E.b))
+
 # inferred, not read off the results, since a replay can take other branches and writes into
 # the results
 @inline function trackresults(::Type{T}, results::AbstractArray, df, vf, targs, vals) where {T}
-    E = Broadcast.combine_eltypes(df, vals)
+    E = promoteunion(Base.promote_op(df, map(eltype, vals)...))
     if typeintersect(E, Dual{T}) === Union{}
         checktags(T, E)
         return results

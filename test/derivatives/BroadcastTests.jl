@@ -274,7 +274,7 @@ end
     tp = InstructionTape()
     y = relu.(track(copy(a), tp))
 
-    @test y isa TrackedArray
+    @test y isa TrackedArray{Float64}
     @test value(y) == [0.0, 2.0]
     @test ReverseDiff.gradient(x -> sum(relu.(x)), a) == [0.0, 1.0]
 
@@ -288,7 +288,9 @@ end
         @test ReverseDiff.gradient!(tape, [1.5, 2.5]) == [2.0, 2.0]
         @test ReverseDiff.gradient!(ReverseDiff.compile(tape), [1.5, 2.5]) == [2.0, 2.0]
     end
-    @test relu0.(track([-1.0, -2.0], InstructionTape())) isa TrackedArray
+    x = track([-1.0, -2.0], InstructionTape())
+    @test relu0.(x) isa TrackedArray{Float64}
+    @test ifelse.(x .> 0, x, 0.0) isa TrackedArray{Float64}
 
     # a static array whose widened element type is not isbits
     tape = ReverseDiff.GradientTape(x -> sum(relu.(x)), MVector(-1.0, 2.0))
