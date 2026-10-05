@@ -31,6 +31,10 @@ Base.similar(::Broadcasted{ForeignStyle}, ::Type{T}, axs) where {T} = similar(Ar
 # at top level, since a local function that captures itself takes the scalar rules
 inner(t) = ForwardDiff.Dual{typeof(ForwardDiff.Tag(inner, typeof(t)))}(t, one(t))
 
+# a zero that inference only knows as `Real`
+const REALZERO = Ref{Real}(0.0)
+relureal(t) = t > 0 ? t : REALZERO[]
+
 # a struct with fields, which `NotTracked` declares constant
 struct Scale
     s::Float64
@@ -270,6 +274,14 @@ end
 
     @test ReverseDiff.gradient(x -> sum((t -> 1.0).(x)), a) == zeros(3)
     @test ReverseDiff.gradient(x -> sum(oneunit.(x)), a) == zeros(3)
+
+    # a function that returns no `Dual` is left untracked and off the tape
+    for f in (t -> 1.0, round, floor)
+        tp = InstructionTape()
+        y = f.(track(copy(a), tp))
+        @test y isa Vector{Float64}
+        @test isempty(take_recorded!(tp))
+    end
 end
 
 @testset "a type-unstable function keeps its partials" begin
@@ -301,6 +313,11 @@ end
     # a static array whose widened element type is not isbits
     tape = ReverseDiff.GradientTape(x -> sum(relu.(x)), MVector(-1.0, 2.0))
     @test ReverseDiff.gradient!(tape, MVector(1.0, 2.0)) == [1.0, 1.0]
+
+    # inferred as `Real`, so the constant branch's results stay plain numbers
+    @test ReverseDiff.gradient(x -> sum(relureal.(x)), a) == [0.0, 1.0]
+    tape = ReverseDiff.GradientTape(x -> sum(relureal.(x)), [-1.0, -2.0])
+    @test ReverseDiff.gradient!(tape, [1.5, 2.5]) == [1.0, 1.0]
 end
 
 @testset "the cached partials have a concrete element type" begin
@@ -350,23 +367,23 @@ end
     @test ForwardDiff.derivative(m, 1.0) == 1.0
 end
 
-@testset "a perturbation the derivative cannot hold is rejected (#67, #168)" begin
-    # `a` reaches the broadcast as a `Dual`, but the tape's derivatives are `Float64`
-    g(a) = sum(ReverseDiff.gradient(x -> sum(x .* a), [1.0, 2.0]))
-    E = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g), Float64}, Float64, 1}
-    msg = "a broadcast argument with element type $E carries a perturbation that a derivative of type Float64 cannot hold"
-
-    @test_throws ArgumentError(msg) ForwardDiff.derivative(g, 3.0)
-
-    # an abstract element type is checked element by element
-    g2(a) = sum(ReverseDiff.gradient(x -> sum(x .* Union{Float64, typeof(a)}[1.0, a]), [1.0, 2.0]))
-    E2 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g2), Float64}, Float64, 1}
-    msg2 = "a broadcast argument with element type $E2 carries a perturbation that a derivative of type Float64 cannot hold"
-    @test_throws ArgumentError(msg2) ForwardDiff.derivative(g2, 3.0)
+@testset "a perturbation the derivative cannot hold takes the scalar rules (#67, #168)" begin
+    # the scalar rules bury the tracked value in the `Dual`, which must not give a zero derivative
+    msg = "ForwardDiff cannot differentiate through ReverseDiff (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"
+    for g in (
+            # `a` reaches the broadcast as a `Dual`, but the tape's derivatives are `Float64`
+            a -> sum(ReverseDiff.gradient(x -> sum(x .* a), [1.0, 2.0])),
+            # an abstract element type is checked element by element
+            a -> sum(ReverseDiff.gradient(x -> sum(x .* Union{Float64, typeof(a)}[1.0, a]), [1.0, 2.0])),
+            a -> sum(ReverseDiff.gradient(x -> sum(x .* Real[1.0, a]), [1.0, 2.0])),
+            a -> sum(ReverseDiff.gradient(x -> x[1] * a, [1.0, 2.0])),
+            a -> sum(ReverseDiff.jacobian(x -> [x[1] * a, x[2]], [1.0, 2.0])),
+        )
+        @test_throws ArgumentError(msg) ForwardDiff.derivative(g, 3.0)
+    end
+    # a perturbation that never meets a tracked value leaves the derivative exact
     g3(a) = sum(ReverseDiff.gradient(x -> sum(ifelse.(x .> 5, x, Real[1.0, a])), [1.0, 2.0]))
-    E3 = ForwardDiff.Dual{ForwardDiff.Tag{typeof(g3), Float64}, Float64, 1}
-    msg3 = "a broadcast argument with element type $E3 carries a perturbation that a derivative of type Float64 cannot hold"
-    @test_throws ArgumentError(msg3) ForwardDiff.derivative(g3, 3.0)
+    @test ForwardDiff.derivative(g3, 3.0) == 0.0
 
     # a tape whose derivatives are themselves `Dual`s can hold it, so it is left alone
     h(a) = sum(
@@ -387,15 +404,6 @@ end
     xs = [1.0, 2.0]
     @test ForwardDiff.derivative(k, 3.0) ≈ sum(@. (xs^2 - 9) / (xs^2 + 9)^2)
 
-    # the scalar rules bury the tracked value in the `Dual`, which must not give a zero derivative
-    msg4 = "ForwardDiff cannot differentiate through ReverseDiff (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"
-    for g4 in (
-            a -> sum(ReverseDiff.gradient(x -> x[1] * a, [1.0, 2.0])),
-            a -> sum(ReverseDiff.gradient(x -> sum(x .* Real[1.0, a]), [1.0, 2.0])),
-            a -> sum(ReverseDiff.jacobian(x -> [x[1] * a, x[2]], [1.0, 2.0])),
-        )
-        @test_throws ArgumentError(msg4) ForwardDiff.derivative(g4, 3.0)
-    end
     # storing the `Dual` as a tracked number would cut it off the tape
     msg5 = "this nesting of ForwardDiff and ReverseDiff is not supported: a `Dual` of tracked numbers cannot be converted to a tracked number (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"
     function g5(a)
@@ -416,12 +424,16 @@ end
         x -> ForwardDiff.derivative(a -> sum([x[1] * a^2, x[2]]), 2.0),
         [1.0, 2.0]
     ) == [4.0, 0.0]
+    # and through a broadcast, also on a replay
+    r = x -> ForwardDiff.derivative(a -> sum(x .* a^2), 2.0)
+    @test ReverseDiff.gradient(r, [1.0, 2.0]) == [4.0, 4.0]
+    @test ReverseDiff.gradient!(ReverseDiff.GradientTape(r, [1.0, 2.0]), [3.0, 4.0]) == [4.0, 4.0]
+    @test ReverseDiff.gradient(x -> ForwardDiff.derivative(a -> sum(x * a^2), 2.0), [1.0, 2.0]) ==
+        [4.0, 4.0]
 
     # also when the perturbation comes from an enclosing broadcast
     f(x) = sum(broadcast(a -> ReverseDiff.gradient(y -> sum(y .* a), [1.0])[1], x))
-    @test_throws "carries a perturbation that a derivative of type Float64 cannot hold" ReverseDiff.gradient(
-        f, [2.0, 3.0]
-    )
+    @test_throws ArgumentError(msg) ReverseDiff.gradient(f, [2.0, 3.0])
 end
 
 @testset "zero-dimensional arrays (#265)" begin

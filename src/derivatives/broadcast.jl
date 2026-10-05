@@ -28,7 +28,7 @@ mayhidetracked(b::SkipOptimize) = mayhidetracked(b.f)
 mayhidetracked(b::Broadcasted) = mayhidetracked(b.f) || any(mayhidetracked, b.args)
 
 _mayhidetracked(::Type{<:NotTracked}) = false
-# nothing inside an argument is seeded, so ask about the element type, not the container
+# elements that are not `Real` are not seeded, so ask about the element type, not the container
 _mayhidetracked(::Type{<:AbstractArray{F}}) where {F} = _mayhidetracked(F)
 # a type that is not concrete, such as `Type{T}` or an abstract type, may have fields
 _mayhidetracked(::Type{F}) where {F} = !isconcretetype(F) || fieldcount(F) > 0
@@ -85,11 +85,12 @@ function Base.copy(_bc::Broadcasted{<:TrackedStyle})
     end
     flattened_bc = Base.Broadcast.flatten(bc)
     f, args = flattened_bc.f, flattened_bc.args
-    # only the arguments are seeded, not e.g. a closure's captures, and a `TrackedArray`
-    # holds only `Real`s
+    # only the arguments are seeded, not e.g. a closure's captures, a `TrackedArray` holds
+    # only `Real`s, and the derivatives have to hold the arguments' perturbations
     if !mayhidetracked(_bc)
         vals = map(value, args)
-        if Broadcast.combine_eltypes(f, vals) <: Real
+        D = mapreduce(getouttype, promote_type, args)
+        if Broadcast.combine_eltypes(f, vals) <: Real && all(v -> holdsperturbations(D, v), vals)
             return ∇broadcast(f, args, vals)
         end
     end
@@ -101,6 +102,18 @@ end
 getouttype(::TrackedReal{<:Any, D}) where {D} = D
 getouttype(::AbstractArray{<:TrackedReal{<:Any, D}}) where {D} = D
 getouttype(::Any) = Union{}
+
+# a perturbation riding on an argument ends up in the derivative, so `D` has to hold it. An
+# abstract element type such as `Real` can hide one.
+holdsperturbations(::Type, _) = true
+function holdsperturbations(::Type{D}, v::Union{Real, AbstractArray, Tuple}) where {D}
+    E = eltype(v)
+    if isconcretetype(E)
+        return ForwardDiff.tagtype(E) === Nothing || promote_type(D, E) <: D
+    else
+        return all(x -> holdsperturbations(D, x), v)
+    end
+end
 
 deref(x) = x
 deref(x::Base.RefValue) = x[]
@@ -242,41 +255,8 @@ function replaycache(::Type{T}, results::AbstractArray, df, _, _) where {T}
 end
 replaycache(::Type, ::KnownPartials, _, vf, vals) = (vf, broadcast(vf, vals...))
 
-# a perturbation riding on an argument ends up in the derivative, so `D` has to be able to hold it
-@inline function checkargtags(::Type{D}, ::Type{E}) where {D, E}
-    if ForwardDiff.tagtype(E) !== Nothing && !(promote_type(D, E) <: D)
-        throw(
-            ArgumentError(
-                LazyString(
-                    "a broadcast argument with element type ", E,
-                    " carries a perturbation that a derivative of type ", D,
-                    " cannot hold"
-                )
-            )
-        )
-    end
-    return nothing
-end
-
-# an abstract element type such as `Real` can hide a perturbation
-function checkargvalues(::Type{D}, v) where {D}
-    if isconcretetype(eltype(v))
-        checkargtags(D, eltype(v))
-    else
-        for x in v
-            if x isa Dual
-                checkargtags(D, typeof(x))
-            elseif x isa Union{Tuple, AbstractArray}
-                checkargvalues(D, x)
-            end
-        end
-    end
-    return nothing
-end
-
 @inline function recordresults(::Type{T}, results, df, vf, targs, vals) where {T}
     D = mapreduce(getouttype, promote_type, targs)
-    foreach(v -> checkargvalues(D, v), vals)
     replayf, outvalue = replaycache(T, results, df, vf, vals)
     tp = tape(targs...)
     out = track(outvalue, D, tp)

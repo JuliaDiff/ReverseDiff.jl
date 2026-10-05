@@ -216,6 +216,9 @@ function checkoutput(::Dual{<:Any, <:TrackedReal})
     throw(ArgumentError("ForwardDiff cannot differentiate through ReverseDiff (see https://github.com/JuliaDiff/ReverseDiff.jl/issues/45)"))
 end
 
+function seed!(x)
+    throw(ArgumentError(LazyString("an output must hold real numbers, but holds an element of type ", typeof(x))))
+end
 seed!(x::Real) = checkoutput(x)
 seed!(t::TrackedReal) = (t.deriv = one(derivtype(t)); push_deriv!(t); nothing)
 seed!(t::TrackedArray, i) = (t.deriv[i] = one(derivtype(t)); nothing)

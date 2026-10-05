@@ -176,10 +176,11 @@ function contract_increment_deriv!(
         input::TrackedReal, x::AbstractArray, e::Contract,
         args::Tuple, ::Nothing
     )
-    isempty(x) && return nothing
-    pull_deriv!(input)
-    input.deriv += sum(i -> _contract(e, x[i], i, args), eachindex(x))
-    push_deriv!(input)
+    if !isempty(x)
+        pull_deriv!(input)
+        input.deriv += sum(i -> _contract(e, x[i], i, args), eachindex(x))
+        push_deriv!(input)
+    end
     return nothing
 end
 
