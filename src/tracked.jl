@@ -552,10 +552,6 @@ writable(x::SArray) = copyto!(similar(x), x)
 writable(x::Adjoint) = adjoint(writable(parent(x)))
 writable(x::Transpose) = transpose(writable(parent(x)))
 
-# the replay writes into broadcast results, which a static array may reject
-writable(results::AbstractArray, ::Type{E}) where {E} = convert(AbstractArray{E}, results)
-writable(results::StaticArray, ::Type{E}) where {E} = copyto!(similar(results, E), results)
-
 # every forward pass writes into the value buffer, which a `TrackedArray` rejects
 # TODO: self-nesting, and the `value`/`track` unwrapping elsewhere, risk perturbation confusion (#45)
 track(x::TrackedArray, ::Type{D}, tp::InstructionTape = InstructionTape()) where {D} = track(collect(x), D, tp)

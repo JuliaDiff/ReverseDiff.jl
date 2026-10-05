@@ -5,7 +5,7 @@ amount scaled by the output's derivative(s). Sometimes, extra partial informatio
 form of normal scalars/arrays, or `Dual` numbers) needs to accounted for as well.
 
 Often, a function's input and output values are not similarly shaped. To account for these
-cases, the propagation functions take an index bound that clamps the output's indices to the input's.
+cases, the propagation functions take an index bound that clamps indices into the smaller array.
 Accumulations into a scalar derivative go through `sum`, whose pairwise reduction is both more
 accurate and faster than a sequential loop.
 

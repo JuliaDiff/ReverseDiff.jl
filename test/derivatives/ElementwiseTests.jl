@@ -54,7 +54,8 @@ function test_elementwise(f, fopt, x, tp)
     yt = broadcast(fopt, xt)
     @test yt == y
     # a function that returns no `Dual` has no derivative and is left off the tape
-    tracked = f(ForwardDiff.Dual(first(x), 1.0)) isa ForwardDiff.Dual
+    T = typeof(ForwardDiff.Tag(f, eltype(x)))
+    tracked = f(ForwardDiff.Dual{T}(first(x), one(eltype(x)))) isa ForwardDiff.Dual
     @test (yt isa ReverseDiff.TrackedArray) == tracked
     ReverseDiff.finish!(tp)
     @test length(tp) == tracked
@@ -64,12 +65,14 @@ function test_elementwise(f, fopt, x, tp)
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
     test_approx(out, ForwardDiff.jacobian(z -> broadcast(f, z), x); nans = true)
 
-    # forward
-    x2 = x .- offset
-    ReverseDiff.value!(xt, x2)
-    ReverseDiff.forward_pass!(tp)
-    @test yt == broadcast(f, x2)
-    ReverseDiff.value!(xt, x)
+    # forward, which cannot reach an untracked result (#313)
+    if tracked
+        x2 = x .- offset
+        ReverseDiff.value!(xt, x2)
+        ReverseDiff.forward_pass!(tp)
+        @test yt == broadcast(f, x2)
+        ReverseDiff.value!(xt, x)
+    end
 
     empty!(tp)
     return nothing

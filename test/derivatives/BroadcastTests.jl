@@ -36,6 +36,14 @@ struct Scale
     s::Float64
 end
 
+# bytes allocated by recording `f`
+function recordbytes(f, args...)
+    tp = InstructionTape()
+    targs = map(a -> track(a, tp), args)
+    f(targs...)
+    return @allocated f(targs...)
+end
+
 ############################################################################################
 
 @testset "`BroadcastStyle` tracks dimensionality" begin
@@ -140,14 +148,14 @@ end
 @testset "`@forward` and `@skip` wrappers do not force the fallback path" begin
     tp = InstructionTape()
     x = track(rand(3, 3), tp)
-    y = broadcast(ReverseDiff.ForwardOptimize(exp), x)
+    y = ReverseDiff.@forward(exp).(x)
     @test y isa TrackedArray
     @test length(take_recorded!(tp)) == 1
 
     # `@skip` results are untracked, as with `map` and scalars
     tp = InstructionTape()
     x = track(rand(3, 3), tp)
-    y = broadcast(ReverseDiff.SkipOptimize(exp), x)
+    y = ReverseDiff.@skip(exp).(x)
     @test y isa Matrix{Float64}
     @test y == exp.(value(x))
     @test isempty(take_recorded!(tp))
@@ -159,7 +167,7 @@ end
     @test ReverseDiff.hessian(f, a) ≈ zeros(3, 3)
 
     # arrays too
-    s = ReverseDiff.SkipOptimize(v -> sum(exp, v))
+    s = ReverseDiff.@skip(v -> sum(exp, v))
     @test ReverseDiff.gradient(v -> sum(v) * s(v), a) ≈ fill(sum(exp, a), 3)
     @test ReverseDiff.hessian(v -> sum(v) * s(v), a) == zeros(3, 3)
 end
@@ -298,10 +306,10 @@ end
 end
 
 @testset "the cached partials have a concrete element type" begin
-    # the inferred element type decides what is recorded
-    tp = InstructionTape()
-    track(rand(3), tp) .^ 2
-    @test isconcretetype(eltype(first(only(take_recorded!(tp)).cache)))
+    # one 16 B `Dual` per element besides the output's value and derivative, where boxed
+    # partials would take far more
+    n = 10_000
+    @test recordbytes(t -> t .^ 2, rand(n)) < 40n
 end
 
 @testset "a non-`Real` result keeps its partials" begin
@@ -562,18 +570,13 @@ end
     @test ReverseDiff.gradient(x -> sum(g.(x, ReverseDiff.NotTracked(Scale(2.0)))), a) ==
         fill(2.0, 3)
     @test ReverseDiff.gradient(x -> sum(g.(x, ReverseDiff.NotTracked(Scale.(a)))), a) == a
+    @test ReverseDiff.gradient(x -> g.(x[1], ReverseDiff.NotTracked(Scale(2.0))), a) ==
+        [2.0, 0.0, 0.0]
 end
 
 @testset "a partial known in closed form stores nothing" begin
     n = 10_000
     v, w = rand(n), rand(n)
-
-    function recordbytes(f, args...)
-        tp = InstructionTape()
-        targs = map(a -> track(a, tp), args)
-        f(targs...)
-        return @allocated f(targs...)
-    end
 
     # bytes allocated by the whole recording: the output's value and derivative take 8 B per
     # element each, and one `Dual` per element would add at least 16 B more
@@ -620,6 +623,7 @@ end
 
     # `-x/y^2` is no argument of the broadcast, so it is read off a `Dual`
     @test ReverseDiff.gradient(t -> sum(w ./ t), v) ≈ -w ./ v .^ 2
+    @test ReverseDiff.gradient(t -> sum(t .\ w), v) ≈ -w ./ v .^ 2
 
     # an outer broadcast still clamps the reverse pass to the argument's own shape
     @test ReverseDiff.gradient(t -> sum(t .+ w'), v) == fill(3.0, 3)
@@ -658,6 +662,11 @@ end
     tape2 = ReverseDiff.GradientTape(t -> sum(t .* t), [1.0, 2.0, 3.0])
     @test ReverseDiff.gradient!(tape2, x) == 2 .* x
     @test ReverseDiff.gradient!(ReverseDiff.compile(tape2), x) == 2 .* x
+
+    # also when the argument is an array of `TrackedReal`s
+    tape3 = ReverseDiff.GradientTape(t -> sum(t .* [t[i] for i in 1:3]), [1.0, 2.0, 3.0])
+    @test ReverseDiff.gradient!(tape3, x) == 2 .* x
+    @test ReverseDiff.gradient!(ReverseDiff.compile(tape3), x) == 2 .* x
 end
 
 end # module

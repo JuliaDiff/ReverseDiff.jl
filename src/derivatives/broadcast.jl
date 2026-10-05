@@ -77,12 +77,13 @@ function remove_not_tracked(b::Broadcasted{style}) where {style}
 end
 
 function Base.copy(_bc::Broadcasted{<:TrackedStyle})
+    bc = remove_not_tracked(_bc)
     # scalars take the scalar derivative rules. Ask the axes, since `TrackedStyle{Any}` carries
     # no dimension and `LinearAlgebra` may pass an uninstantiated `Broadcasted`.
     if axes(_bc) isa Tuple{}
-        return _bc[CartesianIndex()]
+        return bc[CartesianIndex()]
     end
-    flattened_bc = Base.Broadcast.flatten(remove_not_tracked(_bc))
+    flattened_bc = Base.Broadcast.flatten(bc)
     f, args = flattened_bc.f, flattened_bc.args
     # only the arguments are seeded, not e.g. a closure's captures, and a `TrackedArray`
     # holds only `Real`s
@@ -173,7 +174,7 @@ const RealOrArray = Union{Real, AbstractArray{<:Real}}
 # an argument read at the output's own index has to span the whole output
 ifsameshape(c::Contract, x, y) = (x isa Real || y isa Real || axes(x) == axes(y)) ? c : nothing
 
-# partial with respect to argument `i`, or `nothing`. Requiring every argument to be
+# partial with respect to the argument at the given position, or `nothing`. Requiring every argument to be
 # `RealOrArray` makes positions in `args` positions in the arguments `splitargs` keeps.
 knownpartial(f, ::Val, args) = nothing
 
@@ -305,6 +306,10 @@ end
 promoteunion(::Type{E}) where {E} = E
 promoteunion(E::Union) = promote_type(promoteunion(E.a), promoteunion(E.b))
 
+# the replay writes values of type `E` into the results, which a static array may reject
+replayable(results::AbstractArray, ::Type{E}) where {E} = convert(AbstractArray{E}, results)
+replayable(results::StaticArray, ::Type{E}) where {E} = copyto!(similar(results, E), results)
+
 # inferred, not read off the results, since a replay can take other branches and writes into
 # the results
 @inline function trackresults(::Type{T}, results::AbstractArray, df, vf, targs, vals) where {T}
@@ -313,7 +318,7 @@ promoteunion(E::Union) = promote_type(promoteunion(E.a), promoteunion(E.b))
         checktags(T, E)
         return results
     else
-        return recordresults(T, writable(results, E), df, vf, targs, vals)
+        return recordresults(T, replayable(results, E), df, vf, targs, vals)
     end
 end
 
