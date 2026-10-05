@@ -53,9 +53,10 @@ function test_elementwise(f, fopt, x, tp)
     # record
     yt = broadcast(fopt, xt)
     @test yt == y
-    # a function that returns no `Dual` has no derivative and is left off the tape
+    # a function inferred to return no `Dual` has no derivative and is left off the tape
     T = typeof(ForwardDiff.Tag(f, eltype(x)))
-    tracked = f(ForwardDiff.Dual{T}(first(x), one(eltype(x)))) isa ForwardDiff.Dual
+    R = Base.promote_op(f, ForwardDiff.Dual{T, eltype(x), 1})
+    tracked = typeintersect(R, ForwardDiff.Dual) !== Union{}
     @test (yt isa ReverseDiff.TrackedArray) == tracked
     ReverseDiff.finish!(tp)
     @test length(tp) == tracked

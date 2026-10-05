@@ -424,7 +424,7 @@ Base.@propagate_inbounds function Base.view(t::TrackedArray, inds::ViewIndex...)
     return TrackedArray(v, view(deriv(t), inds...), tape(t))
 end
 
-Base.setindex!(t::TrackedArray, args...) = error("TrackedArrays do not support setindex!")
+Base.setindex!(t::TrackedArray, args...) = throw(ArgumentError("`TrackedArray`s do not support `setindex!`, so they cannot be assigned to or used as a broadcast destination. Use `y = f.(x)` instead."))
 
 Base.IndexStyle(::TrackedArray) = IndexLinear()
 

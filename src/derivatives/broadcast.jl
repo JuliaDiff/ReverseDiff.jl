@@ -27,8 +27,8 @@ mayhidetracked(b::ForwardOptimize) = mayhidetracked(b.f)
 mayhidetracked(b::SkipOptimize) = mayhidetracked(b.f)
 mayhidetracked(b::Broadcasted) = mayhidetracked(b.f) || any(mayhidetracked, b.args)
 
-# nothing inside an argument is seeded, so ask about the element type, not the container
 _mayhidetracked(::Type{<:NotTracked}) = false
+# nothing inside an argument is seeded, so ask about the element type, not the container
 _mayhidetracked(::Type{<:AbstractArray{F}}) where {F} = _mayhidetracked(F)
 # a type that is not concrete, such as `Type{T}` or an abstract type, may have fields
 _mayhidetracked(::Type{F}) where {F} = !isconcretetype(F) || fieldcount(F) > 0
@@ -97,11 +97,6 @@ function Base.copy(_bc::Broadcasted{<:TrackedStyle})
     style = typeof(reduce(Broadcast.result_style, map(untrackedstyle, elargs)))
     return copy(Broadcast.instantiate(Broadcasted{style}(f, elargs)))
 end
-
-_no_tracked_dest() = throw(ArgumentError("`TrackedArray`s do not support `setindex!` and cannot be used as a broadcast destination. Use `y = f.(x)` instead."))
-
-# `.=` hands `copyto!` the source's style, not the destination's, so catch the destination here
-Broadcast.materialize!(::TrackedArray, ::Broadcasted) = _no_tracked_dest()
 
 getouttype(::TrackedReal{<:Any, D}) where {D} = D
 getouttype(::AbstractArray{<:TrackedReal{<:Any, D}}) where {D} = D

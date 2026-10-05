@@ -172,6 +172,7 @@ end
     output = instruction.output
     output_deriv = deriv(output)
     results = first(instruction.cache)
+    # a `DiffResult` holds partials ForwardDiff already extracted, so there is no tag to check
     if istracked(input)
         diffresult_increment_deriv!(Nothing, input, output_deriv, results, 1)
     else

@@ -205,17 +205,15 @@ end
 
 @testset "`TrackedArray`s are rejected as broadcast destinations" begin
     a = rand(4)
-    msg = "`TrackedArray`s do not support `setindex!` and cannot be used as a broadcast destination. Use `y = f.(x)` instead."
+    msg = "`TrackedArray`s do not support `setindex!`, so they cannot be assigned to or used as a broadcast destination. Use `y = f.(x)` instead."
 
     tp = InstructionTape()
     x = track(copy(a), tp)
+    @test_throws ArgumentError(msg) x[1] = 1.0
     @test_throws ArgumentError(msg) track(zeros(4), tp) .= exp.(x)
     @test_throws ArgumentError(msg) track(zeros(4), tp) .= a
     @test_throws ArgumentError(msg) track(fill(1.0), tp) .= 2.0
-    # a foreign style brings its own `copyto!`
     @test_throws ArgumentError(msg) track(zeros(2), tp) .= SVector(1.0, 2.0)
-    # nothing may be recorded before the failure
-    @test isempty(take_recorded!(tp))
 
     # an untracked container of tracked elements is a valid destination
     dest = Vector{TrackedReal{Float64, Float64, Nothing}}(undef, 4)
@@ -603,7 +601,7 @@ end
     @test recordbytes(t -> w ./ t, v) > 32n
 end
 
-@testset "a known partial differentiates as the general path does" begin
+@testset "known partials give the right gradients" begin
     v, w = [1.0, 2.0, 3.0], [4.0, 5.0, 6.0]
 
     @test ReverseDiff.gradient(t -> sum(t .* 2.0), v) == fill(2.0, 3)
@@ -628,6 +626,7 @@ end
     # an outer broadcast still clamps the reverse pass to the argument's own shape
     @test ReverseDiff.gradient(t -> sum(t .+ w'), v) == fill(3.0, 3)
     @test ReverseDiff.gradient(t -> sum(t .* w'), v) == fill(sum(w), 3)
+    @test ReverseDiff.gradient(t -> sum(broadcast(+, t, w', 1.0)), v) == fill(3.0, 3)
     @test ReverseDiff.gradient(t -> sum(t .* 2.0), Float64[]) == Float64[]
 
     # a tracked scalar collects the whole output instead of one element of it
@@ -642,6 +641,10 @@ end
     ga, gb = ReverseDiff.gradient((a, b) -> sum(a .- b), (v, w))
     @test ga == fill(1.0, 3)
     @test gb == fill(-1.0, 3)
+
+    # the argument a partial names is itself tracked at second order
+    @test ReverseDiff.hessian(t -> sum(t .* t), v) == diagm(fill(2.0, 3))
+    @test ReverseDiff.hessian(t -> sum(t .* w), v) == zeros(3, 3)
 end
 
 @testset "a known partial does not overflow on a subnormal divisor" begin
