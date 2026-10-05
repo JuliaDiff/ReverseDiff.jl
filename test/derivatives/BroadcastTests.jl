@@ -212,7 +212,7 @@ end
     # an untracked container of tracked elements is a valid destination
     dest = Vector{TrackedReal{Float64, Float64, Nothing}}(undef, 4)
     dest .= exp.(x)
-    @test value.(dest) ≈ exp.(a)
+    @test value(dest) ≈ exp.(a)
     # the elements carry the tape, so it must not be dropped on the way in
     @test all(d -> tape(d) === tp, dest)
 end
@@ -338,10 +338,10 @@ end
     xs = [1.0, 3.0]
     m(a) = sum(
         ReverseDiff.gradient(
-            x -> sum(ifelse.(x .> 2, x, a)), xs, ReverseDiff.GradientConfig(xs, typeof(a))
+            x -> sum(ifelse.(x .> 2, x, a) .* a), xs, ReverseDiff.GradientConfig(xs, typeof(a))
         )
     )
-    @test ForwardDiff.derivative(m, 1.0) == 0.0
+    @test ForwardDiff.derivative(m, 1.0) == 1.0
 end
 
 @testset "a perturbation the derivative cannot hold is rejected (#67, #168)" begin
@@ -363,8 +363,12 @@ end
     @test_throws ArgumentError(msg3) ForwardDiff.derivative(g3, 3.0)
 
     # a tape whose derivatives are themselves `Dual`s can hold it, so it is left alone
-    h(a) = ReverseDiff.gradient(x -> sum(x .* a), [ForwardDiff.Dual(1.0, 0.0)])
-    @test h(3.0) == [ForwardDiff.Dual(3.0, 0.0)]
+    h(a) = sum(
+        ReverseDiff.gradient(
+            x -> sum(x .* a), [1.0, 2.0], ReverseDiff.GradientConfig([1.0, 2.0], typeof(a))
+        )
+    )
+    @test ForwardDiff.derivative(h, 3.0) == 2.0
 
     # also when the tag without the perturbation was created first
     ReverseDiff.gradient(x -> sum(atan.(x, 2.0)), [1.0, 2.0])
@@ -409,7 +413,9 @@ end
 
     # also when the perturbation comes from an enclosing broadcast
     f(x) = sum(broadcast(a -> ReverseDiff.gradient(y -> sum(y .* a), [1.0])[1], x))
-    @test_throws ArgumentError ReverseDiff.gradient(f, [2.0, 3.0])
+    @test_throws "carries a perturbation that a derivative of type Float64 cannot hold" ReverseDiff.gradient(
+        f, [2.0, 3.0]
+    )
 end
 
 @testset "zero-dimensional arrays (#265)" begin
@@ -535,6 +541,14 @@ end
     end
 end
 
+@testset "a tracked value hidden from `∇broadcast` takes the scalar rules" begin
+    u = [2.0, 3.0, 5.0]
+    expected = [2 * u[1] + sum(u[2:end]), u[1], u[1]]
+
+    @test ReverseDiff.gradient(t -> sum((s -> s * t[1]).(t)), u) == expected
+    @test ReverseDiff.gradient(t -> sum(Ref(t[1]) .* t), u) == expected
+end
+
 @testset "`NotTracked`" begin
     f = ReverseDiff.NotTracked(t -> 2t)
     a = [1.0, 2.0, 3.0]
@@ -614,7 +628,8 @@ end
 
     # a tracked scalar collects the whole output instead of one element of it
     @test ReverseDiff.gradient(t -> sum(t[1] .+ w), v) == [3.0, 0.0, 0.0]
-    @test ReverseDiff.gradient(t -> sum(t .* t[1]), v) == [2 * v[1] + sum(v[2:end]), 1.0, 1.0]
+    u = [2.0, 3.0, 5.0]
+    @test ReverseDiff.gradient(t -> sum(t .* t[1]), u) == [2 * u[1] + sum(u[2:end]), u[1], u[1]]
 
     # an argument `splitargs` holds back is not one a partial may name
     @test ReverseDiff.gradient(t -> sum(Ref(2.0) .* t), v) == fill(2.0, 3)

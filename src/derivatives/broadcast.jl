@@ -325,6 +325,7 @@ end
     partials = reversepartials(results, input)
     foreach(targets) do (p, k, bound)
         x = getat(input, p)
+        # `capture` stores a `TrackedReal` without a tape as its value
         if istracked(x)
             _br_add_to_deriv!(typeof(tag), x, k, output_deriv, partials, bound)
         end
