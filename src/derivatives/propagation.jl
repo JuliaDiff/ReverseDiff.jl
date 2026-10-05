@@ -5,7 +5,7 @@ amount scaled by the output's derivative(s). Sometimes, extra partial informatio
 form of normal scalars/arrays, or `Dual` numbers) needs to accounted for as well.
 
 Often, a function's input and output values are not similarly shaped. To account for these
-cases, `diffresult` and `contract` versions of the propagation functions have been implemented.
+cases, the propagation functions take an index bound that clamps the output's indices to the input's.
 Accumulations into a scalar derivative go through `sum`, whose pairwise reduction is both more
 accurate and faster than a sequential loop.
 
