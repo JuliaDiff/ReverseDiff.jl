@@ -162,10 +162,11 @@ macro skip(ex)
     return esc(annotate_func_expr(:SkipOptimize, __module__, ex))
 end
 
-@inline (self::SkipOptimize{F})(args...) where {F} = self.f(map(value, args)...)
-@inline (self::SkipOptimize{F})(a) where {F} = self.f(value(a))
-@inline (self::SkipOptimize{F})(a, b) where {F} = self.f(value(a), value(b))
-@inline (self::SkipOptimize{F})(a, b, c) where {F} = self.f(value(a), value(b), value(c))
+skipvalue(x) = value(x)
+skipvalue(x::TrackedReal) = skipvalue(value(x))
+skipvalue(x::AbstractArray{<:TrackedReal}) = skipvalue(value(x))
+
+@inline (self::SkipOptimize{F})(args...) where {F} = self.f(map(skipvalue, args)...)
 
 """
     f(x) = dot(x, x)

@@ -129,10 +129,6 @@ end
 # multiplication (*) #
 ######################
 
-mulargvalue(x) = value(x)
-mulargvalue(x::Adjoint) = adjoint(value(adjoint(x)))
-mulargvalue(x::Transpose) = transpose(value(transpose(x)))
-
 mulargpullvalue!(x) = pull_value!(x)
 mulargpullvalue!(x::Adjoint) = pull_value!(adjoint(x))
 mulargpullvalue!(x::Transpose) = pull_value!(transpose(x))
@@ -163,14 +159,14 @@ end
 
 @inline function record_mul(x, y, ::Type{D}) where {D}
     tp = tape(x, y)
-    out = track(*(mulargvalue(x), mulargvalue(y)), D, tp)
+    out = track(*(value(x), value(y)), D, tp)
     cache = (similar(x, D), similar(y, D))
     record!(tp, SpecialInstruction, *, (x, y), out, cache)
     return out
 end
 
 @inline function record_mul!(out::TrackedArray{V, D}, x, y) where {V, D}
-    copyto!(mulargvalue(out), *(mulargvalue(x), mulargvalue(y)))
+    copyto!(value(out), *(value(x), value(y)))
     cache = (similar(x, D), similar(y, D))
     record!(tape(x, y), SpecialInstruction, *, (x, y), out, cache)
     return out
@@ -256,9 +252,9 @@ LinearAlgebra.:*(x::StaticMatrix, y::TrackedVector{V, D}) where {V, D} = record_
     mulargpullvalue!(a)
     mulargpullvalue!(b)
     if instruction.output isa Number
-        value!(instruction.output, mulargvalue(a) * mulargvalue(b))
+        value!(instruction.output, value(a) * value(b))
     else
-        mul!(mulargvalue(instruction.output), mulargvalue(a), mulargvalue(b))
+        mul!(value(instruction.output), value(a), value(b))
     end
     return nothing
 end
