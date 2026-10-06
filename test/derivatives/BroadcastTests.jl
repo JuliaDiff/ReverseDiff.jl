@@ -231,9 +231,12 @@ end
     # `DiffRules` gives `besselj` a `NaN` partial for its order, which is untracked here
     nu, z = [0.5, 1.5, 2.5], 0.7
     # J_ν'(z) = (J_{ν-1}(z) - J_{ν+1}(z)) / 2
-    expected = sum((besselj(n - 1, z) - besselj(n + 1, z)) / 2 for n in nu)
+    dbesselj(n, z) = (besselj(n - 1, z) - besselj(n + 1, z)) / 2
 
-    @test ReverseDiff.gradient(y -> sum(besselj.(nu, y)), [z]) ≈ [expected]
+    @test ReverseDiff.gradient(y -> sum(besselj.(nu, y)), [z]) ≈ [sum(dbesselj(n, z) for n in nu)]
+    # fused with a tracked factor, the `NaN` shares a `Dual` with the tracked partials
+    @test ReverseDiff.gradient(y -> sum(besselj.(nu, y) .* y), [z]) ≈
+        [sum(dbesselj(n, z) * z + besselj(n, z) for n in nu)]
 end
 
 @testset "an array of `TrackedReal`s is differentiated like a `TrackedArray`" begin
