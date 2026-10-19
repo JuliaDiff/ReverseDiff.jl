@@ -174,7 +174,12 @@ end
         xv = ReverseDiff.value(x)
         return dot(xv, xv), Δ -> (Δ * 2 * xv,)
     end
-The `@grad` macro provides a way for the users to define custom adjoints for single-output functions wrt to their input numbers or arrays.
+The `@grad` macro provides a way for the users to define custom adjoints for
+single-output functions wrt to their input numbers or arrays. The function that
+`@grad` is applied to should return a two-element tuple containing the primal
+value and the adjoint function. Note that if an adjoint function is compiled
+using `compile`, any variables defined outside of the returned adjoint function
+are "frozen" at their compiled values.
 """
 macro grad(expr)
     d = MacroTools.splitdef(expr)
