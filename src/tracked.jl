@@ -451,7 +451,6 @@ reshape_body = :(TrackedArray(reshape(value(t), dims), reshape(deriv(t), dims), 
 # `Real` Interface #
 ####################
 
-Base.hash(t::TrackedReal) = hash(value(t))
 Base.hash(t::TrackedReal, hsh::UInt64) = hash(value(t), hsh)
 
 Base.deepcopy(t::T) where {T <: TrackedReal} = t
