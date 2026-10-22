@@ -1,5 +1,3 @@
-module ElementwiseTests
-
 using ReverseDiff
 
 using DiffRules
@@ -548,5 +546,3 @@ end
     end
     @test isempty(take_recorded!(tp))
 end
-
-end # module

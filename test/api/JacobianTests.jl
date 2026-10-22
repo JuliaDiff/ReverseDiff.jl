@@ -1,5 +1,3 @@
-module JacobianTests
-
 using DiffTests, ForwardDiff, ReverseDiff, StaticArrays, Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
@@ -348,5 +346,3 @@ end
     # an element that is not a number has no single derivative to seed
     @test_throws ArgumentError ReverseDiff.jacobian(x -> [x, x], [1.0, 2.0])
 end
-
-end # module

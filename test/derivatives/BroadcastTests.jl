@@ -1,5 +1,3 @@
-module BroadcastTests
-
 using ReverseDiff
 
 using ForwardDiff
@@ -686,5 +684,3 @@ end
     @test ReverseDiff.gradient!(tape3, x) == 2 .* x
     @test ReverseDiff.gradient!(ReverseDiff.compile(tape3), x) == 2 .* x
 end
-
-end # module

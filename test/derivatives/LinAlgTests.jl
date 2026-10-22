@@ -1,5 +1,3 @@
-module LinAlgTests
-
 using ReverseDiff, ForwardDiff, Test, LinearAlgebra, StaticArrays
 
 if get(ENV, "DOWNGRADE_TEST", "false")::String != "true"
@@ -416,5 +414,3 @@ end
         test_approx(ReverseDiff.jacobian!(tp, x), J)
     end
 end
-
-end # module

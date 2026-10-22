@@ -1,5 +1,3 @@
-module ChainRulesTest
-
 using LinearAlgebra
 using ChainRulesCore
 using DiffResults
@@ -283,5 +281,3 @@ module IsolatedModuleForTestingScoping
 
     end # end of SubModule
 end # end of IsolatedModuleForTestingScoping
-
-end

@@ -1,5 +1,3 @@
-module TapeTests
-
 using ReverseDiff, Test
 using ReverseDiff: SpecialInstruction, ScalarInstruction, NULL_TAPE
 
@@ -62,5 +60,3 @@ for Instr in (SpecialInstruction, ScalarInstruction)
     @test length(NULL_TAPE) == 0
     @test repr(MIME"text/plain"(), NULL_TAPE) == "0-element InstructionTape"
 end
-
-end # module

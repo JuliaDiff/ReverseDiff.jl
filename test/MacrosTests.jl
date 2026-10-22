@@ -1,5 +1,3 @@
-module MacrosTests
-
 using ReverseDiff, ForwardDiff, Test, StaticArrays
 using ForwardDiff: Dual, Partials, partials
 
@@ -344,5 +342,3 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     @test g1 == g2
     @test custom_grad_called
 end
-
-end # module
