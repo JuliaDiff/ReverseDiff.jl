@@ -53,20 +53,25 @@ function test_elementwise(f, fopt, x, tp)
     # record
     yt = broadcast(fopt, xt)
     @test yt == y
+    # a constant function has no derivative and is left off the tape
+    tracked = f !== DiffTests.num2num_4
+    @test (yt isa ReverseDiff.TrackedArray) == tracked
     ReverseDiff.finish!(tp)
-    @test length(tp) == 1
+    @test length(tp) == (tracked ? 1 : 0)
 
     # reverse
     out = similar(y, (length(x), length(x)))
     ReverseDiff.seeded_reverse_pass!(out, yt, xt, tp)
     test_approx(out, ForwardDiff.jacobian(z -> broadcast(f, z), x); nans = true)
 
-    # forward
-    x2 = x .- offset
-    ReverseDiff.value!(xt, x2)
-    ReverseDiff.forward_pass!(tp)
-    @test yt == broadcast(f, x2)
-    ReverseDiff.value!(xt, x)
+    # forward, which cannot reach an untracked result (#313)
+    if tracked
+        x2 = x .- offset
+        ReverseDiff.value!(xt, x2)
+        ReverseDiff.forward_pass!(tp)
+        @test yt == broadcast(f, x2)
+        ReverseDiff.value!(xt, x)
+    end
 
     empty!(tp)
     return nothing
@@ -470,6 +475,78 @@ end
     @test ReverseDiff.gradient(v -> sum(convert.(Real, v) .* [2.0, 3.0]), [0.3, 0.5]) == [2.0, 3.0]
     @test ReverseDiff.gradient(v -> sum(v .* Any[2.0, 3.0]), [0.3, 0.5]) == [2.0, 3.0]
     @test ReverseDiff.gradient(v -> sum(v .* Base.RefValue{Any}(2.0)), [0.3, 0.5]) == [2.0, 2.0]
+end
+
+@testset "`map` over a tracked scalar and an array" begin
+    c = [1.5, 2.5]
+
+    # `map` stops at its shortest argument, a scalar counting as a one-element collection,
+    # so each case is `atan` of the first elements alone
+    cases = (
+        (t -> sum(map(atan, t[1], c)), (a, b) -> [c[1], 0] / (a^2 + c[1]^2)),
+        (t -> sum(map(atan, c, t[1])), (a, b) -> [-c[1], 0] / (a^2 + c[1]^2)),
+        (t -> sum(map(atan, t, t[2])), (a, b) -> [b, -a] / (a^2 + b^2)),
+        (t -> sum(map(atan, t[2], t)), (a, b) -> [-b, a] / (a^2 + b^2)),
+    )
+    for (f, ∇f) in cases
+        v = [0.5, 0.7]
+        @test ReverseDiff.gradient(f, v) ≈ ∇f(v...)
+
+        # the replay reaches the scalar through the tape
+        tape = ReverseDiff.GradientTape(f, v)
+        w = [0.2, 0.9]
+        @test ReverseDiff.gradient!(tape, w) ≈ ∇f(w...)
+    end
+end
+
+@testset "`map` over arrays of different lengths" begin
+    v = [0.5, 0.7, 0.9]
+    c = [1.5, 2.5]
+
+    for f in (
+            t -> sum(map(*, t, c)), t -> sum(map(+, c, t)),
+            t -> sum(map(atan, t, 2 .* t[2:3])),
+        )
+        @test ReverseDiff.gradient(f, v) ≈ ForwardDiff.gradient(f, v)
+    end
+end
+
+@testset "`map` over a `TrackedArray` and an array that may hold `TrackedReal`s" begin
+    c = [1.0, 2.0, 3.0]
+    ∇hypot(a, b) = [a ./ hypot.(a, b); b ./ hypot.(a, b)]
+
+    cases = (
+        (t -> sum(map(hypot, t[1:3], [t[4], t[5], t[6]])), t -> ∇hypot(t[1:3], t[4:6])),
+        (t -> sum(map(hypot, [t[1], t[2], t[3]], t[4:6])), t -> ∇hypot(t[1:3], t[4:6])),
+        (t -> sum(map(hypot, t[1:3], Real[c...])), t -> [∇hypot(t[1:3], c)[1:3]; zeros(3)]),
+    )
+    for (f, ∇f) in cases
+        v = rand(6)
+        @test ReverseDiff.gradient(f, v) ≈ ∇f(v)
+
+        tape = ReverseDiff.GradientTape(f, v)
+        w = rand(6)
+        @test ReverseDiff.gradient!(tape, w) ≈ ∇f(w)
+    end
+end
+
+@testset "`map` with a skipped function is untracked" begin
+    a, b, c = [1.0, 2.0, 3.5], [2.0, 2.0, 1.0], 2.0
+
+    tp = InstructionTape()
+    at, bt = track(a, tp), track(b, tp)
+
+    for fsym in ReverseDiff.SKIPPED_UNARY_SCALAR_FUNCS
+        f = eval(fsym)
+        @test map(f, at) == map(f, a)
+    end
+    for fsym in ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS
+        f = eval(fsym)
+        for (x, y) in ((at, bt), (a, bt), (at, b), (c, bt), (at, c))
+            @test map(f, x, y) == map(f, ReverseDiff.value(x), ReverseDiff.value(y))
+        end
+    end
+    @test isempty(take_recorded!(tp))
 end
 
 end # module
