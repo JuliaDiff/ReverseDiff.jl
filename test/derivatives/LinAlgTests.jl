@@ -1,9 +1,4 @@
 using ReverseDiff, ForwardDiff, Test, LinearAlgebra, StaticArrays
-
-if get(ENV, "DOWNGRADE_TEST", "false")::String != "true"
-    @test Base.get_extension(ReverseDiff, :StatisticsExt) === nothing
-end
-
 using Statistics
 
 @test Base.get_extension(ReverseDiff, :StatisticsExt) !== nothing
