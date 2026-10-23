@@ -1,5 +1,3 @@
-module TrackedTests
-
 using ReverseDiff, Test
 using ReverseDiff: TrackedReal, TrackedArray
 
@@ -652,6 +650,7 @@ instr = first(recorded)
 @test instr.cache === nothing
 
 for T in (UInt, Int)
+    local ta_sub, idx, recorded, instr
     ta_sub = ta[:, T(1):T(2)]
     idx = ReverseDiff.index_iterable(axes(ta), (:, T(1):T(2)))
     @test collect(idx) == [(i, j) for i in 1:3, j in 1:2]
@@ -897,5 +896,3 @@ end
 @test occursin(r"^TrackedReal<\w{3}>\(1\.0, 0\.0, ---, ---\)$", repr(TrackedReal(1.0, 0.0)))
 ta = TrackedArray([1.0, 2.0], [0.0, 3.0], InstructionTape())
 @test occursin(r"^TrackedReal<\w{3}>\(2\.0, 3\.0, \w{3}, 2, \w{3}\)$", repr(ta[2]))
-
-end

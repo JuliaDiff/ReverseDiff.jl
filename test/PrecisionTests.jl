@@ -1,5 +1,3 @@
-module PrecisionTests
-
 using ReverseDiff, Test, LinearAlgebra, Statistics
 
 include("utils.jl")
@@ -53,5 +51,3 @@ for (n, d) in ((1.0e-200, 1.0e-200), (1.0e200, 1.0e200))
         @test ReverseDiff.gradient(f, [d]) ≈ [∂] rtol = 8 * eps(Float64)
     end
 end
-
-end # module

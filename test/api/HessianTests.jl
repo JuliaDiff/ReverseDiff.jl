@@ -1,5 +1,3 @@
-module HessianTests
-
 using DiffTests, ForwardDiff, ReverseDiff, StaticArrays, Test
 
 include(joinpath(dirname(@__FILE__), "../utils.jl"))
@@ -130,5 +128,3 @@ f251(x) = sum(abs2, x)
         @test DiffResults.hessian(result) == hess
     end
 end
-
-end # module

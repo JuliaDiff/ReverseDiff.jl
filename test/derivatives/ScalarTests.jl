@@ -1,5 +1,3 @@
-module ScalarTests
-
 using ReverseDiff
 
 using DiffRules
@@ -179,5 +177,3 @@ for f in ReverseDiff.SKIPPED_BINARY_SCALAR_FUNCS
     test_println("SKIPPED_BINARY_SCALAR_FUNCS", f)
     test_skip(eval(f), a, b, tp)
 end
-
-end # module
