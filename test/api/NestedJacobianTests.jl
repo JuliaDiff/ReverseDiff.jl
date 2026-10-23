@@ -1,6 +1,6 @@
 using DiffTests, ForwardDiff, ReverseDiff, Test
 
-include(joinpath(dirname(@__FILE__), "../utils.jl"))
+include("../utils.jl")
 
 for f in (DiffTests.ARRAY_TO_ARRAY_FUNCS..., DiffTests.MATRIX_TO_MATRIX_FUNCS...)
     test_println("ARRAY_TO_ARRAY_FUNCS + MATRIX_TO_MATRIX_FUNCS", f)

@@ -9,7 +9,7 @@ using SpecialFunctions
 
 using Test
 
-include(joinpath(dirname(@__FILE__), "../utils.jl"))
+include("../utils.jl")
 
 x, y = rand(3, 3), rand(3, 3)
 a, b = rand(3), rand(3)
