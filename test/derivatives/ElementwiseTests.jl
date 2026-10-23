@@ -18,7 +18,7 @@ for (M, fsym, arity) in DiffRules.diffrules(; filter_modules = nothing)
         test_elementwise(f, f, modify_input(fsym, x), tp)
         test_elementwise(f, f, modify_input(fsym, a), tp)
     end
-    # binary rules are tested in ElementwiseBinaryTests.jl
+    # binary rules are tested in ElementwiseBinaryTests1.jl and ElementwiseBinaryTests2.jl
 end
 
 for f in DiffTests.BINARY_BROADCAST_OPS

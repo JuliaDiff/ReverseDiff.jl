@@ -418,3 +418,31 @@ function test_broadcast(f, fopt, x::AbstractArray, n::Number, tp, builtin::Bool 
     empty!(tp)
     return nothing
 end
+
+# Tested binary rules, sorted so that ElementwiseBinaryTests1.jl and
+# ElementwiseBinaryTests2.jl can each take every other one
+function binary_diffrules()
+    rules = Tuple{Symbol, Symbol}[]
+    for (M, fsym, arity) in DiffRules.diffrules(; filter_modules = nothing)
+        if arity == 2 && !((M, fsym) in ReverseDiff.SKIPPED_DIFFRULES) && !(fsym in SKIPPED_BINARY_SCALAR_TESTS)
+            push!(rules, (M, fsym))
+        end
+    end
+    return sort!(rules)
+end
+
+function test_binary(M, fsym)
+    f = eval(:($M.$fsym))
+    test_println("forward-mode binary scalar functions", f)
+    test_map(f, f, x, y, tp)
+    test_map(f, f, a, b, tp)
+    test_broadcast(f, f, x, y, tp)
+    test_broadcast(f, f, a, b, tp)
+    test_broadcast(f, f, x, a, tp)
+    test_broadcast(f, f, a, x, tp)
+    test_broadcast(f, f, n, x, tp)
+    test_broadcast(f, f, x, n, tp)
+    test_broadcast(f, f, n, a, tp)
+    test_broadcast(f, f, a, n, tp)
+    return nothing
+end
