@@ -56,6 +56,21 @@ end
     # `Base` styles scalars as `AbstractArrayStyle{0}`
     @test BroadcastStyle(typeof(track(rand(), tp))) === TrackedStyle{0}()
     @test TrackedStyle{1}(Val(2)) === TrackedStyle{2}()
+    # element types that leave the value type or the origin free
+    @test BroadcastStyle(Vector{TrackedReal{Float64, Float64}}) === TrackedStyle{1}()
+    @test BroadcastStyle(Vector{TrackedReal{<:Real, Float64}}) === TrackedStyle{1}()
+    # `TrackedReal{<:Real, Float64, Nothing}`, as built by a comprehension over mixed value types
+    a = TrackedReal(1.0, 0.0)
+    b = TrackedReal(ForwardDiff.Dual(1.0, 1.0), 0.0)
+    @test BroadcastStyle(typeof([x for x in Real[a, b]])) === TrackedStyle{1}()
+end
+
+@testset "arrays that hold no element keep `Base`'s style (#324)" begin
+    # `Union{} <: TrackedReal`
+    @test BroadcastStyle(Vector{Union{}}) === DefaultArrayStyle{1}()
+    @test BroadcastStyle(Matrix{Union{}}) === DefaultArrayStyle{2}()
+    @test String.(Union{}[]) isa Vector{Union{}}
+    @test isempty(track(1.0, InstructionTape()) .+ Union{}[])
 end
 
 @testset "`BroadcastStyle` precedence" begin

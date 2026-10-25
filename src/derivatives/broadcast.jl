@@ -38,8 +38,14 @@ struct TrackedStyle{N} <: AbstractArrayStyle{N} end
 (::Type{<:TrackedStyle})(::Val{N}) where {N} = TrackedStyle{N}()
 
 Broadcast.BroadcastStyle(::Type{<:TrackedReal}) = TrackedStyle{0}()
-# only an element type that fixes `D`, since `getouttype` reads it off
-Broadcast.BroadcastStyle(::Type{<:AbstractArray{<:TrackedReal{<:Any, D}, N}}) where {D, N} =
+# invariant element types that fix `D`, so that `Union{}` (a subtype of every type) does not match
+Broadcast.BroadcastStyle(::Type{<:AbstractArray{TrackedReal{V, D, O}, N}}) where {V, D, O, N} =
+    TrackedStyle{N}()
+Broadcast.BroadcastStyle(::Type{<:AbstractArray{TrackedReal{V, D, O} where {O}, N}}) where {V, D, N} =
+    TrackedStyle{N}()
+Broadcast.BroadcastStyle(::Type{<:AbstractArray{TrackedReal{V, D, O} where {V <: Real}, N}}) where {D, O, N} =
+    TrackedStyle{N}()
+Broadcast.BroadcastStyle(::Type{<:AbstractArray{TrackedReal{V, D, O} where {V <: Real, O}, N}}) where {D, N} =
     TrackedStyle{N}()
 
 # `AbstractArrayStyle{Any}` carries `Any` as its dimension, which `max` cannot compare
@@ -101,6 +107,8 @@ end
 
 getouttype(::TrackedReal{<:Any, D}) where {D} = D
 getouttype(::AbstractArray{<:TrackedReal{<:Any, D}}) where {D} = D
+# `Union{} <: TrackedReal`, but binds no `D`
+getouttype(::AbstractArray{Union{}}) = Union{}
 getouttype(::Any) = Union{}
 
 # a perturbation riding on an argument ends up in the derivative, so `D` has to hold it. An
