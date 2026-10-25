@@ -6,13 +6,14 @@ using DiffResults: DiffResults, DiffResult
 using DiffRules: DiffRules
 using ForwardDiff: ForwardDiff, Dual
 using FunctionWrappers: FunctionWrapper
-using LinearAlgebra: LinearAlgebra, Adjoint, Transpose, det, dot, lmul!, mul!
+using LinearAlgebra: LinearAlgebra, Adjoint, Diagonal, LowerTriangular, Transpose,
+    UnitLowerTriangular, UnitUpperTriangular, UpperTriangular, det, dot, lmul!, mul!
 using LogExpFunctions: LogExpFunctions
 using MacroTools: MacroTools, @capture
 using NaNMath: NaNMath
 using Random: Random
 using SpecialFunctions: SpecialFunctions
-using StaticArrays: StaticArrays, SVector
+using StaticArrays: StaticArrays, SArray, SVector, StaticArray, StaticMatrix, similar_type
 
 # Not all operations will be valid over all of these types, but that's okay; such cases
 # will simply error when they hit the original operation in the overloaded definition.
