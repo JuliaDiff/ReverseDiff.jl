@@ -35,7 +35,7 @@ jobs:
       - uses: julia-actions/julia-downgrade-compat@v2
         with:
           projects: ".,test"
-          skip: LinearAlgebra,Random,Statistics,Test
+          skip: JET,LinearAlgebra,Random,Statistics,Test
         name: Downgrade dependencies to oldest supported versions
       - uses: julia-actions/julia-buildpkg@v1
         with:
