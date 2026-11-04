@@ -143,7 +143,7 @@ f_vararg(x, args...) = sum(4x .+ sum(args))
 function ChainRulesCore.rrule(::typeof(f_vararg), x, args...)
     r = f_vararg(x, args...)
     function back(d)
-        return NoTangent(), fill(3 * d, size(x))
+        return NoTangent(), fill(3 * d, size(x)), ntuple(_ -> NoTangent(), length(args))...
     end
     return r, back
 end
@@ -167,7 +167,7 @@ f_kw(x, args...; k = 1, kwargs...) = sum(4x .+ sum(args) .+ (k + kwargs[:j]))
 function ChainRulesCore.rrule(::typeof(f_kw), x, args...; k = 1, kwargs...)
     r = f_kw(x, args...; k = k, kwargs...)
     function back(d)
-        return NoTangent(), fill(3 * d, size(x))
+        return NoTangent(), fill(3 * d, size(x)), ntuple(_ -> NoTangent(), length(args))...
     end
     return r, back
 end
@@ -245,6 +245,145 @@ end
     # the thunk for the untracked argument is dropped rather than forced
     @test ReverseDiff.gradient(u -> g_thunk(Real[u[1], u[2]], [1.0, 2.0]), [1.0, 2.0]) == [3.0, 3.0]
     @test ReverseDiff.gradient(u -> g_thunk([1.0, 2.0], Real[u[1], u[1]]), [1.0, 2.0]) == [10.0, 0.0]
+end
+
+### Typed varargs
+# `MyStruct` is defined in this module, so the vararg type has to survive macro hygiene,
+# and the collected varargs must not be re-asserted against their element type.
+f_typed_vararg(x, ys::MyStruct...) = sum(4x .+ length(ys))
+
+function ChainRulesCore.rrule(::typeof(f_typed_vararg), x, ys::MyStruct...)
+    function pb_f_typed_vararg(Δ)
+        return (NoTangent(), fill(3 * Δ, size(x)), ntuple(_ -> NoTangent(), length(ys))...)
+    end
+    return f_typed_vararg(x, ys...), pb_f_typed_vararg
+end
+
+ReverseDiff.@grad_from_chainrules f_typed_vararg(x::ReverseDiff.TrackedArray, ys::MyStruct...)
+
+@testset "typed varargs" begin
+    x = rand(3, 3)
+    @test ReverseDiff.gradient(f_typed_vararg, x) == fill(3, size(x))
+    @test ReverseDiff.gradient(u -> f_typed_vararg(u, MyStruct(), MyStruct()), x) ==
+        fill(3, size(x))
+end
+
+### Pullbacks that return the wrong number of tangents
+# Without a length check the lone tangent is broadcast over every argument.
+f_short(x, ys...) = sum(4x) + sum(sum, ys)
+
+function ChainRulesCore.rrule(::typeof(f_short), x, ys...)
+    pb_f_short(Δ) = (NoTangent(), fill(3 * Δ, size(x))) # deliberately short
+    return f_short(x, ys...), pb_f_short
+end
+
+ReverseDiff.@grad_from_chainrules f_short(
+    x::ReverseDiff.TrackedArray, ys::ReverseDiff.TrackedArray...
+)
+
+h_short(x, y) = sum(4x) + sum(4y)
+function h_short(x::ReverseDiff.TrackedArray, y::ReverseDiff.TrackedArray)
+    return ReverseDiff.track(h_short, x, y)
+end
+ReverseDiff.@grad function h_short(x, y)
+    xv, yv = ReverseDiff.value(x), ReverseDiff.value(y)
+    pb_h_short(Δ) = (fill(3 * Δ, size(xv)),) # deliberately short
+    return sum(4xv) + sum(4yv), pb_h_short
+end
+
+@testset "pullback returning too few tangents" begin
+    x, y = rand(3, 3), rand(3, 3)
+    @test_throws "2 arguments but 1 tangent" ReverseDiff.gradient(f_short, (x, y))
+    @test_throws "2 arguments but 1 tangent" ReverseDiff.gradient(h_short, (x, y))
+end
+
+### Keyword argument defaults
+# The default of the imported signature has to survive, and the caller's `k` has to be
+# forwarded by value. The rrule uses a different default, so falling back to it shows.
+f_kwdefault(x; k = 1) = sum(4x) * k
+
+function ChainRulesCore.rrule(::typeof(f_kwdefault), x; k = 10)
+    pb_f_kwdefault(Δ) = (NoTangent(), fill(3 * k * Δ, size(x)))
+    return f_kwdefault(x; k = k), pb_f_kwdefault
+end
+
+ReverseDiff.@grad_from_chainrules f_kwdefault(x::ReverseDiff.TrackedArray; k = 1)
+
+@testset "keyword argument defaults" begin
+    x = rand(3, 3)
+    @test ReverseDiff.gradient(f_kwdefault, x) == fill(3, size(x))
+    @test ReverseDiff.gradient(u -> f_kwdefault(u; k = 2), x) == fill(6, size(x))
+end
+
+### Positional argument defaults
+# A default in the forwarding call would turn the argument into a keyword argument.
+f_posdefault(x, y = 2) = sum(4x) * y
+
+function ChainRulesCore.rrule(::typeof(f_posdefault), x, y = 2)
+    pb_f_posdefault(Δ) = (NoTangent(), fill(3 * y * Δ, size(x)), NoTangent())
+    return f_posdefault(x, y), pb_f_posdefault
+end
+
+ReverseDiff.@grad_from_chainrules f_posdefault(x::ReverseDiff.TrackedArray, y::Int = 2)
+
+@testset "positional argument defaults" begin
+    x = rand(3, 3)
+    @test ReverseDiff.gradient(f_posdefault, x) == fill(6, size(x))
+    @test ReverseDiff.gradient(u -> f_posdefault(u, 3), x) == fill(9, size(x))
+end
+
+### `AbstractZero` tangents for tracked arguments
+g_zero(x, y, z) = sum(4x) + sum(4y) + sum(4z)
+
+function ChainRulesCore.rrule(::typeof(g_zero), x, y, z)
+    pb_g_zero(Δ) = (NoTangent(), fill(3 * Δ, size(x)), ZeroTangent(), NoTangent())
+    return g_zero(x, y, z), pb_g_zero
+end
+
+ReverseDiff.@grad_from_chainrules g_zero(
+    x::ReverseDiff.TrackedArray, y::ReverseDiff.TrackedArray, z::ReverseDiff.TrackedArray
+)
+
+@testset "zero tangents for tracked arguments" begin
+    x, y, z = rand(3, 3), rand(3, 3), rand(3, 3)
+    results = ReverseDiff.gradient(g_zero, (x, y, z))
+    @test results[1] == fill(3, size(x))
+    @test results[2] == zeros(size(y))
+    @test results[3] == zeros(size(z))
+end
+
+### `where` clauses in the imported signature
+f_where(x) = sum(4x)
+
+function ChainRulesCore.rrule(::typeof(f_where), x)
+    pb_f_where(Δ) = (NoTangent(), fill(3 * Δ, size(x)))
+    return f_where(x), pb_f_where
+end
+
+# the static parameter is used in the tracked argument
+ReverseDiff.@grad_from_chainrules f_where(x::ReverseDiff.TrackedArray{V}) where {V}
+
+g_where(x, y) = sum(4x) + sum(4y)
+
+function ChainRulesCore.rrule(::typeof(g_where), x, y)
+    pb_g_where(Δ) = (NoTangent(), fill(3 * Δ, size(x)), NoTangent())
+    return g_where(x, y), pb_g_where
+end
+
+# the static parameter is bounded and used only in the *untracked* argument
+ReverseDiff.@grad_from_chainrules g_where(
+    x::ReverseDiff.TrackedArray, y::AbstractVector{V}
+) where {V <: Real}
+
+@testset "where clauses" begin
+    x = rand(3, 3)
+    @test ReverseDiff.gradient(f_where, x) == fill(3, size(x))
+    @test ReverseDiff.gradient(u -> g_where(u, [1.0, 2.0]), x) == fill(3, size(x))
+end
+
+@testset "invalid signatures" begin
+    @test_throws LoadError @eval ReverseDiff.@grad_from_chainrules f_where
+    @test_throws LoadError @eval ReverseDiff.@grad_from_chainrules f_where()
 end
 
 ### Isolated Scope
