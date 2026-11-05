@@ -517,5 +517,10 @@ end
         @test ReverseDiff.gradient!(copied, [1.0, 2.0]) == [2.0, 4.0]
         @test ReverseDiff.gradient!(t, [5.0, 6.0]) == [10.0, 12.0]
         @test ReverseDiff.gradient!(copied, [1.0, 2.0]) == [2.0, 4.0]
+
+        # aliased tapes stay aliased
+        copied = deepcopy((t, t))
+        @test copied[1] === copied[2]
+        @test ReverseDiff.gradient!(copied[1], [1.0, 2.0]) == [2.0, 4.0]
     end
 end
