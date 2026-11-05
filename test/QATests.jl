@@ -33,8 +33,8 @@ end
     UPSTREAM_INTERNALS = (
         # `Base` and `Base.Broadcast`
         :AbstractArrayStyle, :Broadcasted, :DefaultArrayStyle, :LogicalIndex, :RefValue,
-        :combine_eltypes, :flatten, :instantiate, :print_array, :promote_op, :result_style,
-        :rtoldefault,
+        :combine_eltypes, :deepcopy_internal, :flatten, :instantiate, :print_array, :promote_op,
+        :result_style, :rtoldefault,
         # `DiffResults`
         :DiffResult, :GradientResult, :ImmutableDiffResult, :derivative, :gradient, :gradient!,
         :hessian, :jacobian,
