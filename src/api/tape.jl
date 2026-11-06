@@ -110,9 +110,11 @@ Base.show(io::IO, t::CompiledTape) = print(io, typeof(t).name, "($(t.tape.func))
 
 # copied `FunctionWrapper`s keep pointers to the original instructions, so recompile instead
 function Base.deepcopy_internal(t::CompiledTape, dict::IdDict)
-    return (get!(dict, t) do
-        CompiledTape(Base.deepcopy_internal(t.tape, dict))
-    end)::typeof(t)
+    return (
+        get!(dict, t) do
+            CompiledTape(Base.deepcopy_internal(t.tape, dict))
+        end
+    )::typeof(t)
 end
 
 const CompiledGradient{T <: GradientTape} = CompiledTape{T}
