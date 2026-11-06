@@ -67,6 +67,8 @@ t = TrackedReal(v, d)
 @test t.value === v
 @test t.deriv === d
 @test t.tape === ReverseDiff.NULL_TAPE
+# copies keep `NULL_TAPE`
+@test deepcopy(t).tape === ReverseDiff.NULL_TAPE
 @test t.index === ReverseDiff.NULL_INDEX
 @test t.origin === nothing
 @test isa(t, TrackedReal{Float64, Int, Nothing})

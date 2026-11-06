@@ -38,15 +38,26 @@ function finish!(tp::InstructionTape)
     return tp
 end
 
+isrecording(tp::InstructionTape) = !((@atomic tp.last) isa Finished)
+
 # the recorded instructions; throws unless recording has finished
 function instructions(tp::InstructionTape)
-    if !((@atomic tp.last) isa Finished)
+    if isrecording(tp)
         throw(ArgumentError("tape is still recording; call `ReverseDiff.finish!` first"))
     end
     return tp.instructions
 end
 
 Base.length(tp::InstructionTape) = length(instructions(tp))
+
+# `NULL_TAPE` is recognised by identity, so copies must keep it
+function Base.deepcopy_internal(tp::InstructionTape, dict::IdDict)
+    if tp === NULL_TAPE
+        return tp
+    else
+        return invoke(Base.deepcopy_internal, Tuple{Any, IdDict}, tp, dict)
+    end
+end
 
 function Base.empty!(tp::InstructionTape)
     # `NULL_TAPE` never records, so it stays finished

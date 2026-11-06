@@ -487,3 +487,40 @@ end
     # a `Float64` buffer throws instead of zeroing the gradient
     @test_throws ArgumentError ReverseDiff.gradient(W -> loss(zeros(3, 5), W, H), W)
 end
+
+############################################################################################
+
+deepcopy_real(x) = deepcopy(x[1]) * deepcopy(x[2])
+deepcopy_vector(x) = prod(deepcopy([x[1], x[2]]))
+deepcopy_tuple(x) = prod(deepcopy((x[1], x[2])))
+deepcopy_namedtuple(x) = (y = deepcopy((; a = x[1], b = x[2])); y.a * y.b)
+deepcopy_array(x) = prod(deepcopy(x))
+deepcopy_aliased(x) = x[1] * x[2] + x[1] - deepcopy((x[1],))[1]
+
+@testset "`deepcopy` keeps the tape (#327)" begin
+    for f in (
+            deepcopy_real, deepcopy_vector, deepcopy_tuple, deepcopy_namedtuple, deepcopy_array,
+            deepcopy_aliased,
+        )
+        @test ReverseDiff.gradient(f, [3.0, 4.0]) == [4.0, 3.0]
+        tape = ReverseDiff.GradientTape(f, [3.0, 4.0])
+        for t in (tape, ReverseDiff.compile(tape))
+            @test ReverseDiff.gradient!(t, [5.0, 2.0]) == [2.0, 5.0]
+        end
+    end
+end
+
+@testset "`deepcopy` of a tape is independent (#327)" begin
+    tape = ReverseDiff.GradientTape(x -> sum(abs2, x), [3.0, 4.0])
+    for t in (tape, ReverseDiff.compile(tape))
+        copied = deepcopy(t)
+        @test ReverseDiff.gradient!(copied, [1.0, 2.0]) == [2.0, 4.0]
+        @test ReverseDiff.gradient!(t, [5.0, 6.0]) == [10.0, 12.0]
+        @test ReverseDiff.gradient!(copied, [1.0, 2.0]) == [2.0, 4.0]
+
+        # aliased tapes stay aliased
+        copied = deepcopy((t, t))
+        @test copied[1] === copied[2]
+        @test ReverseDiff.gradient!(copied[1], [1.0, 2.0]) == [2.0, 4.0]
+    end
+end
