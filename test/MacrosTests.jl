@@ -1,4 +1,4 @@
-using ReverseDiff, ForwardDiff, Test, StaticArrays
+using ReverseDiff, ForwardDiff, Test, StaticArrays, DiffResults
 using ForwardDiff: Dual, Partials, partials
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
@@ -341,4 +341,46 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     g2 = ReverseDiff.gradient(x -> sum(abs2, x), A)
     @test g1 == g2
     @test custom_grad_called
+end
+
+module GradFunctionNames
+    using ReverseDiff
+
+    qualified(x) = sum(abs2, x)
+    qualified(x::ReverseDiff.TrackedArray) = ReverseDiff.track(qualified, x)
+
+    unqualified(x) = sum(abs2, x)
+    unqualified(x::ReverseDiff.TrackedArray) = ReverseDiff.track(unqualified, x)
+    ReverseDiff.@grad function unqualified(x)
+        xv = ReverseDiff.value(x)
+        return unqualified(xv), Δ -> (2 .* Δ .* xv,)
+    end
+end
+
+ReverseDiff.@grad function GradFunctionNames.qualified(x)
+    xv = ReverseDiff.value(x)
+    return GradFunctionNames.qualified(xv), Δ -> (2 .* Δ .* xv,)
+end
+
+@testset "@grad function names" begin
+    for f in (GradFunctionNames.qualified, GradFunctionNames.unqualified)
+        x = [1.0, 2.0, 3.0]
+        y = [-2.0, 0.5, 4.0]
+        @test ReverseDiff.gradient(f, x) == [2.0, 4.0, 6.0]
+        @test ReverseDiff.gradient(f, y) == [-4.0, 1.0, 8.0]
+
+        tape = ReverseDiff.GradientTape(f, x)
+        for t in (tape, ReverseDiff.compile(tape))
+            for (input, value, gradient) in (
+                    (x, 14.0, [2.0, 4.0, 6.0]),
+                    (y, 20.25, [-4.0, 1.0, 8.0]),
+                    (x, 14.0, [2.0, 4.0, 6.0]),
+                )
+                result = DiffResults.GradientResult(copy(input))
+                ReverseDiff.gradient!(result, t, input)
+                @test DiffResults.value(result) == value
+                @test DiffResults.gradient(result) == gradient
+            end
+        end
+    end
 end

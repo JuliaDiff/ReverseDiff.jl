@@ -180,7 +180,7 @@ The `@grad` macro provides a way for the users to define custom adjoints for sin
 macro grad(expr)
     d = MacroTools.splitdef(expr)
     f = d[:name]
-    closure = gensym(f)
+    closure = gensym(:grad)
     d[:name] = closure
     closure_ex = MacroTools.combinedef(d)
 
