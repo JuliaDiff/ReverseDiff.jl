@@ -344,12 +344,41 @@ ReverseDiff.@grad_from_chainrules g_zero(
     x::ReverseDiff.TrackedArray, y::ReverseDiff.TrackedArray, z::ReverseDiff.TrackedArray
 )
 
+h_zero(x, y) = x
+
+function ChainRulesCore.rrule(::typeof(h_zero), x, y)
+    pb_h_zero(Δ) = (NoTangent(), 3 * Δ, NoTangent())
+    return h_zero(x, y), pb_h_zero
+end
+
+ReverseDiff.@grad_from_chainrules h_zero(x::ReverseDiff.TrackedReal, y::ReverseDiff.TrackedReal)
+
+k_zero(x, y) = sum(4x) + sum(4y)
+function k_zero(x::ReverseDiff.TrackedArray, y::ReverseDiff.TrackedArray)
+    return ReverseDiff.track(k_zero, x, y)
+end
+ReverseDiff.@grad function k_zero(x, y)
+    xv, yv = ReverseDiff.value(x), ReverseDiff.value(y)
+    pb_k_zero(Δ) = (fill(3 * Δ, size(xv)), nothing)
+    return sum(4xv) + sum(4yv), pb_k_zero
+end
+
+h_zero_vec(z) = h_zero(z[1], z[2])
+
 @testset "zero tangents for tracked arguments" begin
     x, y, z = rand(3, 3), rand(3, 3), rand(3, 3)
     results = ReverseDiff.gradient(g_zero, (x, y, z))
     @test results[1] == fill(3, size(x))
     @test results[2] == zeros(size(y))
     @test results[3] == zeros(size(z))
+
+    # tracked scalars
+    @test ReverseDiff.gradient(h_zero_vec, [1.0, 2.0]) == [3.0, 0.0]
+
+    # `nothing` from a `@grad` pullback
+    results = ReverseDiff.gradient(k_zero, (x, y))
+    @test results[1] == fill(3, size(x))
+    @test results[2] == zeros(size(y))
 end
 
 ### `where` clauses in the imported signature

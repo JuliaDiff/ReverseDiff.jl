@@ -379,7 +379,7 @@ function _check_tangents(f, tangents, n)
 end
 
 _add_to_deriv!(d1, d2) = nothing
-_add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, ::AbstractZero) = nothing
+_add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, ::Union{AbstractZero, Nothing}) = nothing
 function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, d2::AbstractThunk)
     istracked(d1) && increment_deriv!(d1, unthunk(d2))
     return nothing
