@@ -366,11 +366,11 @@ end
 # a 1-tuple would be silently broadcast over every argument
 function _check_tangents(f, tangents, n)
     if !(tangents isa Tuple)
-        throw(ArgumentError("the pullback of `$f` must return a tuple of tangents"))
+        throw(ArgumentError(lazy"the pullback of `$f` must return a tuple of tangents"))
     elseif length(tangents) != n
         throw(
             ArgumentError(
-                "the pullback of `$f` must return a tuple of length $n, not $(length(tangents))"
+                lazy"the pullback of `$f` must return a tuple of length $n, not $(length(tangents))"
             ),
         )
     else

@@ -291,10 +291,19 @@ ReverseDiff.@grad function h_short(x, y)
     return sum(4xv) + sum(4yv), pb_h_short
 end
 
-@testset "pullback returning too few tangents" begin
+g_notuple(x) = sum(4x)
+g_notuple(x::ReverseDiff.TrackedArray) = ReverseDiff.track(g_notuple, x)
+ReverseDiff.@grad function g_notuple(x)
+    xv = ReverseDiff.value(x)
+    pb_g_notuple(Δ) = fill(3 * Δ, size(xv)) # deliberately not a tuple
+    return sum(4xv), pb_g_notuple
+end
+
+@testset "pullback returning the wrong tangents" begin
     x, y = rand(3, 3), rand(3, 3)
     @test_throws "must return a tuple of length 3, not 2" ReverseDiff.gradient(f_short, (x, y))
     @test_throws "must return a tuple of length 2, not 1" ReverseDiff.gradient(h_short, (x, y))
+    @test_throws "must return a tuple of tangents" ReverseDiff.gradient(g_notuple, x)
 end
 
 ### Keyword argument defaults
