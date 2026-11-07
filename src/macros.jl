@@ -215,7 +215,7 @@ macro grad(expr)
                 input = instruction.input
                 back = instruction.cache[1]
                 input_derivs = back($ReverseDiff.deriv(output))
-                $ReverseDiff._check_input_derivs($f, input, input_derivs)
+                $ReverseDiff._check_tangents($f, input_derivs, length(input))
                 $ReverseDiff._add_to_deriv!.(input, input_derivs)
                 $ReverseDiff.unseed!(output)
                 return nothing
@@ -239,81 +239,31 @@ macro grad(expr)
     end |> esc
 end
 
-# escape the user-supplied type and default, and name the argument if the signature did not
-function esc_arg(arg)
+# `MacroTools.splitarg` with all user-supplied parts escaped, and a name for unnamed arguments
+function splitarg_esc(arg)
     name, type, tosplat, default = MacroTools.splitarg(arg)
     if name === nothing
         name = gensym()
     end
+    name = esc(name)
     if type !== :Any
         type = esc(type)
     end
     if default !== nothing
         default = esc(default)
     end
-    return MacroTools.combinearg(name, type, tosplat, default)
+    return name, type, tosplat, default
 end
 
-"""
-    _make_fwd_args(func, arg_list)
-
-Function `_make_fwd_args` accepts a function name and an argument
-list, returns a tuple of argument lists whose elements are:
-1. the`arg_list` untouched, 2. an argument list for the call to `track`,
-with the function as its first element and the remaining arguments
-stripped of their type annotations, 3. a new argument
-list for the definition of function `track`, 4. a new argument
-list with all kwargs removed, 5, types of the arguments in the 4th
-element, 5 the kwargs name if any otherwise an empty tuple. E.g.:
-
-_make_fwd_args(:f, [:(a::String), :(b::TrackedReal), :(args...)])
-
-returns
-
-([:(a::String), :(b::TrackedReal), :(args...)],
- [:f, :a, :b, :(args...)],
- [:(::typeof(f)), :(a::String), :(b::TrackedReal), :(args...)],
- [:(a::String), :(b::TrackedReal), :(args...)],
- [:String, :TrackedReal, :(Vararg{Any})],
- :kwargs)
-
-It also deals with varargs and variable keyword arguments, and ensures
-that at least one of the argument is tracked.
-
-"""
-function _make_fwd_args(func, args_l)
-    kwargs = :(())
-    args_track = copy(args_l)
-
-    args_fixed = filter(args_l) do arg
-        !Meta.isexpr(arg, :parameters)
-    end
-
-    # the call side forwards names only: annotations would be type asserts, defaults keywords
-    args_r = Any[func]
-    append!(args_r, getargs_expr(args_fixed).args)
-
-    if Meta.isexpr(args_l[1], :parameters) # has kw args
-        insert!(args_track, 2, :(::typeof($func)))
-        kwargs = gensym(:kwargs)
-        # replace, don't mutate: `args_track` shares the `:parameters` expression
-        args_track[1] = Expr(:parameters, :($(kwargs)...))
-        pushfirst!(args_r, forward_kwargs_expr(args_l[1].args))
+# forward an argument by name: an annotation would be a type assert, a default a keyword
+function forwardarg((name, _, tosplat, _), iskw)
+    if tosplat
+        return :($name...)
+    elseif iskw
+        return Expr(:kw, name, name)
     else
-        insert!(args_track, 1, :(::typeof($func)))
+        return name
     end
-
-    arg_types = map(args_fixed) do arg
-        if Meta.isexpr(arg, :(...))
-            Meta.isexpr(arg.args[1], :(::)) ? :(Vararg{$(arg.args[1].args[end])}) : :(Vararg{Any})
-        elseif Meta.isexpr(arg, :(::))
-            arg.args[end]
-        else
-            :Any
-        end
-    end
-
-    return args_l, args_r, args_track, args_fixed, arg_types, kwargs
 end
 
 """
@@ -356,30 +306,34 @@ macro grad_from_chainrules(fcall)
     end
     f = esc(d[:name])
     whereparams = map(esc, d[:whereparams])
-    xs = map(esc_arg, d[:args])
-    if !isempty(d[:kwargs])
-        params = Expr(:parameters)
-        for kw in d[:kwargs]
-            push!(params.args, esc_arg(kw))
-        end
-        pushfirst!(xs, params)
-    end
-    args_l, args_r, args_track, args_fixed, arg_types, kwargs = _make_fwd_args(f, xs)
+    args = map(splitarg_esc, d[:args])
+    kwargs = map(splitarg_esc, d[:kwargs])
+
+    sig_args = [MacroTools.combinearg(arg...) for arg in args]
+    sig_kwargs = [MacroTools.combinearg(kw...) for kw in kwargs]
+    # positional defaults are handled by the methods of `f`
+    track_args = [MacroTools.combinearg(name, type, tosplat, nothing) for (name, type, tosplat, _) in args]
+    call_args = [forwardarg(arg, false) for arg in args]
+    call_kwargs = [forwardarg(kw, true) for kw in kwargs]
+    arg_types = [tosplat ? :(Vararg{$type}) : type for (_, type, tosplat, _) in args]
+
+    # argument names are escaped and may shadow `$f` in the bodies, so bind the function via its type
     return quote
-        $f($(args_l...)) where {$(whereparams...)} = ReverseDiff.track($(args_r...))
-        function ReverseDiff.track($(args_track...)) where {$(whereparams...)}
-            args = $(getargs_expr(args_fixed))
+        (func::typeof($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
+            ReverseDiff.track(func, $(call_args...); $(call_kwargs...))
+        function ReverseDiff.track(func::typeof($f), $(track_args...); kwargs...) where {$(whereparams...)}
+            args = ($(call_args...),)
             tp = ReverseDiff.tape(args...)
-            output_value, back = ChainRulesCore.rrule($f, map(ReverseDiff.value, args)...; $kwargs...)
+            output_value, back = ChainRulesCore.rrule(func, map(ReverseDiff.value, args)...; kwargs...)
             output = ReverseDiff.track(output_value, tp)
-            closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule($f, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
+            closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule(func, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
             ReverseDiff.record!(
                 tp,
                 ReverseDiff.SpecialInstruction,
-                $f,
+                func,
                 args,
                 output,
-                (back, closure, $kwargs),
+                (back, closure, kwargs),
             )
             return output
         end
@@ -389,8 +343,9 @@ macro grad_from_chainrules(fcall)
             input = instruction.input
             back = instruction.cache[1]
             back_output = back(ReverseDiff.deriv(output))
-            input_derivs = back_output[2:end]
-            ReverseDiff._check_input_derivs($f, input, input_derivs)
+            # the first tangent is the one of the function itself
+            ReverseDiff._check_tangents($f, back_output, length(input) + 1)
+            input_derivs = Base.tail(back_output)
             ReverseDiff._add_to_deriv!.(input, input_derivs)
             ReverseDiff.unseed!(output)
             return nothing
@@ -408,16 +363,14 @@ macro grad_from_chainrules(fcall)
     end
 end
 
-# a tuple of the wrong length would be silently broadcast over every argument
-function _check_input_derivs(f, input, input_derivs)
-    if !(input_derivs isa Tuple)
-        throw(ArgumentError(lazy"the pullback of `$f` must return a tuple of tangents"))
-    elseif length(input_derivs) != length(input)
-        n = length(input_derivs)
-        tangents = n == 1 ? "tangent was" : "tangents were"
+# a 1-tuple would be silently broadcast over every argument
+function _check_tangents(f, tangents, n)
+    if !(tangents isa Tuple)
+        throw(ArgumentError("the pullback of `$f` must return a tuple of tangents"))
+    elseif length(tangents) != n
         throw(
             ArgumentError(
-                lazy"`$f` takes $(length(input)) arguments but $n $tangents returned by its pullback"
+                "the pullback of `$f` must return a tuple of length $n, not $(length(tangents))"
             ),
         )
     else
@@ -443,19 +396,6 @@ function getargs_expr(args_with_types)
             push!(expr.args, :($x...))
         else
             push!(expr.args, x)
-        end
-    end
-    return expr
-end
-# the call side of a kwargs block: forward the caller's values, not the defaults
-function forward_kwargs_expr(kwargs_with_types)
-    expr = Expr(:parameters)
-    for kw in kwargs_with_types
-        name, _, tosplat, _ = MacroTools.splitarg(kw)
-        if tosplat
-            push!(expr.args, :($name...))
-        else
-            push!(expr.args, Expr(:kw, name, name))
         end
     end
     return expr

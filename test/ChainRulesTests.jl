@@ -293,8 +293,8 @@ end
 
 @testset "pullback returning too few tangents" begin
     x, y = rand(3, 3), rand(3, 3)
-    @test_throws "2 arguments but 1 tangent" ReverseDiff.gradient(f_short, (x, y))
-    @test_throws "2 arguments but 1 tangent" ReverseDiff.gradient(h_short, (x, y))
+    @test_throws "must return a tuple of length 3, not 2" ReverseDiff.gradient(f_short, (x, y))
+    @test_throws "must return a tuple of length 2, not 1" ReverseDiff.gradient(h_short, (x, y))
 end
 
 ### Keyword argument defaults
@@ -375,10 +375,60 @@ ReverseDiff.@grad_from_chainrules g_where(
     x::ReverseDiff.TrackedArray, y::AbstractVector{V}
 ) where {V <: Real}
 
+h_where(x, y = 2) = sum(4x) * y
+
+function ChainRulesCore.rrule(::typeof(h_where), x, y = 2)
+    pb_h_where(Δ) = (NoTangent(), fill(3 * y * Δ, size(x)), NoTangent())
+    return h_where(x, y), pb_h_where
+end
+
 @testset "where clauses" begin
     x = rand(3, 3)
     @test ReverseDiff.gradient(f_where, x) == fill(3, size(x))
     @test ReverseDiff.gradient(u -> g_where(u, [1.0, 2.0]), x) == fill(3, size(x))
+
+    # the static parameter is used only in an argument with a default
+    @test_nowarn @eval ReverseDiff.@grad_from_chainrules h_where(
+        x::ReverseDiff.TrackedArray, y::V = 2
+    ) where {V <: Real}
+    @test ReverseDiff.gradient(h_where, x) == fill(6, size(x))
+    @test ReverseDiff.gradient(u -> h_where(u, 3), x) == fill(9, size(x))
+end
+
+### Qualified function names
+module QualifiedNames
+    f_qualified(x) = sum(4x)
+end
+
+function ChainRulesCore.rrule(::typeof(QualifiedNames.f_qualified), x)
+    pb_f_qualified(Δ) = (NoTangent(), fill(3 * Δ, size(x)))
+    return QualifiedNames.f_qualified(x), pb_f_qualified
+end
+
+ReverseDiff.@grad_from_chainrules QualifiedNames.f_qualified(x::ReverseDiff.TrackedArray)
+
+@testset "qualified function names" begin
+    x = rand(3, 3)
+    @test ReverseDiff.gradient(QualifiedNames.f_qualified, x) == fill(3, size(x))
+end
+
+### Argument names that coincide with the function or with internal names
+f_names(f_names, kwargs) = sum(4f_names) + sum(4kwargs)
+
+function ChainRulesCore.rrule(::typeof(f_names), x, y)
+    pb_f_names(Δ) = (NoTangent(), fill(3 * Δ, size(x)), fill(5 * Δ, size(y)))
+    return f_names(x, y), pb_f_names
+end
+
+ReverseDiff.@grad_from_chainrules f_names(
+    f_names::ReverseDiff.TrackedArray, kwargs::ReverseDiff.TrackedArray
+)
+
+@testset "argument names" begin
+    x, y = rand(3, 3), rand(3, 3)
+    results = ReverseDiff.gradient(f_names, (x, y))
+    @test results[1] == fill(3, size(x))
+    @test results[2] == fill(5, size(y))
 end
 
 @testset "invalid signatures" begin
