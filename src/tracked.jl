@@ -435,6 +435,16 @@ Base.size(t::TrackedArray) = size(value(t))
 
 Base.copy(t::TrackedArray) = t
 
+# while recording, tracked values are numbers on the tape: copying them would detach them;
+# afterwards they are copied together with their tape
+function Base.deepcopy_internal(t::Union{TrackedReal, TrackedArray}, dict::IdDict)
+    if isrecording(tape(t))
+        return t
+    else
+        return invoke(Base.deepcopy_internal, Tuple{Any, IdDict}, t, dict)
+    end
+end
+
 Base.similar(t::TrackedArray, args::Union{Integer, AbstractUnitRange}...) = similar(value(t), eltype(t), args...)
 
 Base.similar(t::TrackedArray, T::Type, args::Union{Integer, AbstractUnitRange}...) = similar(value(t), T, args...)
@@ -453,7 +463,6 @@ reshape_body = :(TrackedArray(reshape(value(t), dims), reshape(deriv(t), dims), 
 
 Base.hash(t::TrackedReal, hsh::UInt64) = hash(value(t), hsh)
 
-Base.deepcopy(t::T) where {T <: TrackedReal} = t
 Base.copy(t::T) where {T <: TrackedReal} = t
 
 Base.float(t::TrackedReal) = _float(t, float(value(t)))

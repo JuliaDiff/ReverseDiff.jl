@@ -2,7 +2,7 @@
 ## Broadcasting ##
 ##################
 
-using Base.Broadcast: AbstractArrayStyle, BroadcastStyle, Broadcasted, DefaultArrayStyle
+using Base.Broadcast: AbstractArrayStyle, Broadcasted, DefaultArrayStyle
 using ForwardDiff: ForwardDiff, Dual
 
 """
@@ -119,7 +119,8 @@ function holdsperturbations(::Type{D}, v::Union{Real, AbstractArray, Tuple}) whe
     if isconcretetype(E)
         return ForwardDiff.tagtype(E) === Nothing || promote_type(D, E) <: D
     else
-        return all(x -> holdsperturbations(D, x), v)
+        # `all` does not infer as `Bool` for an abstract `Tuple` or array
+        return all(x -> holdsperturbations(D, x), v)::Bool
     end
 end
 

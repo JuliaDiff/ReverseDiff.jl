@@ -320,16 +320,16 @@ macro grad_from_chainrules(fcall)
     # argument names are escaped and may shadow `$f` in the bodies, so bind the function via its type
     return quote
         (func::typeof($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
-            ReverseDiff.track(func, $(call_args...); $(call_kwargs...))
-        function ReverseDiff.track(func::typeof($f), $(track_args...); kwargs...) where {$(whereparams...)}
+            $ReverseDiff.track(func, $(call_args...); $(call_kwargs...))
+        function $ReverseDiff.track(func::typeof($f), $(track_args...); kwargs...) where {$(whereparams...)}
             args = ($(call_args...),)
-            tp = ReverseDiff.tape(args...)
-            output_value, back = ChainRulesCore.rrule(func, map(ReverseDiff.value, args)...; kwargs...)
-            output = ReverseDiff.track(output_value, tp)
-            closure(cls_args...; cls_kwargs...) = ChainRulesCore.rrule(func, map(ReverseDiff.value, cls_args)...; cls_kwargs...)
-            ReverseDiff.record!(
+            tp = $ReverseDiff.tape(args...)
+            output_value, back = $ChainRulesCore.rrule(func, map($ReverseDiff.value, args)...; kwargs...)
+            output = $ReverseDiff.track(output_value, tp)
+            closure(cls_args...; cls_kwargs...) = $ChainRulesCore.rrule(func, map($ReverseDiff.value, cls_args)...; cls_kwargs...)
+            $ReverseDiff.record!(
                 tp,
-                ReverseDiff.SpecialInstruction,
+                $ReverseDiff.SpecialInstruction,
                 func,
                 args,
                 output,
@@ -338,26 +338,26 @@ macro grad_from_chainrules(fcall)
             return output
         end
 
-        @noinline function ReverseDiff.special_reverse_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(whereparams...)}
+        @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(whereparams...)}
             output = instruction.output
             input = instruction.input
             back = instruction.cache[1]
-            back_output = back(ReverseDiff.deriv(output))
+            back_output = back($ReverseDiff.deriv(output))
             # the first tangent is the one of the function itself
-            ReverseDiff._check_tangents($f, back_output, length(input) + 1)
+            $ReverseDiff._check_tangents($f, back_output, length(input) + 1)
             input_derivs = Base.tail(back_output)
-            ReverseDiff._add_to_deriv!.(input, input_derivs)
-            ReverseDiff.unseed!(output)
+            $ReverseDiff._add_to_deriv!.(input, input_derivs)
+            $ReverseDiff.unseed!(output)
             return nothing
         end
 
-        @noinline function ReverseDiff.special_forward_exec!(instruction::ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(whereparams...)}
+        @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(whereparams...)}
             output, input = instruction.output, instruction.input
-            ReverseDiff.pull_value!.(input)
+            $ReverseDiff.pull_value!.(input)
             pullback = instruction.cache[2]
             kwargs = instruction.cache[3]
             out_value = pullback(input...; kwargs...)[1]
-            ReverseDiff.value!(output, out_value)
+            $ReverseDiff.value!(output, out_value)
             return nothing
         end
     end
