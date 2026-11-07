@@ -1,7 +1,7 @@
 module ReverseDiff
 
 using Base: RefValue
-using ChainRulesCore: ChainRulesCore, AbstractThunk, unthunk
+using ChainRulesCore: ChainRulesCore, AbstractThunk, AbstractZero, unthunk
 using DiffResults: DiffResults, DiffResult
 using DiffRules: DiffRules
 using ForwardDiff: ForwardDiff, Dual
