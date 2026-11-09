@@ -138,8 +138,9 @@ struct SpecialInstruction{F, I, O, C} <: AbstractInstruction
     end
 end
 
+# `_selftype` since a type `func` would make `F` a `DataType`, shared by all types
 @inline function _SpecialInstruction(func::F, input::I, output::O, cache::C) where {F, I, O, C}
-    return SpecialInstruction{F, I, O, C}(func, input, output, cache)
+    return SpecialInstruction{_selftype(func), I, O, C}(func, input, output, cache)
 end
 
 function SpecialInstruction(func, input, output, cache = nothing)

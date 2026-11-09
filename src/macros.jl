@@ -188,7 +188,7 @@ macro grad(expr)
     args_ex = getargs_expr(d[:args])
     kwargs_ex = getkwargs_expr(d[:kwargs])
     return quote
-        function $ReverseDiff.track(::typeof($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...)}
+        function $ReverseDiff.track(::$ReverseDiff._selftype($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...)}
             $closure_ex
             $args = $args_ex
             $kwargs = $kwargs_ex
@@ -208,14 +208,14 @@ macro grad(expr)
 
         if !hasmethod(
                 $ReverseDiff.special_reverse_exec!,
-                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+                Tuple{$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f)}},
             )
-            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f)})
                 output = instruction.output
                 input = instruction.input
                 back = instruction.cache[1]
                 input_derivs = back($ReverseDiff.deriv(output))
-                @assert input_derivs isa Tuple
+                $ReverseDiff._check_tangents($f, input_derivs, length(input))
                 $ReverseDiff._add_to_deriv!.(input, input_derivs)
                 $ReverseDiff.unseed!(output)
                 return nothing
@@ -224,9 +224,9 @@ macro grad(expr)
 
         if !hasmethod(
                 $ReverseDiff.special_forward_exec!,
-                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+                Tuple{$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f)}},
             )
-            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f)})
                 output, input = instruction.output, instruction.input
                 $ReverseDiff.pull_value!.(input)
                 pullback = instruction.cache[2]
@@ -239,61 +239,57 @@ macro grad(expr)
     end |> esc
 end
 
-"""
-    _make_fwd_args(func, arg_list)
+# `MacroTools.splitarg` with all user-supplied parts escaped, and a name for unnamed arguments
+function splitarg_esc(arg)
+    name, type, tosplat, default = MacroTools.splitarg(arg)
+    if name === nothing
+        name = gensym()
+    end
+    name = esc(name)
+    # `combinearg` drops only an unescaped `::Any`, and a keyword splat cannot be typed
+    if type !== :Any
+        type = esc(type)
+    end
+    if default !== nothing
+        default = esc(default)
+    end
+    return name, type, tosplat, default
+end
 
-Function `_make_fwd_args` accepts a function name and an argument
-list, returns a tuple of argument lists whose elements are:
-1. the`arg_list` untouched, 2. a new argument list with the function
-as its first element and other elements in `arg_list` followed, 3. a
-new argument for the definition of function `track`, 4. a new argument
-list with all kwargs removed, 5, types of the arguments in the 4th
-element, 5 the kwargs name if any otherwise an empty tuple. E.g.:
-
-_make_fwd_args(:f, [:(a::String), :(b::TrackedReal), :(args...)])
-
-returns
-
-([:(a::String), :(b::TrackedReal), :(args...)],
- [:f, :(a::String), :(b::TrackedReal), :(args...)],
- [:(::typeof(f)), :(a::String), :(b::TrackedReal), :(args...)],
- [:(a::String), :(b::TrackedReal), :(args...)],
- [:String, :TrackedReal, :(Vararg{Any})],
- :kwargs)
-
-It also deals with varargs and variable keyword arguments, and ensures
-that at least one of the argument is tracked.
-
-"""
-function _make_fwd_args(func, args_l)
-    kwargs = :(())
-    args_r = copy(args_l)
-    args_track = copy(args_l)
-    if Meta.isexpr(args_r[1], :parameters) # has kw args
-        insert!(args_r, 2, func)
-        insert!(args_track, 2, :(::typeof($func)))
-        kwargs = gensym(:kwargs)
-        args_track[1].args = [:($(kwargs)...)]
+# forward an argument by name: an annotation would be a type assert, a default a keyword
+function forwardarg((name, _, tosplat, _), iskw)
+    if tosplat
+        return :($name...)
+    elseif iskw
+        return Expr(:kw, name, name)
     else
-        insert!(args_r, 1, func)
-        insert!(args_track, 1, :(::typeof($func)))
+        return name
     end
+end
 
-    args_fixed = filter(copy(args_l)) do arg
-        !Meta.isexpr(arg, :parameters)
-    end
-
-    arg_types = map(args_fixed) do arg
-        if Meta.isexpr(arg, :(...))
-            Meta.isexpr(arg.args[1], :(::)) ? :(Vararg{$(arg.args[1].args[end])}) : :(Vararg{Any})
-        elseif Meta.isexpr(arg, :(::))
-            arg.args[end]
-        else
-            :Any
+# the `where` parameters that positional types refer to, directly or via the bounds of such parameters,
+# since unused type variables cause warnings; a bound can only refer to earlier parameters
+function positional_whereparams(whereparams, args)
+    types = [MacroTools.splitarg(arg)[2] for arg in args]
+    used = []
+    for p in Iterators.reverse(whereparams)
+        name = wherename(p)
+        if any(t -> MacroTools.inexpr(t, name), types) || any(q -> MacroTools.inexpr(q, name), used)
+            pushfirst!(used, p)
         end
     end
+    return used
+end
 
-    return args_l, args_r, args_track, args_fixed, arg_types, kwargs
+# `T`, `T <: U`, `T >: L` or `L <: T <: U`
+function wherename(p)
+    if Meta.isexpr(p, :<:) || Meta.isexpr(p, :>:)
+        return p.args[1]
+    elseif Meta.isexpr(p, :comparison)
+        return p.args[3]
+    else
+        return p
+    end
 end
 
 """
@@ -313,56 +309,77 @@ ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::TrackedArray)
 ReverseDiff.@grad_from_chainrules f(x::TrackedReal, y::Array)
 ReverseDiff.@grad_from_chainrules f(x::Real, y::TrackedArray)
 ```
+
+Varargs, keyword arguments and `where` clauses are supported as well:
+
+```julia
+ReverseDiff.@grad_from_chainrules f(x::TrackedArray{V}, ys::Int...; k = 1) where {V}
+```
+
+Note that every imported signature generates methods that dispatch on the types of
+all arguments. If two signatures of the same function overlap, such as
+`f(x::TrackedArray, y)` and `f(x, y::TrackedArray)`, then the fully tracked
+combination `f(x::TrackedArray, y::TrackedArray)` has to be imported as well,
+otherwise a call with two tracked arguments is ambiguous.
 """
 macro grad_from_chainrules(fcall)
-    Meta.isexpr(fcall, :call) && length(fcall.args) >= 2 ||
+    if !Meta.isexpr(fcall, :call) && !Meta.isexpr(fcall, :where)
         error("`@grad_from_chainrules` has to be applied to a function signature")
-    f = esc(fcall.args[1])
-    xs = map(fcall.args[2:end]) do x
-        if Meta.isexpr(x, :(::))
-            if length(x.args) == 1 # ::T without var name
-                return :($(gensym())::$(esc(x.args[1])))
-            else # x::T
-                @assert length(x.args) == 2
-                return :($(x.args[1])::$(esc(x.args[2])))
-            end
-        else
-            return x
-        end
     end
-    args_l, args_r, args_track, args_fixed, arg_types, kwargs = _make_fwd_args(f, xs)
+    d = MacroTools.splitdef(:($fcall = nothing))
+    if isempty(d[:args])
+        error("`@grad_from_chainrules` requires a signature with at least one positional argument")
+    end
+    f = esc(d[:name])
+    whereparams = map(esc, d[:whereparams])
+    args = map(splitarg_esc, d[:args])
+    kwargs = map(splitarg_esc, d[:kwargs])
+
+    sig_args = [MacroTools.combinearg(arg...) for arg in args]
+    sig_kwargs = [MacroTools.combinearg(kw...) for kw in kwargs]
+    # positional defaults are handled by the methods of `f`
+    track_args = [MacroTools.combinearg(name, type, tosplat, nothing) for (name, type, tosplat, _) in args]
+    call_args = [forwardarg(arg, false) for arg in args]
+    call_kwargs = [forwardarg(kw, true) for kw in kwargs]
+    arg_types = [tosplat ? :(Vararg{$type}) : type for (_, type, tosplat, _) in args]
+    # `track` and the exec methods only see positional types
+    track_whereparams = map(esc, positional_whereparams(d[:whereparams], d[:args]))
+
+    # argument names are escaped and may shadow `$f` in the bodies, so bind the function via its type
     return quote
-        $f($(args_l...)) = $ReverseDiff.track($(args_r...))
-        function $ReverseDiff.track($(args_track...))
-            args = ($(args_fixed...),)
+        (func::$ReverseDiff._selftype($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
+            $ReverseDiff.track(func, $(call_args...); $(call_kwargs...))
+        function $ReverseDiff.track(func::$ReverseDiff._selftype($f), $(track_args...); kwargs...) where {$(track_whereparams...)}
+            args = ($(call_args...),)
             tp = $ReverseDiff.tape(args...)
-            output_value, back = $ChainRulesCore.rrule($f, map($ReverseDiff.value, args)...; $kwargs...)
+            output_value, back = $ChainRulesCore.rrule(func, map($ReverseDiff.value, args)...; kwargs...)
             output = $ReverseDiff.track(output_value, tp)
-            closure(cls_args...; cls_kwargs...) = $ChainRulesCore.rrule($f, map($ReverseDiff.value, cls_args)...; cls_kwargs...)
+            closure(cls_args...; cls_kwargs...) = $ChainRulesCore.rrule(func, map($ReverseDiff.value, cls_args)...; cls_kwargs...)
             $ReverseDiff.record!(
                 tp,
                 $ReverseDiff.SpecialInstruction,
-                $f,
+                func,
                 args,
                 output,
-                (back, closure, $kwargs),
+                (back, closure, kwargs),
             )
             return output
         end
 
-        @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+        @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f), <:Tuple{$(arg_types...)}}) where {$(track_whereparams...)}
             output = instruction.output
             input = instruction.input
             back = instruction.cache[1]
             back_output = back($ReverseDiff.deriv(output))
-            input_derivs = back_output[2:end]
-            @assert input_derivs isa Tuple
+            # the first tangent is the one of the function itself
+            $ReverseDiff._check_tangents($f, back_output, length(input) + 1)
+            input_derivs = Base.tail(back_output)
             $ReverseDiff._add_to_deriv!.(input, input_derivs)
             $ReverseDiff.unseed!(output)
             return nothing
         end
 
-        @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}})
+        @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f), <:Tuple{$(arg_types...)}}) where {$(track_whereparams...)}
             output, input = instruction.output, instruction.input
             $ReverseDiff.pull_value!.(input)
             pullback = instruction.cache[2]
@@ -374,7 +391,26 @@ macro grad_from_chainrules(fcall)
     end
 end
 
+# like `Core.Typeof`, which Julia 1.14 renames to `Core.TypeEqOf` (JuliaLang/julia#62001)
+_selftype(@nospecialize(x)) = x isa Type ? Type{x} : typeof(x)
+
+# a 1-tuple would be silently broadcast over every argument
+function _check_tangents(f, tangents, n)
+    if !(tangents isa Tuple)
+        throw(ArgumentError(lazy"the pullback of `$f` must return a tuple of tangents"))
+    elseif length(tangents) != n
+        throw(
+            ArgumentError(
+                lazy"the pullback of `$f` must return a tuple of length $n, not $(length(tangents))"
+            ),
+        )
+    else
+        return nothing
+    end
+end
+
 _add_to_deriv!(d1, d2) = nothing
+_add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, ::Union{AbstractZero, Nothing}) = nothing
 function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, d2::AbstractThunk)
     istracked(d1) && increment_deriv!(d1, unthunk(d2))
     return nothing
