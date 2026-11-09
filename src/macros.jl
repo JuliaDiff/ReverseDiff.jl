@@ -179,31 +179,45 @@ The `@grad` macro provides a way for the users to define custom adjoints for sin
 """
 macro grad(expr)
     d = MacroTools.splitdef(expr)
-    f = d[:name]
-    closure = gensym(f)
-    d[:name] = closure
+    if isempty(d[:args])
+        error("`@grad` requires a signature with at least one positional argument")
+    end
+    f = esc(d[:name])
+    args = map(splitarg_esc, d[:args])
+    sig_args = [MacroTools.combinearg(arg...) for arg in args]
+    call_args = [forwardarg(arg, false) for arg in args]
+    # keyword arguments are handled by the closure
+    track_whereparams = map(esc, positional_whereparams(d[:whereparams], d[:args]))
+
+    # the user's definition as a local function with a hygienic name
+    # (an anonymous function does not support return type annotations)
+    d[:name] = :closure
+    for key in (:args, :kwargs, :whereparams)
+        d[key] = map(esc, d[key])
+    end
+    d[:body] = esc(d[:body])
+    if haskey(d, :rtype)
+        d[:rtype] = esc(d[:rtype])
+    end
     closure_ex = MacroTools.combinedef(d)
 
-    @gensym tp output_value output back args kwargs
-    args_ex = getargs_expr(d[:args])
-    kwargs_ex = getkwargs_expr(d[:kwargs])
+    # argument names are escaped and may shadow `$f` in the bodies, so bind the function via its type
     return quote
-        function $ReverseDiff.track(::$ReverseDiff._selftype($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...)}
+        function $ReverseDiff.track(func::$ReverseDiff._selftype($f), $(sig_args...); kwargs...) where {$(track_whereparams...)}
             $closure_ex
-            $args = $args_ex
-            $kwargs = $kwargs_ex
-            $tp = $ReverseDiff.tape($args...)
-            $output_value, $back = $closure($args...; $kwargs...)
-            $output = $ReverseDiff.track($output_value, $tp)
+            args = ($(call_args...),)
+            tp = $ReverseDiff.tape(args...)
+            output_value, back = closure(args...; kwargs...)
+            output = $ReverseDiff.track(output_value, tp)
             $ReverseDiff.record!(
-                $tp,
+                tp,
                 $ReverseDiff.SpecialInstruction,
-                $f,
-                $args,
-                $output,
-                ($back, $closure, $kwargs),
+                func,
+                args,
+                output,
+                (back, closure, kwargs),
             )
-            return $output
+            return output
         end
 
         if !hasmethod(
@@ -236,7 +250,7 @@ macro grad(expr)
                 return nothing
             end
         end
-    end |> esc
+    end
 end
 
 # `MacroTools.splitarg` with all user-supplied parts escaped, and a name for unnamed arguments
@@ -418,51 +432,4 @@ end
 function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, d2)
     istracked(d1) && increment_deriv!(d1, d2)
     return nothing
-end
-function getargs_expr(args_with_types)
-    expr = Expr(:tuple)
-    for at in args_with_types
-        x, tosplat = remove_tp(at)
-        if tosplat
-            push!(expr.args, :($x...))
-        else
-            push!(expr.args, x)
-        end
-    end
-    return expr
-end
-function getkwargs_expr(kwargs_with_types)
-    syms = []
-    final = nothing
-    for at in kwargs_with_types
-        final isa Nothing || throw("Invalid kwargs.")
-        x, tosplat = remove_tp(at)
-        if tosplat
-            final = x
-        else
-            push!(syms, x)
-        end
-    end
-    expr = length(syms) == 0 ? :(NamedTuple()) : Expr(:tuple, [:($f = $f) for f in syms]...)
-    final = final == nothing ? :(NamedTuple()) : final
-    return :(Base.merge($expr, $final))
-end
-function remove_tp(t)
-    if @capture(t, X_::T_...)
-        return X, true
-    elseif @capture(t, X_::T_)
-        return X, false
-    elseif @capture(t, X_::T_ = V_)
-        return X, false
-    elseif @capture(t, ::typeof(T_)...)
-        return T, true
-    elseif @capture(t, ::typeof(T_))
-        return T, false
-    elseif @capture(t, X_...)
-        return X, true
-    elseif @capture(t, X_ = V_)
-        return X, false
-    else
-        return t, false
-    end
 end
