@@ -266,6 +266,31 @@ function forwardarg((name, _, tosplat, _), iskw)
     end
 end
 
+# the `where` parameters that positional types refer to, directly or via the bounds of such parameters,
+# since unused type variables cause warnings; a bound can only refer to earlier parameters
+function positional_whereparams(whereparams, args)
+    types = [MacroTools.splitarg(arg)[2] for arg in args]
+    used = []
+    for p in Iterators.reverse(whereparams)
+        name = wherename(p)
+        if any(t -> MacroTools.inexpr(t, name), types) || any(q -> MacroTools.inexpr(q, name), used)
+            pushfirst!(used, p)
+        end
+    end
+    return used
+end
+
+# `T`, `T <: U`, `T >: L` or `L <: T <: U`
+function wherename(p)
+    if Meta.isexpr(p, :<:) || Meta.isexpr(p, :>:)
+        return p.args[1]
+    elseif Meta.isexpr(p, :comparison)
+        return p.args[3]
+    else
+        return p
+    end
+end
+
 """
     @grad_from_chainrules f(args...; kwargs...)
 
@@ -316,12 +341,14 @@ macro grad_from_chainrules(fcall)
     call_args = [forwardarg(arg, false) for arg in args]
     call_kwargs = [forwardarg(kw, true) for kw in kwargs]
     arg_types = [tosplat ? :(Vararg{$type}) : type for (_, type, tosplat, _) in args]
+    # `track` and the exec methods only see positional types
+    track_whereparams = map(esc, positional_whereparams(d[:whereparams], d[:args]))
 
     # argument names are escaped and may shadow `$f` in the bodies, so bind the function via its type
     return quote
-        (func::typeof($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
+        (func::$ReverseDiff._selftype($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
             $ReverseDiff.track(func, $(call_args...); $(call_kwargs...))
-        function $ReverseDiff.track(func::typeof($f), $(track_args...); kwargs...) where {$(whereparams...)}
+        function $ReverseDiff.track(func::$ReverseDiff._selftype($f), $(track_args...); kwargs...) where {$(track_whereparams...)}
             args = ($(call_args...),)
             tp = $ReverseDiff.tape(args...)
             output_value, back = $ChainRulesCore.rrule(func, map($ReverseDiff.value, args)...; kwargs...)
@@ -338,7 +365,7 @@ macro grad_from_chainrules(fcall)
             return output
         end
 
-        @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(whereparams...)}
+        @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(track_whereparams...)}
             output = instruction.output
             input = instruction.input
             back = instruction.cache[1]
@@ -351,7 +378,7 @@ macro grad_from_chainrules(fcall)
             return nothing
         end
 
-        @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(whereparams...)}
+        @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(track_whereparams...)}
             output, input = instruction.output, instruction.input
             $ReverseDiff.pull_value!.(input)
             pullback = instruction.cache[2]
@@ -362,6 +389,9 @@ macro grad_from_chainrules(fcall)
         end
     end
 end
+
+# `Core.Typeof`, renamed to `Core.TypeEqOf` in Julia 1.14 (JuliaLang/julia#62001)
+_selftype(@nospecialize(x)) = x isa Type ? Type{x} : typeof(x)
 
 # a 1-tuple would be silently broadcast over every argument
 function _check_tangents(f, tangents, n)

@@ -420,6 +420,20 @@ function ChainRulesCore.rrule(::typeof(h_where), x, y = 2)
     return h_where(x, y), pb_h_where
 end
 
+k_where(x; k = 1) = sum(4x) * k
+
+function ChainRulesCore.rrule(::typeof(k_where), x; k = 1)
+    pb_k_where(Δ) = (NoTangent(), fill(3 * k * Δ, size(x)))
+    return k_where(x; k = k), pb_k_where
+end
+
+m_where(x) = sum(4x)
+
+function ChainRulesCore.rrule(::typeof(m_where), x)
+    pb_m_where(Δ) = (NoTangent(), fill(3 * Δ, size(x)))
+    return m_where(x), pb_m_where
+end
+
 @testset "where clauses" begin
     x = rand(3, 3)
     @test ReverseDiff.gradient(f_where, x) == fill(3, size(x))
@@ -431,6 +445,50 @@ end
     ) where {V <: Real}
     @test ReverseDiff.gradient(h_where, x) == fill(6, size(x))
     @test ReverseDiff.gradient(u -> h_where(u, 3), x) == fill(9, size(x))
+
+    # the static parameter is used only in a keyword argument
+    @test_nowarn @eval ReverseDiff.@grad_from_chainrules k_where(
+        x::ReverseDiff.TrackedArray; k::V = 1
+    ) where {V <: Real}
+    @test ReverseDiff.gradient(u -> k_where(u; k = 2), x) == fill(6, size(x))
+
+    # the static parameter `T` is used only in the bound of `S`
+    @test_nowarn @eval ReverseDiff.@grad_from_chainrules m_where(
+        x::S
+    ) where {T <: Real, S <: ReverseDiff.TrackedArray{T}}
+    @test ReverseDiff.gradient(m_where, x) == fill(3, size(x))
+end
+
+### Constructors
+struct Doubled <: AbstractVector{Float64}
+    data::Vector{Float64}
+    Doubled(x::AbstractVector) = new(2 .* x)
+end
+Base.IndexStyle(::Type{Doubled}) = IndexLinear()
+Base.size(x::Doubled) = size(x.data)
+Base.getindex(x::Doubled, i::Int) = x.data[i]
+Base.setindex!(x::Doubled, v, i::Int) = setindex!(x.data, v, i)
+
+function ChainRulesCore.rrule(::Type{Doubled}, x)
+    pb_Doubled(Δ) = (NoTangent(), 2 .* Δ)
+    return Doubled(x), pb_Doubled
+end
+
+ReverseDiff.@grad_from_chainrules Doubled(x::ReverseDiff.TrackedArray)
+
+struct Wrapped
+    x
+end
+
+@testset "constructors" begin
+    x = rand(3)
+    @test ReverseDiff.gradient(u -> sum(abs2, Doubled(u)), x) ≈ 8 .* x
+    tape = ReverseDiff.compile(ReverseDiff.GradientTape(u -> sum(abs2, Doubled(u)), rand(3)))
+    @test ReverseDiff.gradient!(similar(x), tape, x) ≈ 8 .* x
+
+    # constructors of other types are not affected
+    xt = ReverseDiff.track(x)
+    @test Wrapped(xt).x === xt
 end
 
 ### Qualified function names
