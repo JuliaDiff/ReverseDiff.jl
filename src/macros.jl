@@ -246,7 +246,10 @@ function splitarg_esc(arg)
         name = gensym()
     end
     name = esc(name)
-    type = esc(type)
+    # `combinearg` drops only an unescaped `::Any`, and a keyword splat cannot be typed
+    if type !== :Any
+        type = esc(type)
+    end
     if default !== nothing
         default = esc(default)
     end
