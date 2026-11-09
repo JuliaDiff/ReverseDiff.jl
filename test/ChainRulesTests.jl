@@ -476,6 +476,36 @@ end
 
 ReverseDiff.@grad_from_chainrules Doubled(x::ReverseDiff.TrackedArray)
 
+# same positional signature as `Doubled`
+struct Tripled <: AbstractVector{Float64}
+    data::Vector{Float64}
+    Tripled(x::AbstractVector) = new(3 .* x)
+end
+Base.IndexStyle(::Type{Tripled}) = IndexLinear()
+Base.size(x::Tripled) = size(x.data)
+Base.getindex(x::Tripled, i::Int) = x.data[i]
+Base.setindex!(x::Tripled, v, i::Int) = setindex!(x.data, v, i)
+
+function ChainRulesCore.rrule(::Type{Tripled}, x)
+    pb_Tripled(Δ) = (NoTangent(), 3 .* Δ)
+    return Tripled(x), pb_Tripled
+end
+
+struct Halved <: AbstractVector{Float64}
+    data::Vector{Float64}
+    Halved(x::AbstractVector) = new(x ./ 2)
+end
+Base.IndexStyle(::Type{Halved}) = IndexLinear()
+Base.size(x::Halved) = size(x.data)
+Base.getindex(x::Halved, i::Int) = x.data[i]
+Base.setindex!(x::Halved, v, i::Int) = setindex!(x.data, v, i)
+
+Halved(x::ReverseDiff.TrackedArray) = ReverseDiff.track(Halved, x)
+ReverseDiff.@grad function Halved(x)
+    pb_Halved(Δ) = (Δ ./ 2,)
+    return Halved(ReverseDiff.value(x)), pb_Halved
+end
+
 struct Wrapped
     x
 end
@@ -485,6 +515,14 @@ end
     @test ReverseDiff.gradient(u -> sum(abs2, Doubled(u)), x) ≈ 8 .* x
     tape = ReverseDiff.compile(ReverseDiff.GradientTape(u -> sum(abs2, Doubled(u)), rand(3)))
     @test ReverseDiff.gradient!(similar(x), tape, x) ≈ 8 .* x
+
+    # constructors with the same signature do not share methods
+    @test_nowarn @eval ReverseDiff.@grad_from_chainrules Tripled(x::ReverseDiff.TrackedArray)
+    @test ReverseDiff.gradient(u -> sum(abs2, Tripled(u)), x) ≈ 18 .* x
+    @test ReverseDiff.gradient(u -> sum(abs2, Doubled(u)), x) ≈ 8 .* x
+
+    # `@grad`
+    @test ReverseDiff.gradient(u -> sum(abs2, Halved(u)), x) ≈ x ./ 2
 
     # constructors of other types are not affected
     xt = ReverseDiff.track(x)

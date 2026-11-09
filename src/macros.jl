@@ -188,7 +188,7 @@ macro grad(expr)
     args_ex = getargs_expr(d[:args])
     kwargs_ex = getkwargs_expr(d[:kwargs])
     return quote
-        function $ReverseDiff.track(::typeof($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...)}
+        function $ReverseDiff.track(::$ReverseDiff._selftype($f), $(d[:args]...); $(d[:kwargs]...)) where {$(d[:whereparams]...)}
             $closure_ex
             $args = $args_ex
             $kwargs = $kwargs_ex
@@ -208,9 +208,9 @@ macro grad(expr)
 
         if !hasmethod(
                 $ReverseDiff.special_reverse_exec!,
-                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+                Tuple{$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f)}},
             )
-            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f)})
                 output = instruction.output
                 input = instruction.input
                 back = instruction.cache[1]
@@ -224,9 +224,9 @@ macro grad(expr)
 
         if !hasmethod(
                 $ReverseDiff.special_forward_exec!,
-                Tuple{$ReverseDiff.SpecialInstruction{typeof($f)}},
+                Tuple{$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f)}},
             )
-            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f)})
+            @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f)})
                 output, input = instruction.output, instruction.input
                 $ReverseDiff.pull_value!.(input)
                 pullback = instruction.cache[2]
@@ -366,7 +366,7 @@ macro grad_from_chainrules(fcall)
             return output
         end
 
-        @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(track_whereparams...)}
+        @noinline function $ReverseDiff.special_reverse_exec!(instruction::$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f), <:Tuple{$(arg_types...)}}) where {$(track_whereparams...)}
             output = instruction.output
             input = instruction.input
             back = instruction.cache[1]
@@ -379,7 +379,7 @@ macro grad_from_chainrules(fcall)
             return nothing
         end
 
-        @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{typeof($f), <:Tuple{$(arg_types...)}}) where {$(track_whereparams...)}
+        @noinline function $ReverseDiff.special_forward_exec!(instruction::$ReverseDiff.SpecialInstruction{$ReverseDiff._selftype($f), <:Tuple{$(arg_types...)}}) where {$(track_whereparams...)}
             output, input = instruction.output, instruction.input
             $ReverseDiff.pull_value!.(input)
             pullback = instruction.cache[2]
