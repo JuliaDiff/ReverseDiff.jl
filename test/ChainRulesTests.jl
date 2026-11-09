@@ -455,7 +455,7 @@ end
     # the static parameter `T` is used only in the bound of `S`
     @test_nowarn @eval ReverseDiff.@grad_from_chainrules m_where(
         x::S
-    ) where {T <: Real, S <: ReverseDiff.TrackedArray{T}}
+    ) where {Float64 <: T <: Real, S <: ReverseDiff.TrackedArray{T}}
     @test ReverseDiff.gradient(m_where, x) == fill(3, size(x))
 end
 
@@ -528,8 +528,11 @@ ReverseDiff.@grad_from_chainrules f_names(
 end
 
 @testset "invalid signatures" begin
-    @test_throws LoadError @eval ReverseDiff.@grad_from_chainrules f_where
-    @test_throws LoadError @eval ReverseDiff.@grad_from_chainrules f_where()
+    @test_throws "has to be applied to a function signature" @eval ReverseDiff.@grad_from_chainrules f_where
+    @test_throws "at least one positional argument" @eval ReverseDiff.@grad_from_chainrules f_where()
+    @test_throws "at least one positional argument" @eval ReverseDiff.@grad_from_chainrules f_where(
+        ; k::ReverseDiff.TrackedArray
+    )
 end
 
 ### Isolated Scope

@@ -246,9 +246,7 @@ function splitarg_esc(arg)
         name = gensym()
     end
     name = esc(name)
-    if type !== :Any
-        type = esc(type)
-    end
+    type = esc(type)
     if default !== nothing
         default = esc(default)
     end
@@ -326,8 +324,8 @@ macro grad_from_chainrules(fcall)
         error("`@grad_from_chainrules` has to be applied to a function signature")
     end
     d = MacroTools.splitdef(:($fcall = nothing))
-    if isempty(d[:args]) && isempty(d[:kwargs])
-        error("`@grad_from_chainrules` requires a signature with at least one argument")
+    if isempty(d[:args])
+        error("`@grad_from_chainrules` requires a signature with at least one positional argument")
     end
     f = esc(d[:name])
     whereparams = map(esc, d[:whereparams])
@@ -390,7 +388,7 @@ macro grad_from_chainrules(fcall)
     end
 end
 
-# `Core.Typeof`, renamed to `Core.TypeEqOf` in Julia 1.14 (JuliaLang/julia#62001)
+# like `Core.Typeof`, which Julia 1.14 renames to `Core.TypeEqOf` (JuliaLang/julia#62001)
 _selftype(@nospecialize(x)) = x isa Type ? Type{x} : typeof(x)
 
 # a 1-tuple would be silently broadcast over every argument
