@@ -190,7 +190,7 @@ macro grad(expr)
     track_whereparams = map(esc, positional_whereparams(d[:whereparams], d[:args]))
 
     # the user's definition as a local function with a hygienic name
-    # (an anonymous function does not support return type annotations)
+    # (`combinedef` emits an invalid anonymous function for a return type annotation)
     d[:name] = :closure
     for key in (:args, :kwargs, :whereparams)
         d[key] = map(esc, d[key])

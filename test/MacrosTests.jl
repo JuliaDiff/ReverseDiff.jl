@@ -1,4 +1,4 @@
-using ReverseDiff, ForwardDiff, Test, StaticArrays
+using ReverseDiff, ForwardDiff, Test, StaticArrays, DiffResults
 using ForwardDiff: Dual, Partials, partials
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
@@ -387,16 +387,17 @@ end
 end
 
 # keyword argument used in the forward pass of a replayed tape
-f17(x; p = 2) = x^p
-f17(x::TrackedReal; p = 2) = ReverseDiff.track(f17, x; p = p)
-@grad function f17(x::Real; p = 2)
+# (the pullback is reused, so it must read the input array that the replay updates)
+f16(x; p = 2) = sum(x .^ p)
+f16(x::TrackedArray; p = 2) = ReverseDiff.track(f16, x; p = p)
+@grad function f16(x::AbstractVector; p = 2)
     xv = ReverseDiff.value(x)
-    return xv^p, Δ -> (p * xv^(p - 1) * Δ,)
+    return f16(xv; p = p), Δ -> (p .* xv .^ (p - 1) .* Δ,)
 end
 
 # qualified function name (#318)
 module GradQualified
-f(x) = sum(abs2, x)
+    f(x) = sum(abs2, x)
 end
 GradQualified.f(x::TrackedArray) = ReverseDiff.track(GradQualified.f, x)
 @grad function GradQualified.f(x)
@@ -417,10 +418,12 @@ end
 
     @test ReverseDiff.gradient(x -> f15(x...; kwargs = 3), rand(6)) == fill(3.0, 6)
 
-    tape = ReverseDiff.GradientTape(x -> f17(x[1]; p = 3), [1.0])
+    tape = ReverseDiff.GradientTape(x -> f16(x; p = 3), [1.0, 1.0])
     for t in (tape, ReverseDiff.compile(tape))
-        @test ReverseDiff.gradient!(t, [2.0]) == [12.0]
-        @test ReverseDiff.gradient!(t, [3.0]) == [27.0]
+        result = DiffResults.GradientResult([0.0, 0.0])
+        ReverseDiff.gradient!(result, t, [2.0, 3.0])
+        @test DiffResults.value(result) == 35.0
+        @test DiffResults.gradient(result) == [12.0, 27.0]
     end
 
     x = [1.0, 2.0, 3.0]
@@ -430,7 +433,7 @@ end
         @test ReverseDiff.gradient!(t, [-2.0, 0.5, 4.0]) == [-4.0, 1.0, 8.0]
     end
 
-    @test_throws "at least one positional argument" @eval @grad function f16(; k)
+    @test_throws "at least one positional argument" @eval @grad function f17(; k)
         return k, Δ -> ()
     end
 end
