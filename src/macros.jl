@@ -178,7 +178,13 @@ skipvalue(x::AbstractArray{<:TrackedReal}) = skipvalue(value(x))
 The `@grad` macro provides a way for the users to define custom adjoints for single-output functions wrt to their input numbers or arrays.
 """
 macro grad(expr)
+    if !MacroTools.isdef(expr)
+        error("`@grad` has to be applied to a named function definition")
+    end
     d = MacroTools.splitdef(expr)
+    if !haskey(d, :name)
+        error("`@grad` has to be applied to a named function definition")
+    end
     if isempty(d[:args])
         error("`@grad` requires a signature with at least one positional argument")
     end
@@ -186,7 +192,7 @@ macro grad(expr)
     args = map(splitarg_esc, d[:args])
     sig_args = [MacroTools.combinearg(arg...) for arg in args]
     call_args = [forwardarg(arg, false) for arg in args]
-    # keyword arguments are handled by the closure
+    # keywords are forwarded to the closure, so `track` only needs the positional `where` parameters
     track_whereparams = map(esc, positional_whereparams(d[:whereparams], d[:args]))
 
     # the user's definition as a local function with a hygienic name

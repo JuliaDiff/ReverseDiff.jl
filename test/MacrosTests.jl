@@ -433,7 +433,11 @@ end
         @test ReverseDiff.gradient!(t, [-2.0, 0.5, 4.0]) == [-4.0, 1.0, 8.0]
     end
 
-    @test_throws "at least one positional argument" @eval @grad function f17(; k)
+    @test_throws "`@grad` requires a signature with at least one positional argument" @eval @grad function f17(; k)
         return k, Δ -> ()
+    end
+    @test_throws "`@grad` has to be applied to a named function definition" @eval @grad f18(x)
+    @test_throws "`@grad` has to be applied to a named function definition" @eval @grad function (x)
+        return x, Δ -> (Δ,)
     end
 end
