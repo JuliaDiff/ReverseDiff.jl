@@ -11,7 +11,7 @@ end
 @grad function fill(v::Real, dims...)
     function back(Δ)
         size(Δ) ≢ dims && error("Dimension mismatch")
-        return (sum(Δ), map(_ -> nothing, dims)...)
+        return (sum(Δ), map(_ -> NoTangent(), dims)...)
     end
     return fill(value(v), dims...), back
 end

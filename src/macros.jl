@@ -176,6 +176,9 @@ skipvalue(x::AbstractArray{<:TrackedReal}) = skipvalue(value(x))
         return dot(xv, xv), Δ -> (Δ * 2 * xv,)
     end
 The `@grad` macro provides a way for the users to define custom adjoints for single-output functions wrt to their input numbers or arrays.
+
+The pullback returns a tuple with one tangent per positional argument: a number or an array, a
+thunk, `ChainRulesCore.NoTangent()` or `ChainRulesCore.ZeroTangent()`.
 """
 macro grad(expr)
     d = MacroTools.isdef(expr) ? MacroTools.splitdef(expr) : nothing
@@ -231,8 +234,9 @@ macro grad(expr)
                 output = instruction.output
                 input = instruction.input
                 back = instruction.cache[1]
-                input_derivs = back($ReverseDiff.deriv(output))
-                $ReverseDiff._check_tangents($f, input_derivs, length(input))
+                back_output = back($ReverseDiff.deriv(output))
+                $ReverseDiff._check_tangents($f, back_output, length(input))
+                input_derivs = map($ReverseDiff._totangent, back_output)
                 $ReverseDiff._add_to_deriv!.(input, input_derivs)
                 $ReverseDiff.unseed!(output)
                 return nothing
@@ -426,8 +430,12 @@ function _check_tangents(f, tangents, n)
     end
 end
 
+# `@grad` pullbacks may use `nothing`, like in Tracker
+_totangent(x) = x
+_totangent(::Nothing) = NoTangent()
+
 _add_to_deriv!(d1, d2) = nothing
-_add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, ::Union{AbstractZero, Nothing}) = nothing
+_add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, ::AbstractZero) = nothing
 function _add_to_deriv!(d1::Union{TrackedReal, AbstractArray}, d2::AbstractThunk)
     istracked(d1) && increment_deriv!(d1, unthunk(d2))
     return nothing
