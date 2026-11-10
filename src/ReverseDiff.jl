@@ -9,7 +9,7 @@ using FunctionWrappers: FunctionWrapper
 using LinearAlgebra: LinearAlgebra, Adjoint, Diagonal, LowerTriangular, Transpose,
     UnitLowerTriangular, UnitUpperTriangular, UpperTriangular, det, dot, lmul!, mul!
 using LogExpFunctions: LogExpFunctions
-using MacroTools: MacroTools, @capture
+using MacroTools: MacroTools
 using NaNMath: NaNMath
 using Random: Random
 using SpecialFunctions: SpecialFunctions

@@ -1,4 +1,4 @@
-using ReverseDiff, ForwardDiff, Test, StaticArrays
+using ReverseDiff, ForwardDiff, Test, StaticArrays, DiffResults
 using ForwardDiff: Dual, Partials, partials
 
 include(joinpath(dirname(@__FILE__), "utils.jl"))
@@ -341,4 +341,103 @@ using ReverseDiff: @grad, TrackedReal, TrackedVector, TrackedMatrix, TrackedArra
     g2 = ReverseDiff.gradient(x -> sum(abs2, x), A)
     @test g1 == g2
     @test custom_grad_called
+end
+
+# unnamed argument
+f10(x, ::Val{N}) where {N} = N * x
+f10(x::TrackedReal, v::Val) = ReverseDiff.track(f10, x, v)
+@grad function f10(x::Real, ::Val{N}) where {N}
+    return N * ReverseDiff.value(x), Δ -> (N * Δ, nothing)
+end
+
+# argument named like the function
+f11(x) = 2 * x
+f11(x::TrackedReal) = ReverseDiff.track(f11, x)
+@grad function f11(f11::Real)
+    return 2 * ReverseDiff.value(f11), Δ -> (2 * Δ,)
+end
+
+# positional default
+f12(x, y = 2) = x * y
+f12(x::TrackedReal) = ReverseDiff.track(f12, x)
+@grad function f12(x::Real, y::Real = 2)
+    return ReverseDiff.value(x) * y, Δ -> (y * Δ, nothing)
+end
+
+# return type annotation
+f13(x) = x^2
+f13(x::TrackedReal) = ReverseDiff.track(f13, x)
+@grad function f13(x::Real)::Tuple
+    xv = ReverseDiff.value(x)
+    return xv^2, Δ -> (2 * xv * Δ,)
+end
+
+# `where` parameter used only by a keyword argument
+f14(x; k = 1) = k * x
+f14(x::TrackedReal; k = 1) = ReverseDiff.track(f14, x; k = k)
+
+# arguments named like the internals of `@grad`
+f15(tp, args, back, output, closure, func; kwargs = 1) = kwargs * (tp + args + back + output + closure + func)
+function f15(tp::TrackedReal, args::TrackedReal, back::TrackedReal, output::TrackedReal, closure::TrackedReal, func::TrackedReal; kwargs = 1)
+    return ReverseDiff.track(f15, tp, args, back, output, closure, func; kwargs = kwargs)
+end
+@grad function f15(tp::Real, args::Real, back::Real, output::Real, closure::Real, func::Real; kwargs = 1)
+    xv = ReverseDiff.value.((tp, args, back, output, closure, func))
+    return kwargs * sum(xv), Δ -> map(_ -> kwargs * Δ, xv)
+end
+
+# keyword argument used in the forward pass of a replayed tape
+# (the recorded pullback is reused when replaying, see #187, so it must read the input array that the replay updates)
+f16(x; p = 2) = sum(x .^ p)
+f16(x::TrackedArray; p = 2) = ReverseDiff.track(f16, x; p = p)
+@grad function f16(x::AbstractVector; p = 2)
+    xv = ReverseDiff.value(x)
+    return f16(xv; p = p), Δ -> (p .* xv .^ (p - 1) .* Δ,)
+end
+
+# qualified function name (#318)
+module GradQualified
+    f(x) = sum(abs2, x)
+end
+GradQualified.f(x::TrackedArray) = ReverseDiff.track(GradQualified.f, x)
+@grad function GradQualified.f(x)
+    xv = ReverseDiff.value(x)
+    return GradQualified.f(xv), Δ -> (2 .* Δ .* xv,)
+end
+
+@testset "@grad macro: signatures" begin
+    @test ReverseDiff.gradient(x -> f10(x[1], Val(3)), [2.0]) == [3.0]
+    @test ReverseDiff.gradient(x -> f11(x[1]), [2.0]) == [2.0]
+    @test ReverseDiff.gradient(x -> f12(x[1]), [3.0]) == [2.0]
+    @test ReverseDiff.gradient(x -> f13(x[1]), [3.0]) == [6.0]
+
+    @test_nowarn @eval @grad function f14(x::Real; k::T = 1) where {T}
+        return k * ReverseDiff.value(x), Δ -> (k * Δ,)
+    end
+    @test ReverseDiff.gradient(x -> f14(x[1]; k = 2), [3.0]) == [2.0]
+
+    @test ReverseDiff.gradient(x -> f15(x...; kwargs = 3), rand(6)) == fill(3.0, 6)
+
+    tape = ReverseDiff.GradientTape(x -> f16(x; p = 3), [1.0, 1.0])
+    for t in (tape, ReverseDiff.compile(tape))
+        result = DiffResults.GradientResult([0.0, 0.0])
+        ReverseDiff.gradient!(result, t, [2.0, 3.0])
+        @test DiffResults.value(result) == 35.0
+        @test DiffResults.gradient(result) == [12.0, 27.0]
+    end
+
+    x = [1.0, 2.0, 3.0]
+    @test ReverseDiff.gradient(GradQualified.f, x) == 2 .* x
+    tape = ReverseDiff.GradientTape(GradQualified.f, x)
+    for t in (tape, ReverseDiff.compile(tape))
+        @test ReverseDiff.gradient!(t, [-2.0, 0.5, 4.0]) == [-4.0, 1.0, 8.0]
+    end
+
+    @test_throws "`@grad` requires a signature with at least one positional argument" @eval @grad function f17(; k)
+        return k, Δ -> ()
+    end
+    @test_throws "`@grad` has to be applied to a named function definition" @eval @grad f18(x)
+    @test_throws "`@grad` has to be applied to a named function definition" @eval @grad function (x)
+        return x, Δ -> (Δ,)
+    end
 end
