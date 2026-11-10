@@ -34,7 +34,7 @@ tracked_is(a::Tuple, b::Tuple) = all(map(tracked_is, a, b))
 function modify_input(f, x)
     return if in(f, (:asec, :acsc, :asecd, :acscd, :acosh, :acoth))
         x .+ one(eltype(x))
-    elseif f === :log1mexp || f === :log2mexp
+    elseif f in (:log1mexp, :log2mexp, :logitexp, :logit1mexp)
         x .- one(eltype(x))
     else
         x
