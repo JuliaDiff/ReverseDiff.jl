@@ -178,11 +178,8 @@ skipvalue(x::AbstractArray{<:TrackedReal}) = skipvalue(value(x))
 The `@grad` macro provides a way for the users to define custom adjoints for single-output functions wrt to their input numbers or arrays.
 """
 macro grad(expr)
-    if !MacroTools.isdef(expr)
-        error("`@grad` has to be applied to a named function definition")
-    end
-    d = MacroTools.splitdef(expr)
-    if !haskey(d, :name)
+    d = MacroTools.isdef(expr) ? MacroTools.splitdef(expr) : nothing
+    if d === nothing || !haskey(d, :name)
         error("`@grad` has to be applied to a named function definition")
     end
     if isempty(d[:args])

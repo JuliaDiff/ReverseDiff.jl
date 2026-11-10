@@ -387,7 +387,7 @@ end
 end
 
 # keyword argument used in the forward pass of a replayed tape
-# (the pullback is reused, so it must read the input array that the replay updates)
+# (the recorded pullback is reused when replaying, see #187, so it must read the input array that the replay updates)
 f16(x; p = 2) = sum(x .^ p)
 f16(x::TrackedArray; p = 2) = ReverseDiff.track(f16, x; p = p)
 @grad function f16(x::AbstractVector; p = 2)
