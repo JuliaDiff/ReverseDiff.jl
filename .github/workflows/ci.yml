@@ -35,8 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - 'min-patch'
-          - 'lts'
+          - 'min'
           - '1'
         os:
           - ubuntu-latest
