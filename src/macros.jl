@@ -192,9 +192,11 @@ macro grad(expr)
     # keywords are forwarded to the closure, so `track` only needs the positional `where` parameters
     track_whereparams = map(esc, positional_whereparams(d[:whereparams], d[:args]))
 
-    # the user's definition as a local function with a hygienic name
-    # (`combinedef` emits an invalid anonymous function for a return type annotation)
-    d[:name] = :closure
+    # the user's definition as a local function
+    # (`combinedef` emits an invalid anonymous function for a return type annotation);
+    # gensym: hygiene keeps the name if an escaped argument shares it
+    closure = gensym(:closure)
+    d[:name] = closure
     for key in (:args, :kwargs, :whereparams)
         d[key] = map(esc, d[key])
     end
@@ -210,7 +212,7 @@ macro grad(expr)
             $closure_ex
             args = ($(call_args...),)
             tp = $ReverseDiff.tape(args...)
-            output_value, back = closure(args...; kwargs...)
+            output_value, back = $closure(args...; kwargs...)
             output = $ReverseDiff.track(output_value, tp)
             $ReverseDiff.record!(
                 tp,
@@ -218,7 +220,7 @@ macro grad(expr)
                 func,
                 args,
                 output,
-                (back, closure, kwargs),
+                (back, $closure, kwargs),
             )
             return output
         end
@@ -361,21 +363,23 @@ macro grad_from_chainrules(fcall)
     arg_types = [tosplat ? :(Vararg{$type}) : type for (_, type, tosplat, _) in args]
     # `track` and the exec methods only see positional types
     track_whereparams = map(esc, positional_whereparams(d[:whereparams], d[:args]))
+    # gensym: hygiene keeps the name if an escaped argument shares it
+    self = gensym(:func)
 
     # argument names are escaped and may shadow `$f` in the bodies, so bind the function via its type
     return quote
-        (func::$ReverseDiff._selftype($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
-            $ReverseDiff.track(func, $(call_args...); $(call_kwargs...))
-        function $ReverseDiff.track(func::$ReverseDiff._selftype($f), $(track_args...); kwargs...) where {$(track_whereparams...)}
+        ($self::$ReverseDiff._selftype($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
+            $ReverseDiff.track($self, $(call_args...); $(call_kwargs...))
+        function $ReverseDiff.track($self::$ReverseDiff._selftype($f), $(track_args...); kwargs...) where {$(track_whereparams...)}
             args = ($(call_args...),)
             tp = $ReverseDiff.tape(args...)
-            output_value, back = $ChainRulesCore.rrule(func, map($ReverseDiff.value, args)...; kwargs...)
+            output_value, back = $ChainRulesCore.rrule($self, map($ReverseDiff.value, args)...; kwargs...)
             output = $ReverseDiff.track(output_value, tp)
-            closure(cls_args...; cls_kwargs...) = $ChainRulesCore.rrule(func, map($ReverseDiff.value, cls_args)...; cls_kwargs...)
+            closure(cls_args...; cls_kwargs...) = $ChainRulesCore.rrule($self, map($ReverseDiff.value, cls_args)...; cls_kwargs...)
             $ReverseDiff.record!(
                 tp,
                 $ReverseDiff.SpecialInstruction,
-                func,
+                $self,
                 args,
                 output,
                 (back, closure, kwargs),

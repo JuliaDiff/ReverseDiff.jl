@@ -381,7 +381,8 @@ f15(tp, args, back, output, closure, func; kwargs = 1) = kwargs * (tp + args + b
 function f15(tp::TrackedReal, args::TrackedReal, back::TrackedReal, output::TrackedReal, closure::TrackedReal, func::TrackedReal; kwargs = 1)
     return ReverseDiff.track(f15, tp, args, back, output, closure, func; kwargs = kwargs)
 end
-@grad function f15(tp::Real, args::Real, back::Real, output::Real, closure::Real, func::Real; kwargs = 1)
+# untyped `closure` and `func` (#334)
+@grad function f15(tp::Real, args::Real, back::Real, output::Real, closure, func; kwargs = 1)
     xv = ReverseDiff.value.((tp, args, back, output, closure, func))
     return kwargs * sum(xv), Δ -> map(_ -> kwargs * Δ, xv)
 end

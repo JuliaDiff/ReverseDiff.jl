@@ -547,20 +547,21 @@ ReverseDiff.@grad_from_chainrules QualifiedNames.f_qualified(x::ReverseDiff.Trac
 end
 
 ### Argument names that coincide with the function or with internal names
-f_names(f_names, kwargs) = sum(4f_names) + sum(4kwargs)
+f_names(f_names, kwargs, func) = sum(4f_names) + sum(4kwargs) + sum(4func)
 
-function ChainRulesCore.rrule(::typeof(f_names), x, y)
-    pb_f_names(Δ) = (NoTangent(), fill(3 * Δ, size(x)), fill(5 * Δ, size(y)))
-    return f_names(x, y), pb_f_names
+function ChainRulesCore.rrule(::typeof(f_names), x, y, z)
+    pb_f_names(Δ) = (NoTangent(), fill(3 * Δ, size(x)), fill(5 * Δ, size(y)), fill(7 * Δ, size(z)))
+    return f_names(x, y, z), pb_f_names
 end
 
+# untyped `func` (#334)
 ReverseDiff.@grad_from_chainrules f_names(
-    f_names::ReverseDiff.TrackedArray, kwargs::ReverseDiff.TrackedArray
+    f_names::ReverseDiff.TrackedArray, kwargs::ReverseDiff.TrackedArray, func
 )
 
 @testset "argument names" begin
-    x, y = rand(3, 3), rand(3, 3)
-    results = ReverseDiff.gradient(f_names, (x, y))
+    x, y, z = rand(3, 3), rand(3, 3), rand(3, 3)
+    results = ReverseDiff.gradient((x, y) -> f_names(x, y, z), (x, y))
     @test results[1] == fill(3, size(x))
     @test results[2] == fill(5, size(y))
 end
