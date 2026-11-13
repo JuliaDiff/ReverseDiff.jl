@@ -362,20 +362,23 @@ macro grad_from_chainrules(fcall)
     # `track` and the exec methods only see positional types
     track_whereparams = map(esc, positional_whereparams(d[:whereparams], d[:args]))
 
-    # argument names are escaped and may shadow `$f` in the bodies, so bind the function via its type
+    # argument names are escaped and may shadow `$f` in the bodies, so bind the function via its type,
+    # under a generated name: the self-argument of a callable-object method is not renamed by macro
+    # hygiene, so a fixed name would clash with an argument of the same name (#334)
+    self = gensym(:func)
     return quote
-        (func::$ReverseDiff._selftype($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
-            $ReverseDiff.track(func, $(call_args...); $(call_kwargs...))
-        function $ReverseDiff.track(func::$ReverseDiff._selftype($f), $(track_args...); kwargs...) where {$(track_whereparams...)}
+        ($self::$ReverseDiff._selftype($f))($(sig_args...); $(sig_kwargs...)) where {$(whereparams...)} =
+            $ReverseDiff.track($self, $(call_args...); $(call_kwargs...))
+        function $ReverseDiff.track($self::$ReverseDiff._selftype($f), $(track_args...); kwargs...) where {$(track_whereparams...)}
             args = ($(call_args...),)
             tp = $ReverseDiff.tape(args...)
-            output_value, back = $ChainRulesCore.rrule(func, map($ReverseDiff.value, args)...; kwargs...)
+            output_value, back = $ChainRulesCore.rrule($self, map($ReverseDiff.value, args)...; kwargs...)
             output = $ReverseDiff.track(output_value, tp)
-            closure(cls_args...; cls_kwargs...) = $ChainRulesCore.rrule(func, map($ReverseDiff.value, cls_args)...; cls_kwargs...)
+            closure(cls_args...; cls_kwargs...) = $ChainRulesCore.rrule($self, map($ReverseDiff.value, cls_args)...; cls_kwargs...)
             $ReverseDiff.record!(
                 tp,
                 $ReverseDiff.SpecialInstruction,
-                func,
+                $self,
                 args,
                 output,
                 (back, closure, kwargs),

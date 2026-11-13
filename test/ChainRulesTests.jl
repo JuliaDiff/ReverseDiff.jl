@@ -565,6 +565,21 @@ ReverseDiff.@grad_from_chainrules f_names(
     @test results[2] == fill(5, size(y))
 end
 
+# an argument named `func`, the name of the generated self-argument in 1.18.8 (#334)
+f_func(func, x) = func(sum(4x))
+
+function ChainRulesCore.rrule(::typeof(f_func), func, x)
+    pb_f_func(Δ) = (NoTangent(), NoTangent(), fill(3 * Δ, size(x)))
+    return f_func(func, x), pb_f_func
+end
+
+ReverseDiff.@grad_from_chainrules f_func(func, x::ReverseDiff.TrackedArray)
+
+@testset "argument named func" begin
+    x = rand(3, 3)
+    @test ReverseDiff.gradient(x -> f_func(identity, x), x) == fill(3, size(x))
+end
+
 @testset "invalid signatures" begin
     @test_throws "has to be applied to a function signature" @eval ReverseDiff.@grad_from_chainrules f_where
     @test_throws "at least one positional argument" @eval ReverseDiff.@grad_from_chainrules f_where()
