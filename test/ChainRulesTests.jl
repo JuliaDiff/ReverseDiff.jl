@@ -561,9 +561,10 @@ ReverseDiff.@grad_from_chainrules f_names(
 
 @testset "argument names" begin
     x, y, z = rand(3, 3), rand(3, 3), rand(3, 3)
-    results = ReverseDiff.gradient((x, y) -> f_names(x, y, z), (x, y))
+    results = ReverseDiff.gradient(f_names, (x, y, z))
     @test results[1] == fill(3, size(x))
     @test results[2] == fill(5, size(y))
+    @test results[3] == fill(7, size(z))
 end
 
 @testset "invalid signatures" begin
