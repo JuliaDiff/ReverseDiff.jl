@@ -372,6 +372,16 @@ ReverseDiff.@grad function k_zero(x, y)
     return sum(4xv) + sum(4yv), pb_k_zero
 end
 
+l_zero(x, y) = sum(4x) + sum(4y)
+function l_zero(x::ReverseDiff.TrackedArray, y::ReverseDiff.TrackedArray)
+    return ReverseDiff.track(l_zero, x, y)
+end
+ReverseDiff.@grad function l_zero(x, y)
+    xv, yv = ReverseDiff.value(x), ReverseDiff.value(y)
+    pb_l_zero(Δ) = (fill(3 * Δ, size(xv)), NoTangent())
+    return sum(4xv) + sum(4yv), pb_l_zero
+end
+
 h_zero_vec(z) = h_zero(z[1], z[2])
 
 @testset "zero tangents for tracked arguments" begin
@@ -386,6 +396,11 @@ h_zero_vec(z) = h_zero(z[1], z[2])
 
     # `nothing` from a `@grad` pullback
     results = ReverseDiff.gradient(k_zero, (x, y))
+    @test results[1] == fill(3, size(x))
+    @test results[2] == zeros(size(y))
+
+    # `NoTangent()` from a `@grad` pullback
+    results = ReverseDiff.gradient(l_zero, (x, y))
     @test results[1] == fill(3, size(x))
     @test results[2] == zeros(size(y))
 end
