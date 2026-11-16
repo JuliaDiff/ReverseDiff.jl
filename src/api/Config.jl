@@ -168,3 +168,17 @@ function HessianConfig(result::DiffResult, input::AbstractArray, gtp::Instructio
     gcfg = GradientConfig(jcfg.input, gtp)
     return HessianConfig(gcfg, jcfg)
 end
+
+############
+# deepcopy #
+############
+
+# nothing records onto the tapes of a config between calls, so a copy gets copies of them,
+# and its tracked values move onto these copies
+function Base.deepcopy_internal(cfg::AbstractConfig, dict::IdDict)
+    foreach(tp -> Base.deepcopy_internal(tp, dict), config_tapes(cfg))
+    return invoke(Base.deepcopy_internal, Tuple{Any, IdDict}, cfg, dict)
+end
+
+config_tapes(cfg::Union{GradientConfig, JacobianConfig}) = (cfg.tape,)
+config_tapes(cfg::HessianConfig) = (cfg.gradient_config.tape, cfg.jacobian_config.tape)

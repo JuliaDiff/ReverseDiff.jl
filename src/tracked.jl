@@ -436,9 +436,9 @@ Base.size(t::TrackedArray) = size(value(t))
 Base.copy(t::TrackedArray) = t
 
 # while recording, tracked values are numbers on the tape: copying them would detach them;
-# afterwards they are copied together with their tape
+# afterwards, or if their tape is copied as well, they are copied together with their tape
 function Base.deepcopy_internal(t::Union{TrackedReal, TrackedArray}, dict::IdDict)
-    if isrecording(tape(t))
+    if isrecording(tape(t)) && !haskey(dict, tape(t))
         return t
     else
         return invoke(Base.deepcopy_internal, Tuple{Any, IdDict}, t, dict)

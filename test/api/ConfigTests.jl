@@ -73,3 +73,25 @@ cfg = HessianConfig(DiffResults.HessianResult(y), x, gtp, jtp)
 # These two act weird: work locally but fail in test mode
 #@test issimilar(cfg.gradient_config, GradientConfig(track(x, Int), gtp))
 #@test issimilar(cfg.jacobian_config, JacobianConfig(y, x, jtp))
+
+############
+# deepcopy #
+############
+
+@testset "`deepcopy` of a config is independent" begin
+    x, y = [1.0, 2.0], [3.0, 4.0]
+    I2 = [2.0 0.0; 0.0 2.0]
+    cases = (
+        (cfg -> ReverseDiff.gradient!(zeros(2), x -> sum(abs2, x), x, cfg), GradientConfig(x), [2.0, 4.0]),
+        (cfg -> ReverseDiff.gradient!((zeros(2), zeros(2)), (x, y) -> sum(x .* y), (x, y), cfg), GradientConfig((x, y)), (y, x)),
+        (cfg -> ReverseDiff.jacobian!(zeros(2, 2), x -> 2 .* x, x, cfg), JacobianConfig(x), I2),
+        (cfg -> ReverseDiff.jacobian!(zeros(2, 2), (z, x) -> (z .= 2 .* x), zeros(2), x, cfg), JacobianConfig(zeros(2), x), I2),
+        (cfg -> ReverseDiff.hessian!(zeros(2, 2), x -> sum(abs2, x), x, cfg), HessianConfig(x), I2),
+    )
+    for (run, cfg, expected) in cases
+        copied = deepcopy(cfg)
+        @test run(copied) == expected
+        @test run(cfg) == expected
+        @test run(copied) == expected
+    end
+end
