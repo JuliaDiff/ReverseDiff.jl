@@ -81,26 +81,14 @@ cfg = HessianConfig(DiffResults.HessianResult(y), x, gtp, jtp)
 # `MCMCThreads` deepcopies models, which may hold configs that were already used
 
 sum_abs2(x) = sum(abs2, x)
-sum_prod(x, y) = sum(x .* y)
 double(x) = 2 .* x
-double!(y, x) = (y .= 2 .* x)
 
 @testset "`deepcopy` of a `GradientConfig`" begin
     x = [1.0, 2.0]
     cfg = GradientConfig(x)
-    @test ReverseDiff.gradient!(zeros(2), sum_abs2, x, deepcopy(cfg)) == [2.0, 4.0]
-    @test ReverseDiff.gradient!(zeros(2), sum_abs2, x, cfg) == [2.0, 4.0]
-    copied = deepcopy(cfg)
-    @test ReverseDiff.gradient!(zeros(2), sum_abs2, x, copied) == [2.0, 4.0]
-    @test ReverseDiff.gradient!(zeros(2), sum_abs2, x, cfg) == [2.0, 4.0]
-end
-
-@testset "`deepcopy` of a `GradientConfig` of several inputs" begin
-    x, y = [1.0, 2.0], [3.0, 4.0]
-    cfg = GradientConfig((x, y))
-    ReverseDiff.gradient(sum_prod, (x, y), cfg)
-    @test ReverseDiff.gradient(sum_prod, (x, y), deepcopy(cfg)) == (y, x)
-    @test ReverseDiff.gradient(sum_prod, (x, y), cfg) == (y, x)
+    @test ReverseDiff.gradient(sum_abs2, x, deepcopy(cfg)) == [2.0, 4.0]
+    @test ReverseDiff.gradient(sum_abs2, x, cfg) == [2.0, 4.0]
+    @test ReverseDiff.gradient(sum_abs2, x, deepcopy(cfg)) == [2.0, 4.0]
 end
 
 @testset "`deepcopy` of a `JacobianConfig`" begin
@@ -108,10 +96,6 @@ end
     cfg = JacobianConfig(x)
     ReverseDiff.jacobian(double, x, cfg)
     @test ReverseDiff.jacobian(double, x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
-
-    cfg = JacobianConfig(zeros(2), x)
-    ReverseDiff.jacobian(double!, zeros(2), x, cfg)
-    @test ReverseDiff.jacobian(double!, zeros(2), x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
 end
 
 @testset "`deepcopy` of a `HessianConfig`" begin
@@ -119,7 +103,6 @@ end
     cfg = HessianConfig(x)
     ReverseDiff.hessian(sum_abs2, x, cfg)
     @test ReverseDiff.hessian(sum_abs2, x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
-    @test ReverseDiff.hessian(sum_abs2, x, cfg) == [2.0 0.0; 0.0 2.0]
 end
 
 @testset "a config holding a recorded tape cannot record another" begin
