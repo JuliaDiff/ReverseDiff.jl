@@ -23,7 +23,7 @@ function jacobian(f, input, cfg::JacobianConfig = JacobianConfig(input))
     tape = JacobianTape(f, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     result = jacobian!(tape, input)
-    empty!(tape.tape)
+    idle!(tape.tape)
     return result
 end
 
@@ -43,7 +43,7 @@ function jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input)
     tape = JacobianTape(f, input, cfg)
     isa(input, TrackedArray) && empty!(input.tape)
     result = jacobian!(result, tape, input)
-    empty!(tape.tape)
+    idle!(tape.tape)
     return result
 end
 
@@ -62,7 +62,7 @@ function jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(output
     isa(input, TrackedArray) && empty!(input.tape)
     result = jacobian!(tape, input)
     extract_result_value!(output, output_hook(tape))
-    empty!(tape.tape)
+    idle!(tape.tape)
     return result
 end
 
@@ -77,7 +77,7 @@ function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConf
     isa(input, TrackedArray) && empty!(input.tape)
     result = jacobian!(result, tape, input)
     extract_result_value!(output, output_hook(tape))
-    empty!(tape.tape)
+    idle!(tape.tape)
     return result
 end
 
