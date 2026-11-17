@@ -74,6 +74,17 @@ cfg = HessianConfig(DiffResults.HessianResult(y), x, gtp, jtp)
 #@test issimilar(cfg.gradient_config, GradientConfig(track(x, Int), gtp))
 #@test issimilar(cfg.jacobian_config, JacobianConfig(y, x, jtp))
 
+#############
+# recording #
+#############
+
+@testset "a config holding a recorded tape cannot record another" begin
+    x = [1.0, 2.0]
+    cfg = GradientConfig(x)
+    ReverseDiff.GradientTape(sum, x, cfg)
+    @test_throws ArgumentError ReverseDiff.GradientTape(sum, x, cfg)
+end
+
 ############
 # deepcopy #
 ############
@@ -103,11 +114,4 @@ end
     cfg = HessianConfig(x)
     ReverseDiff.hessian(sum_abs2, x, cfg)
     @test ReverseDiff.hessian(sum_abs2, x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
-end
-
-@testset "a config holding a recorded tape cannot record another" begin
-    x = [1.0, 2.0]
-    cfg = GradientConfig(x)
-    ReverseDiff.GradientTape(sum_abs2, x, cfg)
-    @test_throws ArgumentError ReverseDiff.GradientTape(sum_abs2, x, cfg)
 end
