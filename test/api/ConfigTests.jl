@@ -107,6 +107,7 @@ end
     cfg = JacobianConfig(x)
     ReverseDiff.jacobian(double, x, cfg)
     @test ReverseDiff.jacobian(double, x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
+    @test ReverseDiff.jacobian(double, x, cfg) == [2.0 0.0; 0.0 2.0]
 end
 
 @testset "`deepcopy` of a `HessianConfig`" begin
@@ -114,4 +115,5 @@ end
     cfg = HessianConfig(x)
     ReverseDiff.hessian(sum_abs2, x, cfg)
     @test ReverseDiff.hessian(sum_abs2, x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
+    @test ReverseDiff.hessian(sum_abs2, x, cfg) == [2.0 0.0; 0.0 2.0]
 end
