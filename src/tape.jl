@@ -70,11 +70,20 @@ end
 
 # The tape of a config is idle, i.e. finished and empty, between uses, so that a copy of the
 # config gets its own tape: only tracked values on a recording tape are kept by `deepcopy`.
-isidle(tp::InstructionTape) = !isrecording(tp) && isempty(tp.instructions)
 
-# a new tape becomes idle; a tape that something is recorded onto is left alone
+# finish a tape that has not recorded anything; tapes with recordings are left alone
 function finish_if_new!(tp::InstructionTape)
-    (@atomic tp.last) === nothing && finish!(tp)
+    if (@atomic tp.last) === nothing
+        finish!(tp)
+    end
+    return tp
+end
+
+# reopen an idle (finished and empty) tape for recording
+function reopen!(tp::InstructionTape)
+    if !isrecording(tp) && isempty(tp.instructions)
+        empty!(tp)
+    end
     return tp
 end
 
