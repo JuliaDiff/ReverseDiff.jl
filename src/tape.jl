@@ -68,6 +68,27 @@ function Base.empty!(tp::InstructionTape)
     return tp
 end
 
+# The tape of a config is idle, i.e. finished and empty, between uses, so that a copy of the
+# config gets its own tape: only tracked values on a recording tape are kept by `deepcopy`.
+
+# finish a tape that has not recorded anything; tapes with recordings are left alone
+function finish_if_new!(tp::InstructionTape)
+    if (@atomic tp.last) === nothing
+        finish!(tp)
+    end
+    return tp
+end
+
+# reopen an idle (finished and empty) tape for recording
+function reopen!(tp::InstructionTape)
+    if !isrecording(tp) && isempty(tp.instructions)
+        empty!(tp)
+    end
+    return tp
+end
+
+idle!(tp::InstructionTape) = finish!(empty!(tp))
+
 # undo the swap in `record!` so that the tape stays finished
 @noinline function throw_finished(tp::InstructionTape)
     @atomic tp.last = Finished()

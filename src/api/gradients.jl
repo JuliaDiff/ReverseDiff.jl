@@ -22,7 +22,7 @@ function gradient(f, input, cfg::GradientConfig = GradientConfig(input))
     tape = GradientTape(f, input, cfg)
     result = construct_result(input_hook(tape))
     result = seeded_reverse_pass!(result, tape)
-    empty!(cfg.tape)
+    idle!(cfg.tape)
     return result
 end
 
@@ -41,7 +41,7 @@ the returned value: `result = ReverseDiff.gradient!(result, f, input, cfg)`.
 function gradient!(result, f, input, cfg::GradientConfig = GradientConfig(input))
     tape = GradientTape(f, input, cfg)
     result = seeded_reverse_pass!(result, tape)
-    empty!(cfg.tape)
+    idle!(cfg.tape)
     return result
 end
 

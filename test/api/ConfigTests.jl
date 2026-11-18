@@ -73,3 +73,47 @@ cfg = HessianConfig(DiffResults.HessianResult(y), x, gtp, jtp)
 # These two act weird: work locally but fail in test mode
 #@test issimilar(cfg.gradient_config, GradientConfig(track(x, Int), gtp))
 #@test issimilar(cfg.jacobian_config, JacobianConfig(y, x, jtp))
+
+#############
+# recording #
+#############
+
+@testset "a config holding a recorded tape cannot record another" begin
+    x = [1.0, 2.0]
+    cfg = GradientConfig(x)
+    ReverseDiff.GradientTape(sum, x, cfg)
+    @test_throws ArgumentError ReverseDiff.GradientTape(sum, x, cfg)
+end
+
+############
+# deepcopy #
+############
+
+# `MCMCThreads` deepcopies models, which may hold configs that were already used
+
+sum_abs2(x) = sum(abs2, x)
+double(x) = 2 .* x
+
+@testset "`deepcopy` of a `GradientConfig`" begin
+    x = [1.0, 2.0]
+    cfg = GradientConfig(x)
+    @test ReverseDiff.gradient(sum_abs2, x, deepcopy(cfg)) == [2.0, 4.0]
+    @test ReverseDiff.gradient(sum_abs2, x, cfg) == [2.0, 4.0]
+    @test ReverseDiff.gradient(sum_abs2, x, deepcopy(cfg)) == [2.0, 4.0]
+end
+
+@testset "`deepcopy` of a `JacobianConfig`" begin
+    x = [1.0, 2.0]
+    cfg = JacobianConfig(x)
+    ReverseDiff.jacobian(double, x, cfg)
+    @test ReverseDiff.jacobian(double, x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
+    @test ReverseDiff.jacobian(double, x, cfg) == [2.0 0.0; 0.0 2.0]
+end
+
+@testset "`deepcopy` of a `HessianConfig`" begin
+    x = [1.0, 2.0]
+    cfg = HessianConfig(x)
+    ReverseDiff.hessian(sum_abs2, x, cfg)
+    @test ReverseDiff.hessian(sum_abs2, x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
+    @test ReverseDiff.hessian(sum_abs2, x, cfg) == [2.0 0.0; 0.0 2.0]
+end

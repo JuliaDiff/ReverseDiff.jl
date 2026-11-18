@@ -18,7 +18,7 @@ struct GradientConfig{I} <: AbstractConfig
 end
 
 # "private" convienence constructor
-_GradientConfig(input::I, tape::InstructionTape) where {I} = GradientConfig{I}(input, tape)
+_GradientConfig(input::I, tape::InstructionTape) where {I} = GradientConfig{I}(input, finish_if_new!(tape))
 
 """
     ReverseDiff.GradientConfig(input, tp::InstructionTape = InstructionTape())
@@ -63,7 +63,7 @@ struct JacobianConfig{I, O} <: AbstractConfig
 end
 
 # "private" convienence constructor
-_JacobianConfig(input::I, output::O, tape::InstructionTape) where {I, O} = JacobianConfig{I, O}(input, output, tape)
+_JacobianConfig(input::I, output::O, tape::InstructionTape) where {I, O} = JacobianConfig{I, O}(input, output, finish_if_new!(tape))
 
 """
     ReverseDiff.JacobianConfig(input, tp::InstructionTape = InstructionTape())

@@ -211,6 +211,7 @@ element type and shape as `input`.
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 """
 function GradientTape(f, input, cfg::GradientConfig = GradientConfig(input))
+    reopen!(cfg.tape)
     track!(cfg.input, input)
     tracked_ouput = f(cfg.input)
     finish!(cfg.tape)
@@ -218,6 +219,7 @@ function GradientTape(f, input, cfg::GradientConfig = GradientConfig(input))
 end
 
 function GradientTape(f, input::Tuple, cfg::GradientConfig = GradientConfig(input))
+    reopen!(cfg.tape)
     for i in eachindex(cfg.input)
         track!(cfg.input[i], input[i])
     end
@@ -243,6 +245,7 @@ element type and shape as `input`.
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
 function JacobianTape(f, input, cfg::JacobianConfig = JacobianConfig(input))
+    reopen!(cfg.tape)
     track!(cfg.input, input)
     tracked_ouput = f(cfg.input)
     finish!(cfg.tape)
@@ -250,6 +253,7 @@ function JacobianTape(f, input, cfg::JacobianConfig = JacobianConfig(input))
 end
 
 function JacobianTape(f, input::Tuple, cfg::JacobianConfig = JacobianConfig(input))
+    reopen!(cfg.tape)
     for i in eachindex(cfg.input)
         track!(cfg.input[i], input[i])
     end
@@ -271,6 +275,7 @@ element type and shape as `input`.
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
 function JacobianTape(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
+    reopen!(cfg.tape)
     track!(cfg.output, output, cfg.tape)
     track!(cfg.input, input)
     f!(cfg.output, cfg.input)
@@ -279,6 +284,7 @@ function JacobianTape(f!, output, input, cfg::JacobianConfig = JacobianConfig(ou
 end
 
 function JacobianTape(f!, output, input::Tuple, cfg::JacobianConfig = JacobianConfig(output, input))
+    reopen!(cfg.tape)
     track!(cfg.output, output, cfg.tape)
     for i in eachindex(input)
         track!(cfg.input[i], input[i])
@@ -307,6 +313,7 @@ See `ReverseDiff.hessian` for a description of acceptable types for `input`.
 function HessianTape(f, input, cfg::HessianConfig = HessianConfig(input))
     gcfg = cfg.gradient_config
     jcfg = cfg.jacobian_config
+    reopen!(jcfg.tape)
     ht = _HessianTape(f, jcfg.input, similar(deriv(gcfg.input)), jcfg.tape)
     track!(ht.input, input)
     gt = GradientTape(f, ht.input, gcfg)
