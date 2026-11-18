@@ -20,10 +20,12 @@ call.
 """
 function gradient(f, input, cfg::GradientConfig = GradientConfig(input))
     tape = GradientTape(f, input, cfg)
-    result = construct_result(input_hook(tape))
-    result = seeded_reverse_pass!(result, tape)
-    idle!(cfg.tape)
-    return result
+    try
+        result = construct_result(input_hook(tape))
+        return seeded_reverse_pass!(result, tape)
+    finally
+        idle!(cfg.tape)
+    end
 end
 
 """
@@ -40,9 +42,11 @@ the returned value: `result = ReverseDiff.gradient!(result, f, input, cfg)`.
 """
 function gradient!(result, f, input, cfg::GradientConfig = GradientConfig(input))
     tape = GradientTape(f, input, cfg)
-    result = seeded_reverse_pass!(result, tape)
-    idle!(cfg.tape)
-    return result
+    try
+        return seeded_reverse_pass!(result, tape)
+    finally
+        idle!(cfg.tape)
+    end
 end
 
 ###########################

@@ -79,15 +79,24 @@ function finish_if_new!(tp::InstructionTape)
     return tp
 end
 
-# reopen an idle (finished and empty) tape for recording
-function reopen!(tp::InstructionTape)
+idle!(tp::InstructionTape) = finish!(empty!(tp))
+
+# record `f()` onto `tp` and finish it; an idle tape is reopened, and is idle again if `f` throws
+function record_finished!(f, tp::InstructionTape)
     if !isrecording(tp) && isempty(tp.instructions)
         empty!(tp)
+        out = try
+            f()
+        catch
+            idle!(tp)
+            rethrow()
+        end
+    else
+        out = f()
     end
-    return tp
+    finish!(tp)
+    return out
 end
-
-idle!(tp::InstructionTape) = finish!(empty!(tp))
 
 # undo the swap in `record!` so that the tape stays finished
 @noinline function throw_finished(tp::InstructionTape)

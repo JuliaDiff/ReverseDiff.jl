@@ -21,10 +21,12 @@ call.
 """
 function jacobian(f, input, cfg::JacobianConfig = JacobianConfig(input))
     tape = JacobianTape(f, input, cfg)
-    isa(input, TrackedArray) && empty!(input.tape)
-    result = jacobian!(tape, input)
-    idle!(tape.tape)
-    return result
+    try
+        isa(input, TrackedArray) && empty!(input.tape)
+        return jacobian!(tape, input)
+    finally
+        idle!(cfg.tape)
+    end
 end
 
 """
@@ -41,10 +43,12 @@ the returned value: `result = ReverseDiff.jacobian!(result, f, input, cfg)`.
 """
 function jacobian!(result, f, input, cfg::JacobianConfig = JacobianConfig(input))
     tape = JacobianTape(f, input, cfg)
-    isa(input, TrackedArray) && empty!(input.tape)
-    result = jacobian!(result, tape, input)
-    idle!(tape.tape)
-    return result
+    try
+        isa(input, TrackedArray) && empty!(input.tape)
+        return jacobian!(result, tape, input)
+    finally
+        idle!(cfg.tape)
+    end
 end
 
 #########################################################
@@ -59,11 +63,14 @@ form `f!(output::AbstractArray{<:Real}, input::AbstractArray{<:Real}...)`.
 """
 function jacobian(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
     tape = JacobianTape(f!, output, input, cfg)
-    isa(input, TrackedArray) && empty!(input.tape)
-    result = jacobian!(tape, input)
-    extract_result_value!(output, output_hook(tape))
-    idle!(tape.tape)
-    return result
+    try
+        isa(input, TrackedArray) && empty!(input.tape)
+        result = jacobian!(tape, input)
+        extract_result_value!(output, output_hook(tape))
+        return result
+    finally
+        idle!(cfg.tape)
+    end
 end
 
 """
@@ -74,11 +81,14 @@ form `f!(output::AbstractArray{<:Real}, input::AbstractArray{<:Real}...)`.
 """
 function jacobian!(result, f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
     tape = JacobianTape(f!, output, input, cfg)
-    isa(input, TrackedArray) && empty!(input.tape)
-    result = jacobian!(result, tape, input)
-    extract_result_value!(output, output_hook(tape))
-    idle!(tape.tape)
-    return result
+    try
+        isa(input, TrackedArray) && empty!(input.tape)
+        result = jacobian!(result, tape, input)
+        extract_result_value!(output, output_hook(tape))
+        return result
+    finally
+        idle!(cfg.tape)
+    end
 end
 
 ###########################
