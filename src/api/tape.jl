@@ -211,20 +211,20 @@ element type and shape as `input`.
 See `ReverseDiff.gradient` for a description of acceptable types for `input`.
 """
 function GradientTape(f, input, cfg::GradientConfig = GradientConfig(input))
-    reopen!(cfg.tape)
-    track!(cfg.input, input)
-    tracked_ouput = f(cfg.input)
-    finish!(cfg.tape)
-    return _GradientTape(f, cfg.input, tracked_ouput, cfg.tape)
+    tracked_output = record_finished!(cfg.tape) do
+        track!(cfg.input, input)
+        f(cfg.input)
+    end
+    return _GradientTape(f, cfg.input, tracked_output, cfg.tape)
 end
 
 function GradientTape(f, input::Tuple, cfg::GradientConfig = GradientConfig(input))
-    reopen!(cfg.tape)
-    for i in eachindex(cfg.input)
-        track!(cfg.input[i], input[i])
+    tracked_output = record_finished!(cfg.tape) do
+        for i in eachindex(cfg.input)
+            track!(cfg.input[i], input[i])
+        end
+        f(cfg.input...)
     end
-    tracked_output = f(cfg.input...)
-    finish!(cfg.tape)
     return _GradientTape(f, cfg.input, tracked_output, cfg.tape)
 end
 
@@ -245,20 +245,20 @@ element type and shape as `input`.
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
 function JacobianTape(f, input, cfg::JacobianConfig = JacobianConfig(input))
-    reopen!(cfg.tape)
-    track!(cfg.input, input)
-    tracked_ouput = f(cfg.input)
-    finish!(cfg.tape)
-    return _JacobianTape(f, cfg.input, tracked_ouput, cfg.tape)
+    tracked_output = record_finished!(cfg.tape) do
+        track!(cfg.input, input)
+        f(cfg.input)
+    end
+    return _JacobianTape(f, cfg.input, tracked_output, cfg.tape)
 end
 
 function JacobianTape(f, input::Tuple, cfg::JacobianConfig = JacobianConfig(input))
-    reopen!(cfg.tape)
-    for i in eachindex(cfg.input)
-        track!(cfg.input[i], input[i])
+    tracked_output = record_finished!(cfg.tape) do
+        for i in eachindex(cfg.input)
+            track!(cfg.input[i], input[i])
+        end
+        f(cfg.input...)
     end
-    tracked_output = f(cfg.input...)
-    finish!(cfg.tape)
     return _JacobianTape(f, cfg.input, tracked_output, cfg.tape)
 end
 
@@ -275,22 +275,22 @@ element type and shape as `input`.
 See `ReverseDiff.jacobian` for a description of acceptable types for `input`.
 """
 function JacobianTape(f!, output, input, cfg::JacobianConfig = JacobianConfig(output, input))
-    reopen!(cfg.tape)
-    track!(cfg.output, output, cfg.tape)
-    track!(cfg.input, input)
-    f!(cfg.output, cfg.input)
-    finish!(cfg.tape)
+    record_finished!(cfg.tape) do
+        track!(cfg.output, output, cfg.tape)
+        track!(cfg.input, input)
+        f!(cfg.output, cfg.input)
+    end
     return _JacobianTape(f!, cfg.input, cfg.output, cfg.tape)
 end
 
 function JacobianTape(f!, output, input::Tuple, cfg::JacobianConfig = JacobianConfig(output, input))
-    reopen!(cfg.tape)
-    track!(cfg.output, output, cfg.tape)
-    for i in eachindex(input)
-        track!(cfg.input[i], input[i])
+    record_finished!(cfg.tape) do
+        track!(cfg.output, output, cfg.tape)
+        for i in eachindex(input)
+            track!(cfg.input[i], input[i])
+        end
+        f!(cfg.output, cfg.input...)
     end
-    f!(cfg.output, cfg.input...)
-    finish!(cfg.tape)
     return _JacobianTape(f!, cfg.input, cfg.output, cfg.tape)
 end
 
@@ -313,11 +313,16 @@ See `ReverseDiff.hessian` for a description of acceptable types for `input`.
 function HessianTape(f, input, cfg::HessianConfig = HessianConfig(input))
     gcfg = cfg.gradient_config
     jcfg = cfg.jacobian_config
-    reopen!(jcfg.tape)
-    ht = _HessianTape(f, jcfg.input, similar(deriv(gcfg.input)), jcfg.tape)
-    track!(ht.input, input)
-    gt = GradientTape(f, ht.input, gcfg)
-    seeded_reverse_pass!(ht.output, gt.output, gt.input, gt.tape)
-    finish!(jcfg.tape)
-    return ht
+    return record_finished!(jcfg.tape) do
+        ht = _HessianTape(f, jcfg.input, similar(deriv(gcfg.input)), jcfg.tape)
+        track!(ht.input, input)
+        gt = GradientTape(f, ht.input, gcfg)
+        # the gradient tape is only needed for recording the Hessian
+        try
+            seeded_reverse_pass!(ht.output, gt.output, gt.input, gt.tape)
+        finally
+            idle!(gcfg.tape)
+        end
+        ht
+    end
 end

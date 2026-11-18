@@ -117,3 +117,62 @@ end
     @test ReverseDiff.hessian(sum_abs2, x, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
     @test ReverseDiff.hessian(sum_abs2, x, cfg) == [2.0 0.0; 0.0 2.0]
 end
+
+##############
+# exceptions #
+##############
+
+# throws after some instructions were recorded
+function throw_if_large(x)
+    y = sum(abs2, x)
+    if y > 10
+        throw(DomainError(y))
+    end
+    return x
+end
+sum_abs2_if_small(x) = sum_abs2(throw_if_large(x))
+double_if_small(x) = double(throw_if_large(x))
+
+# throws in the reverse pass
+sum_failing_pullback(x) = sum(x)
+sum_failing_pullback(x::ReverseDiff.TrackedVector) = ReverseDiff.track(sum_failing_pullback, x)
+ReverseDiff.@grad function sum_failing_pullback(x::AbstractVector)
+    return sum(ReverseDiff.value(x)), Δ -> throw(DomainError(Δ))
+end
+sums_failing_pullback(x) = [sum_failing_pullback(x)]
+
+@testset "a config can be used and copied after recording throws" begin
+    small, large = [1.0, 2.0], [3.0, 4.0]
+
+    cfg = GradientConfig(small)
+    @test_throws DomainError ReverseDiff.gradient(sum_abs2_if_small, large, cfg)
+    @test ReverseDiff.gradient(sum_abs2_if_small, small, deepcopy(cfg)) == [2.0, 4.0]
+    @test ReverseDiff.gradient(sum_abs2_if_small, small, cfg) == [2.0, 4.0]
+
+    cfg = JacobianConfig(small)
+    @test_throws DomainError ReverseDiff.jacobian(double_if_small, large, cfg)
+    @test ReverseDiff.jacobian(double_if_small, small, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
+    @test ReverseDiff.jacobian(double_if_small, small, cfg) == [2.0 0.0; 0.0 2.0]
+
+    cfg = HessianConfig(small)
+    @test_throws DomainError ReverseDiff.hessian(sum_abs2_if_small, large, cfg)
+    @test_throws DomainError ReverseDiff.HessianTape(sum_abs2_if_small, large, cfg)
+    @test ReverseDiff.hessian(sum_abs2_if_small, small, deepcopy(cfg)) == [2.0 0.0; 0.0 2.0]
+    @test ReverseDiff.hessian(sum_abs2_if_small, small, cfg) == [2.0 0.0; 0.0 2.0]
+end
+
+@testset "a config can be used after the reverse pass throws" begin
+    x = [1.0, 2.0]
+
+    cfg = GradientConfig(x)
+    @test_throws DomainError ReverseDiff.gradient(sum_failing_pullback, x, cfg)
+    @test ReverseDiff.gradient(sum_abs2, x, cfg) == [2.0, 4.0]
+
+    cfg = JacobianConfig(x)
+    @test_throws DomainError ReverseDiff.jacobian(sums_failing_pullback, x, cfg)
+    @test ReverseDiff.jacobian(double, x, cfg) == [2.0 0.0; 0.0 2.0]
+
+    cfg = HessianConfig(x)
+    @test_throws DomainError ReverseDiff.HessianTape(sum_failing_pullback, x, cfg)
+    @test ReverseDiff.hessian(sum_abs2, x, cfg) == [2.0 0.0; 0.0 2.0]
+end

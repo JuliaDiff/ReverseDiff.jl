@@ -288,6 +288,26 @@ f251(x) = x .^ 2
     end
 end
 
+prod2!(y, a, b) = (y .= a .* b; y)
+
+@testset "`f!(y, a, b)`" begin
+    a, b = [1.0, 2.0], [3.0, 4.0]
+    Ja, Jb = [3.0 0.0; 0.0 4.0], [1.0 0.0; 0.0 2.0]
+
+    y = zeros(2)
+    @test ReverseDiff.jacobian(prod2!, y, (a, b)) == (Ja, Jb)
+    @test y == [3.0, 8.0]
+
+    results = (zeros(2, 2), zeros(2, 2))
+    ReverseDiff.jacobian!(results, prod2!, zeros(2), (a, b))
+    @test results == (Ja, Jb)
+
+    tape = ReverseDiff.JacobianTape(prod2!, zeros(2), (zeros(2), zeros(2)))
+    for t in (tape, ReverseDiff.compile(tape))
+        @test ReverseDiff.jacobian!(t, (a, b)) == (Ja, Jb)
+    end
+end
+
 @testset "outputs whose element type is not `Real`" begin
     @test ReverseDiff.jacobian(x -> Any[2 * x[1], 3 * x[2]], [1.0, 2.0]) == [2.0 0.0; 0.0 3.0]
     @test ReverseDiff.jacobian(x -> [1.0, 2.0], rand(3)) == zeros(2, 3)
